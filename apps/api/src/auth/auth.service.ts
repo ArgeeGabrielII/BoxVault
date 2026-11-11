@@ -164,6 +164,9 @@ export class AuthService implements OnModuleDestroy {
   }
   private async authenticated(userId: string) {
     const factor = await this.db.totpFactor.findUnique({ where: { userId } });
+    const operator = await this.db.platformOperator.findUnique({ where: { userId } });
+    if (operator?.enabled && !factor?.enabledAt)
+      throw new ForbiddenException('Privileged account requires enrolled MFA');
     if (factor?.enabledAt) {
       const row = await this.db.authChallenge.create({
         data: { userId, expiresAt: new Date(Date.now() + CHALLENGE_MS) },
@@ -354,6 +357,7 @@ export class AuthService implements OnModuleDestroy {
       where: { id: principal.sessionId, userId: principal.userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    await this.hardening.audit('SESSIONS_REVOKED', principal.userId);
   }
   async startTotp(principal: AccessPrincipal) {
     // Factor enrollment requires a newly issued / recently authenticated session.
@@ -597,6 +601,60 @@ export class AuthService implements OnModuleDestroy {
       .setExpirationTime('10m').sign(cfg.key);
     await this.hardening.audit('ADMIN_STEP_UP', principal.userId);
     return { accessToken, accessExpiresIn: ACCESS_SECONDS, tokenType: 'Bearer' };
+  }
+
+  async rotateRecoveryCodes(principal: AccessPrincipal, password: unknown, code: unknown) {
+    if (typeof password !== 'string' || typeof code !== 'string' || code.length > 64) throw FAIL();
+    const user = await this.db.user.findUnique({ where: { id: principal.userId } });
+    if (!user?.passwordHash || !await argon2.verify(user.passwordHash, password)) throw FAIL();
+    const cfg = this.config();
+    const codes = Array.from({ length: 10 }, () => randomBytes(12).toString('hex'));
+    await this.db.$transaction(async tx => {
+      const factor = await tx.totpFactor.findUnique({ where: { userId: principal.userId } });
+      if (!factor?.enabledAt) throw FAIL();
+      await this.satisfyFactor(tx, principal.userId, code, factor);
+      await tx.mfaRecoveryCode.deleteMany({ where: { userId: principal.userId } });
+      await tx.mfaRecoveryCode.createMany({
+        data: codes.map(c => ({ userId: principal.userId,
+          codeHash: sha(cfg.pepper, 'recovery:' + c) })),
+      });
+      await tx.authSession.updateMany({
+        where: { userId: principal.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    await this.hardening.audit('MFA_RECOVERY_ROTATED', principal.userId);
+    return { recoveryCodes: codes, reloginRequired: true };
+  }
+
+  async listSessions(principal: AccessPrincipal) {
+    const sessions = await this.db.authSession.findMany({
+      where: { userId: principal.userId },
+      select: { id: true, createdAt: true, expiresAt: true, revokedAt: true,
+        mfaAuthenticatedAt: true },
+      orderBy: { createdAt: 'desc' }, take: 50,
+    });
+    return { sessions };
+  }
+
+  async revokeSession(principal: AccessPrincipal, sessionId: string) {
+    if (!/^[a-f0-9-]{36}$/i.test(sessionId)) throw FAIL();
+    const result = await this.db.authSession.updateMany({
+      where: { userId: principal.userId, id: sessionId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await this.hardening.audit('SESSIONS_REVOKED', principal.userId);
+    return { revoked: result.count === 1 };
+  }
+
+  async revokeOtherSessions(principal: AccessPrincipal) {
+    const { count } = await this.db.authSession.updateMany({
+      where: { userId: principal.userId, id: { not: principal.sessionId },
+        revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await this.hardening.audit('SESSIONS_REVOKED', principal.userId);
+    return { revokedCount: count };
   }
 
 }
