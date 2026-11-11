@@ -1,6 +1,6 @@
 # Authentication, Google Sign-In, MFA and Anti-Bot Controls
 
-Version 0.1 • Status: **approved direction / implementation specification**, not yet a deployed authentication service • 2026-11-11
+Version 0.2 • Status: **approved direction + partial M1 implementation (branch only)**, not deployed/production approved. See [m1-authentication-implementation.md](m1-authentication-implementation.md) for implementation and verification evidence • 2026-11-11
 
 ## Decisions
 
@@ -10,7 +10,7 @@ Version 0.1 • Status: **approved direction / implementation specification**, n
 - **Google reCAPTCHA** (or approved equivalent) protects risk-prone **public web** signup/login/reset/contact endpoints, with server verification and risk-based challenges. Do not blanket-challenge every authenticated API request.
 - CAPTCHA is **not** an authentication factor, proof of user identity, or a replacement for rate limiting.
 - All sign-in methods converge on **the same BoxVault local user ID, per-user MFA policy and tenant authorization pipeline**. Google is an identity provider, not a shortcut around existing MFA, family permissions or the active subscription.
-- The production auth system is **not implemented in the starter scaffold**. No endpoint may issue a production session until the conditions and tests below are implemented.
+- The **M1 branch** now implements a bounded password/linked-Google/TOTP/session foundation verified with disposable PostgreSQL CI, but no production auth service has been deployed. Missing onboarding, account recovery, CAPTCHA, admin MFA and audit controls remain blocking. No production session may be issued until all release requirements below are implemented and reviewed.
 
 ## User flows
 
