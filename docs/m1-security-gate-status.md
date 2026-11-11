@@ -50,3 +50,7 @@ A previous internal prototype `TenantBoundaryService` reads `AuthSession` throug
 Neon organization `org-purple-surf-16785136`, project `shiny-field-66278071`: remain on `free_v3`. Reuse existing two branches and do not enable paid extensions/add-ons, provision extra always-on compute, or change plan. GitHub Actions disposable PostgreSQL avoids spending Neon compute hours on repeated RLS tests.
 
 **Acceptance rule:** A green SQL RLS proof alone does not authorize a user-facing SaaS launch.
+
+## Internal boundary correction
+
+Replaced the prototype's refresh-token database lookup in `TenantBoundaryService` with a `VerifiedPrincipal` input. The **content runtime role is never granted access to auth/MFA tables**. A future authenticated access-token guard and separate auth-service identity must issue and validate that principal; TypeScript structure alone is not an authorization credential. See `apps/api/src/security/README.md`.
