@@ -76,3 +76,24 @@ Merged the latest `main` into the M1 **feature branch only**, preserving its Neo
 The actual NestJS authentication and MFA service is present in `apps/api/src/auth/`. See [m1-authentication-implementation.md](m1-authentication-implementation.md) for endpoint behavior and every remaining hardening gap. Google sign-in is verified for already-linked identities; first-time Google onboarding remains denied until securely implemented. Admin endpoints are fail-closed with mandatory future role/MFA enforcement.
 
 The free-tier invariant remains mandatory. Both CI jobs use disposable PostgreSQL service containers on GitHub Actions; the persistent Neon default `dev` branch is untouched.
+
+## Extended authentication hardening gates (2026-11-11)
+
+The new code lives in [m1-authentication-hardening.md](m1-authentication-hardening.md), migrations `202611110003_auth_recovery_hardening` and `202611110004_refresh_replay`, and `apps/api/src/auth/auth-hardening.service.ts`.
+
+| Additional gate | Verification required | Status |
+|---|---|---|
+| AUTH-H01 | Signup blocked until genuine recipient verifies one-time email token **and sets password**; creates exactly one owner tenant | Automated HTTP integration introduced; verify latest CI |
+| AUTH-H02 | Password reset uses one-time token, revokes old sessions, and never reveals account existence | Automated HTTP integration introduced; verify latest CI |
+| AUTH-H03 | Atomic cross-instance IP/account throttle, sensitive MFA rate caps, bounded expired-counter retention | SQL implementation; CI database checks and load testing still needed |
+| AUTH-H04 | Server validates CAPTCHA success/host/action/score/time and blocks replay/provider downtime | Mock-provider real PostgreSQL integration introduced; verify latest CI |
+| AUTH-H05 | Platform operator role distinct from tenant owner; recent verified TOTP step-up bound to *new JWT* and live session, old JWT denied | Synthetic HTTP integration introduced; verify latest CI |
+| AUTH-H06 | Rotated refresh replay revokes other sessions; self-service session listing and revocation | Synthetic HTTP integration introduced; verify latest CI |
+| AUTH-H07 | MFA recovery-code rotation/disable, password reauthentication, mandatory operator MFA | Implemented routes; additional concurrency/rate-case negative tests pending |
+| AUTH-H08 | Redacted account audit stream, separate DB role with SELECT/INSERT but **no UPDATE/DELETE** audit privileges; content runtime cannot read audit | SQL role assertion added to CI, verify latest CI |
+| OPS-H01 | Production SMTP/reCAPTCHA/Google provider credentials, secure DNS, end-to-end real-provider checks and outbox delivery monitoring | **Not configured; release blocker** |
+| OPS-H02 | Rate-limit load testing, edge/WAF controls, external tamper-evident audit archive, penetration review and key-rotation recovery drill | **Not complete; release blocker** |
+
+**Evidence rule:** Earlier M1 green CI commits do not prove the new H01-H08 checks have passed. Read the exact GitHub Actions result for the latest PR head. No real customer credentials or Neon production branches were used for these tests.
+
+No Neon Free-tier resource or plan changes were made. GitHub Actions continues to run disposable PostgreSQL 18 containers.
