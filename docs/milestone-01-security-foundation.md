@@ -44,3 +44,6 @@
 - Web and iOS UX, CAPTCHA server verification, operational secrets and phishing-resistant passkey roadmap.
 
 Related: [authentication-google-mfa-captcha.md](authentication-google-mfa-captcha.md), [family-sharing-access-control.md](family-sharing-access-control.md), [security-release-checklist.md](security-release-checklist.md).
+
+## Database authorization E2E test
+See [critical-authorization-e2e-tests.md](critical-authorization-e2e-tests.md). Real database test is written but **not yet executed or passed**; HTTP and authentication E2E remain future work.
