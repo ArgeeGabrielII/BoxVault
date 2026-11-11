@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import * as nodemailer from 'nodemailer';
-import { createHmac } from 'node:crypto';
+import { createHmac, randomInt } from 'node:crypto';
 
 const emailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function normalizeEmail(input: unknown): string | null {
@@ -36,6 +36,13 @@ export class AuthHardeningService implements OnModuleDestroy {
     const sensitive = category === 'mfa-confirm' || category === 'mfa-disable' ||
       category === 'admin-step-up' || category === 'mfa-rotate';
     const hourly = category === 'reset' || category === 'register';
+    // Probabilistic cleanup amortizes DB work across multiple API instances.
+    // Independent scheduled maintenance remains recommended for idle periods.
+    if (randomInt(512) === 0) {
+      await this.db.authRateLimit.deleteMany({
+        where: { windowEnds: { lt: new Date(Date.now() - 24 * 60 * 60_000) } },
+      });
+    }
     const now = new Date(), seconds = sensitive ? 600 : hourly ? 3600 : 60;
     const maximum = sensitive || hourly ? 5 : 10;
     const keys = [this.hash(category + ':ip:' + ip)];
