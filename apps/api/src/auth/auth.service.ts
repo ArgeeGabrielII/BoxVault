@@ -184,6 +184,35 @@ export class AuthService implements OnModuleDestroy {
     if (!user || !user.passwordHash || !verified) throw FAIL();
     return this.authenticated(user.id);
   }
+  // Linking is explicit: an authenticated, recently established BoxVault session
+  // plus a freshly verified Google ID token. Email equality does not link users.
+  async linkGoogle(principal: AccessPrincipal, idToken: unknown) {
+    const session = await this.db.authSession.findFirst({
+      where: { id: principal.sessionId, userId: principal.userId, revokedAt: null },
+    });
+    if (!session || Date.now() - session.createdAt.getTime() > 10 * 60_000 ||
+        (principal.mfaAuthenticatedAt && Date.now() - principal.mfaAuthenticatedAt.getTime() > 10 * 60_000))
+      throw new ForbiddenException('Fresh authentication required');
+    if (typeof idToken !== 'string' || idToken.length < 100 || idToken.length > 12000) throw FAIL();
+    const clients = [process.env.GOOGLE_WEB_CLIENT_ID, process.env.GOOGLE_IOS_CLIENT_ID]
+      .filter((v): v is string => !!v);
+    if (!clients.length) throw new ServiceUnavailableException('Google authentication not configured');
+    let subject: string;
+    try {
+      const ticket = await this.google.verifyIdToken({ idToken, audience: clients });
+      const claims = ticket.getPayload();
+      if (!claims || !['accounts.google.com', 'https://accounts.google.com'].includes(claims.iss) ||
+          !claims.email_verified || !claims.sub || !claims.email) throw FAIL();
+      subject = claims.sub;
+    } catch { throw FAIL(); }
+    try {
+      await this.db.authIdentity.create({
+        data: { userId: principal.userId, provider: 'GOOGLE', providerSubject: subject },
+      });
+    } catch { throw new ForbiddenException('Provider already linked'); }
+    return { linked: true, provider: 'GOOGLE' as const };
+  }
+
   async googleLogin(idToken: unknown, ip: string) {
     if (typeof idToken !== 'string' || idToken.length < 100 || idToken.length > 12000) throw FAIL();
     this.limit('google:' + ip);
