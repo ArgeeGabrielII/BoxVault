@@ -122,9 +122,9 @@ model ContainerAccessGrant {
   grantedBy   String @db.Uuid
   granteeMembership TenantMember @relation("AccessGranteeMembership", fields: [tenantId, granteeUserId], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction, map: "ContainerAccessGrant_grantee_membership_fkey")
   grantorMembership TenantMember @relation("AccessGrantorMembership", fields: [tenantId, grantedBy], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction, map: "ContainerAccessGrant_grantor_membership_fkey")
-  revokedAt   DateTime?
-  createdAt   DateTime @default(now())
-  container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  revokedAt   DateTime? @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([containerId, granteeUserId])
   @@index([tenantId, granteeUserId, revokedAt])
