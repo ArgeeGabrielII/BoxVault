@@ -259,6 +259,7 @@ model AuthSession {
   expiresAt          DateTime
   revokedAt          DateTime?
   mfaAuthenticatedAt DateTime?
+  privilegedStepUpAt DateTime?
   createdAt          DateTime  @default(now())
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
