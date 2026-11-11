@@ -157,13 +157,13 @@ jobs:
         run: |
           pnpm --filter @boxvault/api exec node --test test/captcha.integration.test.mjs
           psql -h localhost -U postgres -d boxvault_auth_ci -v ON_ERROR_STOP=1 <<'SQL'
-          DO $ BEGIN
+          DO $$ BEGIN
             IF has_table_privilege('boxvault_auth_m1','public."AuthAuditEvent"','UPDATE') OR
                has_table_privilege('boxvault_auth_m1','public."AuthAuditEvent"','DELETE') OR
                has_table_privilege('boxvault_runtime_m1','public."AuthAuditEvent"','SELECT') THEN
               RAISE EXCEPTION 'Audit trail privileges are not append-only';
             END IF;
-          END $;
+          END $$;
           SQL
       - name: Start API and enforce HTTP auth and MFA contract
         run: |
