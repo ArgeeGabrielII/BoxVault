@@ -185,7 +185,10 @@ export class AuthService implements OnModuleDestroy {
     const hash = user?.passwordHash ?? await this.fakeHash;
     let verified = false;
     try { verified = await argon2.verify(hash, password); } catch { /* fail closed */ }
-    if (!user || !user.passwordHash || !verified || !user.emailVerifiedAt) throw FAIL();
+    if (!user || !user.passwordHash || !verified || !user.emailVerifiedAt) {
+      await this.hardening.audit('LOGIN_FAILED', user?.id);
+      throw FAIL();
+    }
     const result = await this.authenticated(user.id);
     await this.hardening.audit('LOGIN_SUCCEEDED', user.id);
     return result;
@@ -298,7 +301,11 @@ export class AuthService implements OnModuleDestroy {
         if (used.count !== 1) throw FAIL();
         return challenge.userId;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    } catch (e) { if (e instanceof ServiceUnavailableException) throw e; throw FAIL(); }
+    } catch (e) {
+      if (e instanceof ServiceUnavailableException) throw e;
+      await this.hardening.audit('MFA_CHALLENGE_FAILED');
+      throw FAIL();
+    }
     const session = await this.issue(userId, true);
     await this.hardening.audit('MFA_CHALLENGE_PASSED', userId);
     return session;
