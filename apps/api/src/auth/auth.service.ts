@@ -87,6 +87,7 @@ export interface AccessPrincipal {
   sessionId: string;
   mfaAuthenticatedAt: Date | null;
   verifiedAt: Date;
+  privilegedStepUpAt: Date | null;
 }
 export interface IssuedSession {
   accessToken: string;
@@ -151,8 +152,12 @@ export class AuthService implements OnModuleDestroy {
       });
       if (!row || row.userId !== payload.sub || row.revokedAt || row.expiresAt <= new Date() ||
           (row.user.totpFactor?.enabledAt && (!row.mfaAuthenticatedAt || payload.mfa !== true))) throw FAIL();
+      const elevated = typeof payload.stepUpAt === 'number' &&
+        !!row.privilegedStepUpAt &&
+        payload.stepUpAt === row.privilegedStepUpAt.getTime();
       return { userId: row.userId, sessionId: row.id,
-        mfaAuthenticatedAt: row.mfaAuthenticatedAt, verifiedAt: new Date() };
+        mfaAuthenticatedAt: row.mfaAuthenticatedAt, verifiedAt: new Date(),
+        privilegedStepUpAt: elevated ? row.privilegedStepUpAt : null };
     } catch {
       throw FAIL();
     }
@@ -521,7 +526,8 @@ export class AuthService implements OnModuleDestroy {
     const activeSession = await this.db.authSession.findUnique({ where: { id: principal.sessionId } });
     if (!operator?.enabled || !factor?.enabledAt || !user?.emailVerifiedAt ||
         !principal.mfaAuthenticatedAt ||
-        !activeSession?.privilegedStepUpAt ||
+        !activeSession?.privilegedStepUpAt || !principal.privilegedStepUpAt ||
+        principal.privilegedStepUpAt.getTime() !== activeSession.privilegedStepUpAt.getTime() ||
         Date.now() - activeSession.privilegedStepUpAt.getTime() > 5 * 60_000) {
       await this.hardening.audit('ADMIN_ACCESS_DENIED', principal.userId);
       throw new ForbiddenException('Privileged MFA and step-up required');
@@ -556,7 +562,8 @@ export class AuthService implements OnModuleDestroy {
       return step;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     void step;
-    const accessToken = await new SignJWT({ sid: principal.sessionId, mfa: true })
+    const accessToken = await new SignJWT({ sid: principal.sessionId, mfa: true,
+      stepUpAt: now.getTime() })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).setSubject(principal.userId)
       .setIssuer(ISSUER).setAudience(AUDIENCE).setIssuedAt()
       .setExpirationTime('10m').sign(cfg.key);
