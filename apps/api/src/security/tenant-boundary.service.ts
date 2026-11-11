@@ -1,6 +1,6 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash } from 'node:crypto';
 
 // This is the narrow data-access boundary for *future* authenticated endpoints.
 // No controller currently invokes it. Keep access denied until session issuance,
@@ -43,8 +43,8 @@ export class TenantBoundaryService implements OnModuleDestroy {
     return this.prisma.$transaction(async (tx) => {
       // set_config(..., true) scopes claims to THIS transaction only.
       // No application-supplied user ID is accepted.
-      await tx.$executeRaw`SELECT set_config('app.user_id', ${session.userId}, true)`;
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+      await tx.$queryRaw`SELECT set_config('app.user_id', ${session.userId}, true)`;
+      await tx.$queryRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
       const memberships = await tx.$queryRaw<Array<{ allowed: boolean }>>`
         SELECT security.active_member(${tenantId}::uuid, ${session.userId}::uuid) AS allowed
       `;
