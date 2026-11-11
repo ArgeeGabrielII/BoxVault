@@ -1,6 +1,6 @@
 import {
   Injectable, OnModuleDestroy, ServiceUnavailableException,
-  TooManyRequestsException, UnauthorizedException,
+  HttpException, HttpStatus, UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import * as nodemailer from 'nodemailer';
@@ -50,7 +50,7 @@ export class AuthHardeningService implements OnModuleDestroy {
         RETURNING "count"
       `;
       if (!values[0] || values[0].count > maximum)
-        throw new TooManyRequestsException('Try again later');
+        throw new HttpException('Try again later', HttpStatus.TOO_MANY_REQUESTS);
     }
   }
 
