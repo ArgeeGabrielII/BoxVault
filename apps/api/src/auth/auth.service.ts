@@ -508,9 +508,11 @@ export class AuthService implements OnModuleDestroy {
     });
     const factor = await this.db.totpFactor.findUnique({ where: { userId: principal.userId } });
     const user = await this.db.user.findUnique({ where: { id: principal.userId } });
+    const activeSession = await this.db.authSession.findUnique({ where: { id: principal.sessionId } });
     if (!operator?.enabled || !factor?.enabledAt || !user?.emailVerifiedAt ||
         !principal.mfaAuthenticatedAt ||
-        Date.now() - principal.mfaAuthenticatedAt.getTime() > 5 * 60_000) {
+        !activeSession?.privilegedStepUpAt ||
+        Date.now() - activeSession.privilegedStepUpAt.getTime() > 5 * 60_000) {
       await this.hardening.audit('ADMIN_ACCESS_DENIED', principal.userId);
       throw new ForbiddenException('Privileged MFA and step-up required');
     }
@@ -538,7 +540,7 @@ export class AuthService implements OnModuleDestroy {
       const refreshed = await tx.authSession.updateMany({
         where: { id: principal.sessionId, userId: principal.userId, revokedAt: null,
           expiresAt: { gt: now } },
-        data: { mfaAuthenticatedAt: now },
+        data: { mfaAuthenticatedAt: now, privilegedStepUpAt: now },
       });
       if (refreshed.count !== 1) throw FAIL();
       return step;
