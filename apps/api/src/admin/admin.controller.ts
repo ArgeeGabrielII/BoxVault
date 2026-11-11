@@ -1,11 +1,14 @@
-import { Controller, Get, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, UseGuards, NotImplementedException } from '@nestjs/common';
 import { AccessGuard } from '../auth/access.guard';
+import { PlatformAdminGuard } from './platform-admin.guard';
 
-// No admin-role model exists yet. Never treat a tenant OWNER as a platform admin.
-// Authenticated access remains denied until independent mandatory-MFA admin guards exist.
+// Authorization is complete for this placeholder only; finance application
+// services are intentionally NOT published until they pass independent review.
 @Controller('admin')
-@UseGuards(AccessGuard)
+@UseGuards(AccessGuard, PlatformAdminGuard)
 export class AdminController {
   @Get('topups')
-  topups() { throw new ForbiddenException('Platform administrative access not provisioned'); }
+  topups() {
+    throw new NotImplementedException('Payment review service not released');
+  }
 }
