@@ -50,8 +50,8 @@ jobs:
         run: |
           psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 <<'SQL'
           DO $$ BEGIN
-            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 3 THEN
-              RAISE EXCEPTION 'Expected exactly three applied M1 migrations';
+            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 4 THEN
+              RAISE EXCEPTION 'Expected exactly four applied M1 migrations';
             END IF;
           END $$;
           SQL
@@ -96,6 +96,14 @@ jobs:
           --health-retries 10
     env:
       PORT: '4001'
+      NODE_ENV: test
+      AUTH_BOT_PROTECTION_MODE: 'off'
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: '2525'
+      SMTP_FROM: no-reply@boxvault.example.invalid
+      SMTP_ALLOW_PLAINTEXT_TEST: 'true'
+      PUBLIC_WEB_URL: http://localhost:5173
+      BOXVAULT_TEST_MAIL_FILE: /tmp/boxvault-mail-ci.txt
       BOXVAULT_API_URL: http://127.0.0.1:4001
       PGPASSWORD: ci_ephemeral_fixture_only
       DIRECT_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_auth_ci?schema=public
@@ -134,7 +142,11 @@ jobs:
           GRANT USAGE ON SCHEMA public TO boxvault_auth_m1;
           GRANT SELECT,INSERT,UPDATE,DELETE ON public."User",public."AuthIdentity",
             public."AuthSession",public."AuthChallenge",public."TotpFactor",
-            public."MfaRecoveryCode" TO boxvault_auth_m1;
+            public."MfaRecoveryCode",public."EmailActionToken",
+            public."AuthRateLimit",public."AuthAuditEvent" TO boxvault_auth_m1;
+          GRANT SELECT ON public."PlatformOperator" TO boxvault_auth_m1;
+          GRANT USAGE ON SCHEMA security TO boxvault_auth_m1;
+          GRANT EXECUTE ON FUNCTION security.bootstrap_personal_tenant(uuid,uuid,uuid) TO boxvault_auth_m1;
           SQL
       - name: Seed synthetic password identity
         run: pnpm --filter @boxvault/api exec node test/seed-auth-ci.mjs
@@ -142,9 +154,11 @@ jobs:
         run: pnpm --filter @boxvault/api build
       - name: Start API and enforce HTTP auth and MFA contract
         run: |
+          pnpm --filter @boxvault/api exec node test/smtp-fixture.mjs >/tmp/boxvault-smtp-ci.log 2>&1 &
+          smtp_pid=$!
           pnpm --filter @boxvault/api start >/tmp/boxvault-api-ci.log 2>&1 &
           api_pid=$!
-          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$api_pid" "$smtp_pid" 2>/dev/null || true' EXIT
           ready=0
           for i in $(seq 1 30); do
             if curl --silent --fail "$BOXVAULT_API_URL/api/v1/health" >/dev/null; then ready=1; break; fi
