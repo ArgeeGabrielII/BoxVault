@@ -1,0 +1,220 @@
+// Snapshot of pre-M1 Prisma schema used to build disposable CI test DBs.
+// This is NOT a production migration; once generated SQL is reviewed, commit a real baseline migration.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AuthProvider {
+  GOOGLE
+}
+
+enum MembershipRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  ACTIVE
+  EXPIRED
+  CANCELED
+}
+
+enum TopupStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+  REVERSAL
+}
+
+model User {
+  id           String         @id @default(uuid()) @db.Uuid
+  email        String         @unique
+  passwordHash String?
+  createdAt    DateTime       @default(now())
+  memberships  TenantMember[]
+  authIdentities AuthIdentity[]
+  totpFactor     TotpFactor?
+  recoveryCodes  MfaRecoveryCode[]
+  authSessions   AuthSession[]
+}
+
+model Tenant {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String
+  createdAt     DateTime       @default(now())
+  members       TenantMember[]
+  containers    Container[]
+  subscriptions Subscription[]
+  wallet        CreditWallet?
+  topups        TopupRequest[]
+}
+
+model TenantMember {
+  id        String         @id @default(uuid()) @db.Uuid
+  tenantId  String         @db.Uuid
+  userId    String         @db.Uuid
+  role      MembershipRole
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  user      User           @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+}
+
+model Container {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @db.Uuid
+  publicToken String      @unique
+  name        String
+  location    String?
+  createdAt   DateTime    @default(now())
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  items       Item[]
+  media       MediaAsset[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId])
+}
+
+model Item {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  containerId String    @db.Uuid
+  name        String
+  quantity    Int       @default(1)
+  container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId])
+
+  @@index([tenantId, containerId])
+}
+
+model MediaAsset {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  containerId String    @db.Uuid
+  objectKey   String
+  mimeType    String
+  byteSize    Int
+  container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId])
+
+  @@index([tenantId, containerId])
+}
+
+model Plan {
+  id            String         @id @default(uuid()) @db.Uuid
+  code          String         @unique
+  annualCredits Int
+  maxMembers    Int
+  maxContainers Int
+  maxStorageMb  Int
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id         String             @id @default(uuid()) @db.Uuid
+  tenantId   String             @db.Uuid
+  planId     String             @db.Uuid
+  status     SubscriptionStatus @default(INACTIVE)
+  validUntil DateTime?
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  plan       Plan               @relation(fields: [planId], references: [id])
+
+  @@index([tenantId, status])
+}
+
+model CreditWallet {
+  id         String        @id @default(uuid()) @db.Uuid
+  tenantId   String        @unique @db.Uuid
+  balance    Int           @default(0)
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  entries    CreditEntry[]
+}
+
+model CreditEntry {
+  id          String          @id @default(uuid()) @db.Uuid
+  walletId    String          @db.Uuid
+  type        LedgerEntryType
+  amount      Int
+  referenceId String          @unique
+  createdAt   DateTime        @default(now())
+  wallet      CreditWallet    @relation(fields: [walletId], references: [id])
+}
+
+model TopupRequest {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @db.Uuid
+  amountPhp   Int
+  credits     Int
+  status      TopupStatus @default(PENDING)
+  bankRef     String?
+  proofKey    String?
+  reviewedBy  String?     @db.Uuid
+  reviewedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+}
+
+ // Authentication schema foundation only. No production authentication service is implemented.
+ // All secret ciphertext must use application-level authenticated encryption and managed keys.
+model AuthIdentity {
+  id              String       @id @default(uuid()) @db.Uuid
+  userId          String       @db.Uuid
+  provider        AuthProvider
+  providerSubject String
+  createdAt       DateTime     @default(now())
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+model TotpFactor {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @unique @db.Uuid
+  secretCiphertext  String
+  encryptionKeyId   String
+  enabledAt         DateTime?
+  pendingExpiresAt  DateTime?
+  lastUsedStep      BigInt?
+  createdAt         DateTime  @default(now())
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MfaRecoveryCode {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  codeHash    String    @unique
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt])
+}
+
+model AuthSession {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @db.Uuid
+  refreshTokenHash   String    @unique
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  mfaAuthenticatedAt DateTime?
+  createdAt          DateTime  @default(now())
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+}
