@@ -101,7 +101,7 @@ model Container {
   createdAt   DateTime    @default(now())
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
   ownerUserId String      @db.Uuid
-  ownerMembership TenantMember @relation("OwnedContainerMembership", fields: [tenantId, ownerUserId], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction)
+  ownerMembership TenantMember @relation("OwnedContainerMembership", fields: [tenantId, ownerUserId], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction, map: "Container_owner_user_membership_fkey")
   shareMode   ContainerShareMode @default(PRIVATE)
   accessGrants ContainerAccessGrant[]
   items       Item[]
@@ -119,8 +119,8 @@ model ContainerAccessGrant {
   granteeUserId String @db.Uuid
   permission ContainerGrantPermission
   grantedBy   String @db.Uuid
-  granteeMembership TenantMember @relation("AccessGranteeMembership", fields: [tenantId, granteeUserId], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction)
-  grantorMembership TenantMember @relation("AccessGrantorMembership", fields: [tenantId, grantedBy], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction)
+  granteeMembership TenantMember @relation("AccessGranteeMembership", fields: [tenantId, granteeUserId], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction, map: "ContainerAccessGrant_grantee_membership_fkey")
+  grantorMembership TenantMember @relation("AccessGrantorMembership", fields: [tenantId, grantedBy], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction, map: "ContainerAccessGrant_grantor_membership_fkey")
   revokedAt   DateTime?
   createdAt   DateTime @default(now())
   container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId], onDelete: Cascade)
