@@ -409,9 +409,15 @@ export class AuthService implements OnModuleDestroy {
     return { accepted: true };
   }
 
-  async verifyEmail(token: unknown) {
-    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw FAIL();
+  async verifyEmail(token: unknown, password: unknown) {
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token) ||
+        typeof password !== 'string' || password.length < 12 || password.length > 128 ||
+        !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password))
+      throw FAIL();
     this.config();
+    // The recipient supplies a fresh password: the unverified registration
+    // password can never be used for account takeover.
+    const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
     const digest = this.hardening.tokenHash(token);
     const userId = await this.db.$transaction(async tx => {
       const row = await tx.emailActionToken.findUnique({ where: { tokenHash: digest } });
@@ -422,7 +428,7 @@ export class AuthService implements OnModuleDestroy {
       });
       if (consumed.count !== 1) throw FAIL();
       await tx.user.update({ where: { id: row.userId },
-        data: { emailVerifiedAt: new Date() } });
+        data: { emailVerifiedAt: new Date(), passwordHash } });
       // The definer function checks verified email and serializes onboarding.
       await tx.$queryRaw`SELECT security.bootstrap_personal_tenant(
         ${row.userId}::uuid, ${randomUUID()}::uuid, ${randomUUID()}::uuid
