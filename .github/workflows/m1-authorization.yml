@@ -1,0 +1,68 @@
+name: M1 Postgres Authorization Gate
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'docs/milestone-01-security-foundation.md'
+      - '.github/workflows/m1-authorization.yml'
+  workflow_dispatch:
+
+jobs:
+  authorization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: boxvault_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_ephemeral_fixture_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d boxvault_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Disposable GitHub Actions service ONLY — never Neon or customer credentials.
+      PGPASSWORD: ci_ephemeral_fixture_only
+      DATABASE_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_test?schema=public
+      DIRECT_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_test?schema=public
+      AUTHZ_ADMIN_DATABASE_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_test?schema=public
+      AUTHZ_RUNTIME_DATABASE_URL: postgresql://boxvault_runtime_m1:ci_ephemeral_runtime_only@localhost:5432/boxvault_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.18.0'
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+      - name: Generate Prisma Client
+        run: pnpm --filter @boxvault/api db:generate
+      - name: Build baseline from original Prisma schema
+        run: |
+          pnpm --filter @boxvault/api exec prisma migrate diff --from-empty --to-schema-datamodel prisma/baseline.prisma --script > /tmp/boxvault-baseline.sql
+          test -s /tmp/boxvault-baseline.sql
+      - name: Apply baseline and draft RLS migration to disposable DB
+        run: |
+          psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 -f /tmp/boxvault-baseline.sql
+          psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 -f apps/api/prisma/migrations/202611110001_m1_boundaries/migration.sql
+      - name: Provision isolated non-bypass runtime role
+        run: |
+          psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE boxvault_runtime_m1 LOGIN PASSWORD 'ci_ephemeral_runtime_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+          GRANT CONNECT ON DATABASE boxvault_test TO boxvault_runtime_m1;
+          GRANT USAGE ON SCHEMA public, security TO boxvault_runtime_m1;
+          GRANT SELECT ON public."Tenant",public."TenantMember" TO boxvault_runtime_m1;
+          GRANT SELECT,INSERT,UPDATE,DELETE ON
+            public."Container",public."ContainerAccessGrant",public."Item",public."MediaAsset"
+            TO boxvault_runtime_m1;
+          GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA security TO boxvault_runtime_m1;
+          SQL
+      - name: Execute critical SEC-00 through SEC-10 authorization tests
+        run: pnpm --filter @boxvault/api test:authz:e2e
