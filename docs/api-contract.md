@@ -1,6 +1,6 @@
 # Proposed REST API Contract
 
-Status: API design draft. **Only `GET /api/v1/health` exists in the starter scaffold.** All other routes are specifications, not implemented endpoints.
+Status: API design draft. On `main`, only `GET /api/v1/health` is implemented. On the **M1 feature branch**, partial auth/MFA routes plus authenticated `GET /containers` and `GET /containers/:id` and a deny-by-default admin `GET /admin/topups` route are implemented. Most routes below remain specifications; see [m1-authentication-implementation.md](m1-authentication-implementation.md).
 
 ## 1. Conventions
 
@@ -158,3 +158,7 @@ Approval transaction must verify request state, match amount/recipient/reference
 ## 7. Contract tests
 
 Generate negative tests for unauthenticated access, wrong tenant, revoked member, expired label, over-limit container, media URL misuse, concurrent wallet approvals, retried redemptions, malformed tokens, and subscription expiry.
+
+## M1 feature-branch route implementation (2026-11-11)
+
+The M1 feature branch currently implements `POST /auth/login`, `POST /auth/google`, `POST /auth/providers/google/link`, `POST /auth/mfa/challenges/verify`, `POST /auth/mfa/totp/setup`, `POST /auth/mfa/totp/confirm`, `POST /auth/refresh`, `POST /auth/logout`, guarded `GET /containers` and `GET /containers/:id`, plus fail-closed `GET /admin/topups`. Endpoints not listed here remain proposed. In particular, first-time registration, password reset and all customer admin-payment processing are **not yet implemented**. These endpoints have not been released to production.
