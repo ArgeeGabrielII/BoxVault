@@ -31,3 +31,15 @@ Missing URLs are a **hard failure**, not a skipped test. Do not enable this as a
 ## Production acceptance limitations
 
 Tests not yet executed in a configured PostgreSQL environment. Additional required coverage: HTTP 401/403/404 and MFA behavior after authenticated controllers exist; media signed URL issuance; aggregate/search leaks; concurrent revocation and ACL updates; role escalation through direct SQL; auth/session expiry and refresh replay; foreign-key integrity and pooled transactions; security-function ownership and GRANT restrictions. Do not merge M1 until these controls are exercised successfully.
+
+## Automated, free execution path
+
+A proposed GitHub Actions gate now exists at [M1 Postgres Authorization Gate](../.github/workflows/m1-authorization.yml). It starts **ephemeral PostgreSQL 18** on a public-repository GitHub-hosted runner; it does **not** use Neon compute, Neon credentials, or the persistent `dev` branch. The baseline is generated from `apps/api/prisma/baseline.prisma` in the runner and is followed by the draft M1 migration. It provisions a non-BYPASSRLS runtime identity and executes the Node test suite.
+
+**Execution evidence:** no successful GitHub Actions run observed as of 2026-11-11. Keep it as an unverified security gate until a real green run is inspected, and commit a real versioned baseline migration after reviewing the generated SQL.
+
+## Revoked sharing grant regression
+
+The isolated Neon `m1-security-test` branch exposed a leak: a REMOVED member could read a historical `ContainerAccessGrant` while container and child reads were blocked. The live policy was corrected in the test branch and the SQL migration changed to use `security.grant_visible` with an active membership check. SEC-06 now explicitly tests grant metadata revocation.
+
+Read-only Neon checks **passed** on the actual `public` schema using the restricted `boxvault_runtime_m1` identity: removed member saw 0 grants/containers/items/media; unauthorized tenant selection saw 0; no-context queries saw 0; and auth-session and TOTP tables were not readable by the content runtime identity. This is not the same as running the complete Node.js E2E suite.
