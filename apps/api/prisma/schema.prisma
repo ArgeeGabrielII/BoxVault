@@ -63,6 +63,7 @@ model User {
   totpFactor     TotpFactor?
   recoveryCodes  MfaRecoveryCode[]
   authSessions   AuthSession[]
+  authChallenges AuthChallenge[]
 }
 
 model Tenant {
@@ -258,4 +259,17 @@ model AuthSession {
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
+}
+
+
+// Single-purpose, short-lived, durable pre-auth TOTP challenge.
+model AuthChallenge {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, consumedAt, expiresAt])
 }
