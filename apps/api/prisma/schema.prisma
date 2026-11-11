@@ -57,6 +57,7 @@ model User {
   id           String         @id @default(uuid()) @db.Uuid
   email        String         @unique
   passwordHash String?
+  emailVerifiedAt DateTime?
   createdAt    DateTime       @default(now())
   memberships  TenantMember[]
   authIdentities AuthIdentity[]
@@ -64,6 +65,9 @@ model User {
   recoveryCodes  MfaRecoveryCode[]
   authSessions   AuthSession[]
   authChallenges AuthChallenge[]
+  emailTokens EmailActionToken[]
+  auditEvents AuthAuditEvent[]
+  platformOperator PlatformOperator?
 }
 
 model Tenant {
@@ -272,4 +276,52 @@ model AuthChallenge {
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, consumedAt, expiresAt])
+}
+
+enum EmailActionKind {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum PlatformRole {
+  PAYMENT_REVIEWER
+  OPERATIONS_ADMIN
+  SECURITY_ADMIN
+}
+
+model EmailActionToken {
+  id         String @id @default(uuid()) @db.Uuid
+  userId     String @db.Uuid
+  kind       EmailActionKind
+  tokenHash  String @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, usedAt, expiresAt])
+}
+
+model AuthRateLimit {
+  key        String @id
+  count      Int @default(0)
+  windowEnds DateTime
+}
+
+model AuthAuditEvent {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String? @db.Uuid
+  kind      String
+  occurredAt DateTime @default(now())
+  user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+}
+
+model PlatformOperator {
+  userId String @id @db.Uuid
+  role PlatformRole
+  enabled Boolean @default(false)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
