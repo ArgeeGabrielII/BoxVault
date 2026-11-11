@@ -127,8 +127,12 @@ export class AuthController {
   async refresh(@Req() req: Request, @Headers('origin') origin: string | undefined,
                 @Res({ passthrough: true }) res: Response) {
     // A strict same-origin policy is enforced in addition to SameSite cookies.
-    const allowed = (process.env.WEB_ORIGIN || 'http://localhost:5173').split(',');
-    if (origin && !allowed.includes(origin)) throw new UnauthorizedException();
+    const allowed = (process.env.WEB_ORIGIN || 'http://localhost:5173')
+      .split(',').map(value => value.trim());
+    // Cookie refresh is a browser-only credential flow: require exact Origin.
+    // Mobile refresh requires a separate Keychain/PKCE design; never silently
+    // allow absent Origin to bypass CSRF checks.
+    if (!origin || !allowed.includes(origin)) throw new UnauthorizedException();
     const raw = req.headers.cookie?.split(';').map(x => x.trim())
       .find(x => x.startsWith('boxvault_refresh='));
     const token = raw ? raw.slice('boxvault_refresh='.length) : undefined;
