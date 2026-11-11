@@ -6,6 +6,7 @@
 
 | File | Contents |
 |---|---|
+| [web-experience-seo-compliance.md](web-experience-seo-compliance.md) | Source checklist: 404, metadata, OG/favicon, robots/sitemap, alt text, responsive UX, loading/errors, confirmations, privacy/terms, cookies, analytics and above-fold CTA |
 | [family-sharing-access-control.md](family-sharing-access-control.md) | Private-by-default container sharing with selected members or all family members; ACL-aware RLS and tests |
 | [security-first-standard.md](security-first-standard.md) | Mandatory SaaS security requirements |
 | [security-release-checklist.md](security-release-checklist.md) | Production go-live security gates and negative tests |
