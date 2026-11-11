@@ -24,7 +24,7 @@ test('AUTH-HTTP-00: health check is the only public scaffold route',async()=>{
   assert.equal(r.status,200);
 });
 test('AUTH-HTTP-01: inventory access requires authenticated session (not 404)',async()=>{
-  for(const path of ['/api/v1/containers','/api/v1/tenants/11111111-1111-4111-8111-111111111111/containers']){
+  for(const path of ['/api/v1/containers','/api/v1/containers/11111111-1111-4111-8111-111111111111']){
     const r=await req(path);
     assert.equal(r.status,401,path+': missing auth MUST be rejected before inventory routing');
   }
@@ -43,7 +43,7 @@ test('AUTH-HTTP-04: unverified MFA challenge cannot issue full session',async()=
   assert.ok([400,401].includes(r.status),'MFA verification endpoint must reject invalid challenge, not be absent');
 });
 test('AUTH-HTTP-05: admin payment review requires privileged authentication',async()=>{
-  const r=await req('/api/v1/admin/payment-reviews');
+  const r=await req('/api/v1/admin/topups');
   assert.equal(r.status,401);
 });
 test('AUTH-HTTP-06: password login must not expose account enumeration',async()=>{
