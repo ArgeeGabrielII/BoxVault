@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  ACTIVE
+  EXPIRED
+  CANCELED
+}
+
+enum TopupStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+  REVERSAL
+}
+
+model User {
+  id           String         @id @default(uuid()) @db.Uuid
+  email        String         @unique
+  passwordHash String
+  createdAt    DateTime       @default(now())
+  memberships  TenantMember[]
+}
+
+model Tenant {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String
+  createdAt     DateTime       @default(now())
+  members       TenantMember[]
+  containers    Container[]
+  subscriptions Subscription[]
+  wallet        CreditWallet?
+  topups        TopupRequest[]
+}
+
+model TenantMember {
+  id        String         @id @default(uuid()) @db.Uuid
+  tenantId  String         @db.Uuid
+  userId    String         @db.Uuid
+  role      MembershipRole
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  user      User           @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+}
+
+model Container {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @db.Uuid
+  publicToken String      @unique
+  name        String
+  location    String?
+  createdAt   DateTime    @default(now())
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  items       Item[]
+  media       MediaAsset[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId])
+}
+
+model Item {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  containerId String    @db.Uuid
+  name        String
+  quantity    Int       @default(1)
+  container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId])
+
+  @@index([tenantId, containerId])
+}
+
+model MediaAsset {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  containerId String    @db.Uuid
+  objectKey   String
+  mimeType    String
+  byteSize    Int
+  container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId])
+
+  @@index([tenantId, containerId])
+}
+
+model Plan {
+  id            String         @id @default(uuid()) @db.Uuid
+  code          String         @unique
+  annualCredits Int
+  maxMembers    Int
+  maxContainers Int
+  maxStorageMb  Int
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id         String             @id @default(uuid()) @db.Uuid
+  tenantId   String             @db.Uuid
+  planId     String             @db.Uuid
+  status     SubscriptionStatus @default(INACTIVE)
+  validUntil DateTime?
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  plan       Plan               @relation(fields: [planId], references: [id])
+
+  @@index([tenantId, status])
+}
+
+model CreditWallet {
+  id         String        @id @default(uuid()) @db.Uuid
+  tenantId   String        @unique @db.Uuid
+  balance    Int           @default(0)
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  entries    CreditEntry[]
+}
+
+model CreditEntry {
+  id          String          @id @default(uuid()) @db.Uuid
+  walletId    String          @db.Uuid
+  type        LedgerEntryType
+  amount      Int
+  referenceId String          @unique
+  createdAt   DateTime        @default(now())
+  wallet      CreditWallet    @relation(fields: [walletId], references: [id])
+}
+
+model TopupRequest {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @db.Uuid
+  amountPhp   Int
+  credits     Int
+  status      TopupStatus @default(PENDING)
+  bankRef     String?
+  proofKey    String?
+  reviewedBy  String?     @db.Uuid
+  reviewedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@boxvault/assets",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./logo.svg": "./images/logo.svg",
+    "./*": "./*"
+  }
+}

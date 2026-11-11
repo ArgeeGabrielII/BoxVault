@@ -1,0 +1,14 @@
+{
+  "name": "boxvault",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.18.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @boxvault/web dev",
+    "dev:api": "pnpm --filter @boxvault/api start:dev",
+    "build": "pnpm -r --filter './apps/*' build",
+    "typecheck": "pnpm --filter @boxvault/web typecheck && pnpm --filter @boxvault/api typecheck",
+    "db:generate": "pnpm --filter @boxvault/api db:generate",
+    "db:migrate": "pnpm --filter @boxvault/api db:migrate"
+  }
+}
