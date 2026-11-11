@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Post, Req, Res, UseGuards, Headers,
+  Body, Controller, Get, Post, Delete, Param, Req, Res, UseGuards, Headers,
   UnauthorizedException, BadRequestException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
@@ -46,7 +46,9 @@ export class AuthController {
 
   @Post('verify-email')
   async verifyEmail(@Body() body: { token?: unknown; password?: unknown },
+                    @Req() req: Request,
                     @Res({ passthrough: true }) res: Response) {
+    await this.hardening.limit('verify-email', req.ip ?? 'unknown');
     res.setHeader('Cache-Control', 'no-store');
     return this.auth.verifyEmail(body?.token, body?.password);
   }
@@ -61,7 +63,9 @@ export class AuthController {
 
   @Post('password-reset/confirm')
   async resetConfirm(@Body() body: { token?: unknown; password?: unknown },
+                     @Req() req: Request,
                      @Res({ passthrough: true }) res: Response) {
+    await this.hardening.limit('reset-confirm', req.ip ?? 'unknown');
     res.setHeader('Cache-Control', 'no-store');
     return this.auth.resetPassword(body?.token, body?.password);
   }
@@ -102,6 +106,7 @@ export class AuthController {
   @Post('step-up')
   async stepUp(@Req() req: AuthedRequest, @Body() body: { code?: unknown },
                @Res({ passthrough: true }) res: Response) {
+    await this.hardening.limit('admin-step-up', req.ip ?? 'unknown', req.principal.userId);
     res.setHeader('Cache-Control', 'no-store');
     return this.auth.adminStepUp(req.principal, body?.code);
   }
@@ -111,6 +116,7 @@ export class AuthController {
   async disableMfa(@Req() req: AuthedRequest,
                    @Body() body: { password?: unknown; code?: unknown },
                    @Res({ passthrough: true }) res: Response) {
+    await this.hardening.limit('mfa-disable', req.ip ?? 'unknown', req.principal.userId);
     res.setHeader('Cache-Control', 'no-store');
     const result = await this.auth.disableTotp(req.principal, body?.password, body?.code);
     res.clearCookie('boxvault_refresh', { path: '/api/v1/auth' });
@@ -151,10 +157,49 @@ export class AuthController {
   @Post('mfa/totp/confirm')
   async confirm(@Req() req: AuthedRequest, @Body() body: { code?: unknown },
                 @Res({ passthrough: true }) res: Response) {
+    await this.hardening.limit('mfa-confirm', req.ip ?? 'unknown', req.principal.userId);
     if (!body || typeof body.code !== 'string') throw new BadRequestException();
     const result = await this.auth.confirmTotp(req.principal, body.code);
     res.clearCookie('boxvault_refresh', { path: '/api/v1/auth' });
     res.setHeader('Cache-Control', 'no-store');
     return result;
   }
+  @UseGuards(AccessGuard)
+  @Post('mfa/recovery-codes/rotate')
+  async rotateRecovery(@Req() req: AuthedRequest,
+                       @Body() body: { password?: unknown; code?: unknown },
+                       @Res({ passthrough: true }) res: Response) {
+    await this.hardening.limit('mfa-rotate', req.ip ?? 'unknown', req.principal.userId);
+    const result = await this.auth.rotateRecoveryCodes(req.principal, body?.password, body?.code);
+    res.clearCookie('boxvault_refresh', { path: '/api/v1/auth' });
+    res.setHeader('Cache-Control', 'no-store');
+    return result;
+  }
+
+  @UseGuards(AccessGuard)
+  @Get('sessions')
+  async sessions(@Req() req: AuthedRequest, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.auth.listSessions(req.principal);
+  }
+
+  @UseGuards(AccessGuard)
+  @Delete('sessions/:id')
+  async revokeSession(@Req() req: AuthedRequest, @Param('id') sessionId: string,
+                      @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    const result = await this.auth.revokeSession(req.principal, sessionId);
+    if (sessionId === req.principal.sessionId)
+      res.clearCookie('boxvault_refresh', { path: '/api/v1/auth' });
+    return result;
+  }
+
+  @UseGuards(AccessGuard)
+  @Post('sessions/revoke-others')
+  async revokeOthers(@Req() req: AuthedRequest,
+                     @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.auth.revokeOtherSessions(req.principal);
+  }
+
 }
