@@ -303,24 +303,52 @@ export class AuthService implements OnModuleDestroy {
   async refresh(refreshToken: unknown) {
     if (typeof refreshToken !== 'string' || !/^[a-zA-Z0-9_-]{64}$/.test(refreshToken)) throw FAIL();
     const cfg = this.config(), old = sha(cfg.pepper, refreshToken);
-    return this.db.$transaction(async tx => {
-      const row = await tx.authSession.findUnique({ where: { refreshTokenHash: old },
-        include: { user: { select: { totpFactor: { select: { enabledAt: true } } } } } });
-      if (!row || row.revokedAt || row.expiresAt <= new Date()) throw FAIL();
-      if (row.user.totpFactor?.enabledAt && !row.mfaAuthenticatedAt) throw FAIL();
-      const next = randomBytes(48).toString('base64url');
-      const changed = await tx.authSession.updateMany({
-        where: { id: row.id, refreshTokenHash: old, revokedAt: null },
-        data: { refreshTokenHash: sha(cfg.pepper, next) },
-      });
-      if (changed.count !== 1) throw FAIL();
-      const accessToken = await new SignJWT({ sid: row.id, mfa: !!row.mfaAuthenticatedAt })
-        .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-        .setSubject(row.userId).setIssuer(ISSUER).setAudience(AUDIENCE)
-        .setIssuedAt().setExpirationTime('10m').sign(cfg.key);
-      return { accessToken, accessExpiresIn: ACCESS_SECONDS, refreshToken: next };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    // Distinguish an unknown forged token from a previously valid ROTATED token.
+    // A replay revokes all active user sessions; do not throw inside the
+    // transaction or the security revocation would be rolled back.
+    let result: { session: IssuedSession } | { replayedUserId: string };
+    try {
+      result = await this.db.$transaction(async tx => {
+        const row = await tx.authSession.findUnique({
+          where: { refreshTokenHash: old },
+          include: { user: { select: { totpFactor: { select: { enabledAt: true } } } } },
+        });
+        if (!row) {
+          const spent = await tx.refreshTokenReuse.findUnique({ where: { tokenHash: old } });
+          if (!spent || spent.expiresAt <= new Date()) throw FAIL();
+          await tx.authSession.updateMany({
+            where: { userId: spent.userId, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+          return { replayedUserId: spent.userId };
+        }
+        if (row.revokedAt || row.expiresAt <= new Date()) throw FAIL();
+        if (row.user.totpFactor?.enabledAt && !row.mfaAuthenticatedAt) throw FAIL();
+        const next = randomBytes(48).toString('base64url');
+        const changed = await tx.authSession.updateMany({
+          where: { id: row.id, refreshTokenHash: old, revokedAt: null },
+          data: { refreshTokenHash: sha(cfg.pepper, next),
+            privilegedStepUpAt: null },
+        });
+        if (changed.count !== 1) throw FAIL();
+        await tx.refreshTokenReuse.create({
+          data: { tokenHash: old, userId: row.userId,
+            sessionId: row.id, expiresAt: row.expiresAt },
+        });
+        const accessToken = await new SignJWT({ sid: row.id, mfa: !!row.mfaAuthenticatedAt })
+          .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+          .setSubject(row.userId).setIssuer(ISSUER).setAudience(AUDIENCE)
+          .setIssuedAt().setExpirationTime('10m').sign(cfg.key);
+        return { session: { accessToken, accessExpiresIn: ACCESS_SECONDS, refreshToken: next } };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch { throw FAIL(); }
+    if ('replayedUserId' in result) {
+      await this.hardening.audit('REFRESH_REPLAY_DETECTED', result.replayedUserId);
+      throw FAIL();
+    }
+    return result.session;
   }
+
   async logout(principal: AccessPrincipal) {
     await this.db.authSession.updateMany({
       where: { id: principal.sessionId, userId: principal.userId, revokedAt: null },
