@@ -108,6 +108,34 @@ test('AUTH-HTTP-07: password session, MFA setup, one-time recovery and refresh r
   assert.equal(verify.status,201);
   const authenticated=await verify.json();
   assert.equal(typeof authenticated.accessToken,'string');
+  // Operator assignment is fixture-only: customers cannot self-grant platform role.
+  const { PrismaClient }=await import('@prisma/client');
+  const privilegedDb=new PrismaClient({datasources:{db:{url:process.env.AUTHZ_ADMIN_DATABASE_URL}}});
+  try {
+    await privilegedDb.platformOperator.create({
+      data:{userId:'70000000-0000-4000-8000-000000000001',
+        role:'PAYMENT_REVIEWER',enabled:true},
+    });
+  } finally {await privilegedDb.$disconnect();}
+  const noStep=await req('/api/v1/admin/topups','GET',authenticated.accessToken);
+  assert.equal(noStep.status,403,'MFA login without fresh TOTP step-up is not admin access');
+  // Enrollment used the first TOTP counter. The next counter must be distinct
+  // to prove replay prevention rather than artificially editing the DB.
+  await new Promise(resolve=>setTimeout(resolve,30000-Date.now()%30000+450));
+  const newCounter=Buffer.alloc(8);
+  newCounter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));
+  const hh=crypto.createHmac('sha1',Buffer.from(bytes)).update(newCounter).digest();
+  const oo=hh[hh.length-1]&15;
+  const newCode=((hh.readUInt32BE(oo)&0x7fffffff)%1000000).toString().padStart(6,'0');
+  const stepped=await req('/api/v1/auth/step-up','POST',authenticated.accessToken,{code:newCode});
+  assert.equal(stepped.status,201,'Enabled payment reviewer must complete live TOTP step-up');
+  const privileged=await stepped.json();
+  assert.equal(typeof privileged.accessToken,'string');
+  const unchanged=await req('/api/v1/admin/topups','GET',authenticated.accessToken);
+  assert.equal(unchanged.status,403,'Older access JWT must not inherit fresh step-up');
+  const gated=await req('/api/v1/admin/topups','GET',privileged.accessToken);
+  assert.equal(gated.status,501,'Privileged gate passed; payment service intentionally unreleased');
+
   const replay=await req('/api/v1/auth/mfa/challenges/verify','POST',undefined,
     {challengeId:pending.challengeId,code:result.recoveryCodes[0]});
   assert.equal(replay.status,401);
@@ -121,14 +149,39 @@ test('AUTH-HTTP-07: password session, MFA setup, one-time recovery and refresh r
   const renewed=await rotated.json();
   assert.equal(typeof renewed.accessToken,'string');
   assert.notEqual(rotated.headers.get('set-cookie')?.split(';')[0],cookie);
+  const lostStep=await req('/api/v1/admin/topups','GET',privileged.accessToken);
+  assert.equal(lostStep.status,403,'Refresh must clear privileged step-up');
+
+  // Create a separate active session before replay of an old rotated token.
+  const second=await req('/api/v1/auth/login','POST',undefined,loginPayload);
+  assert.equal(second.status,201);
+  const secondChallenge=await second.json();
+  const secondVerified=await req('/api/v1/auth/mfa/challenges/verify','POST',undefined,
+    {challengeId:secondChallenge.challengeId,code:result.recoveryCodes[1]});
+  assert.equal(secondVerified.status,201);
+  const secondSession=await secondVerified.json();
+  const sessionBeforeReplay=await req('/api/v1/admin/topups','GET',secondSession.accessToken);
+  assert.equal(sessionBeforeReplay.status,403,'Unstepped authenticated session is valid but not admin');
+
   const reuse=await fetch(new URL('/api/v1/auth/refresh',base),{
     method:'POST',headers:{cookie},redirect:'manual',
   });
   assert.equal(reuse.status,401);
+  const compromised=await req('/api/v1/admin/topups','GET',secondSession.accessToken);
+  assert.equal(compromised.status,401,'Rotated token replay must revoke other active sessions');
+  const revoked=await req('/api/v1/admin/topups','GET',renewed.accessToken);
+  assert.equal(revoked.status,401);
 
-  const logout=await req('/api/v1/auth/logout','POST',renewed.accessToken,{});
+  const third=await req('/api/v1/auth/login','POST',undefined,loginPayload);
+  assert.equal(third.status,201);
+  const thirdChallenge=await third.json();
+  const thirdVerified=await req('/api/v1/auth/mfa/challenges/verify','POST',undefined,
+    {challengeId:thirdChallenge.challengeId,code:result.recoveryCodes[2]});
+  assert.equal(thirdVerified.status,201);
+  const thirdSession=await thirdVerified.json();
+  const logout=await req('/api/v1/auth/logout','POST',thirdSession.accessToken,{});
   assert.equal(logout.status,201);
-  const afterLogout=await req('/api/v1/admin/topups','GET',renewed.accessToken);
+  const afterLogout=await req('/api/v1/admin/topups','GET',thirdSession.accessToken);
   assert.equal(afterLogout.status,401);
 });
 
