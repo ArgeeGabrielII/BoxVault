@@ -148,7 +148,8 @@ export class AuthHardeningService implements OnModuleDestroy {
   async audit(kind: string, userId?: string) {
     // Strict allowlist: no token, email, address, payload or raw IP ever persisted.
     const kinds = new Set([
-      'REGISTERED', 'EMAIL_VERIFIED', 'LOGIN_SUCCEEDED', 'GOOGLE_LOGIN',
+      'REGISTERED', 'EMAIL_VERIFIED', 'LOGIN_SUCCEEDED', 'LOGIN_FAILED',
+      'GOOGLE_LOGIN', 'GOOGLE_FAILED', 'MFA_CHALLENGE_FAILED',
       'MFA_CHALLENGE_PASSED', 'MFA_ENROLLED', 'MFA_RECOVERY_USED',
       'MFA_DISABLED', 'MFA_RECOVERY_ROTATED', 'PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET_COMPLETED',
       'SESSIONS_REVOKED', 'REFRESH_REPLAY_DETECTED', 'EMAIL_DELIVERY_FAILED', 'ADMIN_ACCESS_DENIED', 'ADMIN_ACCESS_GRANTED',
@@ -158,6 +159,16 @@ export class AuthHardeningService implements OnModuleDestroy {
     await this.db.authAuditEvent.create({
       data: { kind, ...(userId ? { userId } : {}) },
     });
+  }
+
+  async eventsForUser(userId: string) {
+    const events=await this.db.authAuditEvent.findMany({
+      where: { userId },
+      select: { kind: true, occurredAt: true },
+      orderBy: { occurredAt: 'desc' },
+      take: 50,
+    });
+    return { events };
   }
 
   tokenHash(token: string) { return this.hash('email-action:' + token); }
