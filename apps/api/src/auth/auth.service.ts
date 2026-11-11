@@ -137,7 +137,7 @@ export class AuthService implements OnModuleDestroy {
     const accessToken = await new SignJWT({ sid: row.id, mfa })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
       .setSubject(userId).setIssuer(ISSUER).setAudience(AUDIENCE)
-      .setIssuedAt().setExpirationTime(ACCESS_SECONDS)
+      .setIssuedAt().setExpirationTime('10m')
       .sign(cfg.key);
     return { accessToken, accessExpiresIn: ACCESS_SECONDS, refreshToken };
   }
@@ -308,7 +308,7 @@ export class AuthService implements OnModuleDestroy {
       const accessToken = await new SignJWT({ sid: row.id, mfa: !!row.mfaAuthenticatedAt })
         .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
         .setSubject(row.userId).setIssuer(ISSUER).setAudience(AUDIENCE)
-        .setIssuedAt().setExpirationTime(ACCESS_SECONDS).sign(cfg.key);
+        .setIssuedAt().setExpirationTime('10m').sign(cfg.key);
       return { accessToken, accessExpiresIn: ACCESS_SECONDS, refreshToken: next };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
