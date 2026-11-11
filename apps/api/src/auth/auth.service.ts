@@ -434,7 +434,7 @@ export class AuthService implements OnModuleDestroy {
       // The definer function checks verified email and serializes onboarding.
       await tx.$queryRaw`SELECT security.bootstrap_personal_tenant(
         ${row.userId}::uuid, ${randomUUID()}::uuid, ${randomUUID()}::uuid
-      )`;
+      )::text AS provisioned`;
       return row.userId;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     await this.hardening.audit('EMAIL_VERIFIED', userId);
