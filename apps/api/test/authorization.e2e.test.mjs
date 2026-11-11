@@ -128,12 +128,26 @@ test('SEC-09: non-owner with read permission cannot widen sharing',async()=>{
   const modified=await scoped(u.viewer,t.a,tx=>tx.$executeRawUnsafe('UPDATE "Container" SET "shareMode"=$1::"ContainerShareMode" WHERE id=$2::uuid','ALL_FAMILY',c.selected));
   assert.equal(modified,0);
 });
-test('SEC-10: family editor may edit items but cannot transfer ownership or change sharing',async()=>{
+test('SEC-10: ACTIVE family editor cannot transfer ownership or widen sharing',async()=>{
   assert.ok(seeded);
-  const changed=await scoped(u.editor,t.a,tx=>tx.$executeRawUnsafe('UPDATE "Container" SET "shareMode"=$1::"ContainerShareMode" WHERE id=$2::uuid','PRIVATE',c.family));
-  assert.equal(changed,0,'editor reclassified another user container');
-  const ownership=await scoped(u.editor,t.a,tx=>tx.$executeRawUnsafe('UPDATE "Container" SET "ownerUserId"=$1::uuid WHERE id=$2::uuid',u.editor,c.family));
-  assert.equal(ownership,0,'editor stole ownership of shared container');
+  const key={tenantId_userId:{tenantId:t.a,userId:u.editor}};
+  await admin.tenantMember.update({where:key,data:{status:'ACTIVE'}});
+  try {
+    assert.equal(await canSee(u.editor,t.a,'Container',c.family),true,
+      'active editor must see shared family container before escalation checks');
+    assert.equal(await changeQty(u.editor,t.a,item.family),1,
+      'active editor must have real item edit permission before escalation checks');
+    const changed=await scoped(u.editor,t.a,tx=>tx.$executeRawUnsafe(
+      'UPDATE "Container" SET "shareMode"=$1::"ContainerShareMode" WHERE id=$2::uuid',
+      'PRIVATE',c.family));
+    assert.equal(changed,0,'active editor reclassified another user container');
+    const ownership=await scoped(u.editor,t.a,tx=>tx.$executeRawUnsafe(
+      'UPDATE "Container" SET "ownerUserId"=$1::uuid WHERE id=$2::uuid',
+      u.editor,c.family));
+    assert.equal(ownership,0,'active editor stole ownership of shared container');
+  } finally {
+    await admin.tenantMember.update({where:key,data:{status:'REMOVED'}});
+  }
 });
 after(async()=>{
   try{
