@@ -45,10 +45,10 @@ export class AuthController {
   }
 
   @Post('verify-email')
-  async verifyEmail(@Body() body: { token?: unknown },
+  async verifyEmail(@Body() body: { token?: unknown; password?: unknown },
                     @Res({ passthrough: true }) res: Response) {
     res.setHeader('Cache-Control', 'no-store');
-    return this.auth.verifyEmail(body?.token);
+    return this.auth.verifyEmail(body?.token, body?.password);
   }
 
   @Post('password-reset/request')
