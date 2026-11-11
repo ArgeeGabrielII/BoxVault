@@ -29,6 +29,8 @@ jobs:
         run: cd apps/api && pnpm exec prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > generated-m1-baseline.sql
       - name: Confirm output is nonempty
         run: test -s apps/api/generated-m1-baseline.sql
+      - name: Print generated SQL for security review
+        run: cat apps/api/generated-m1-baseline.sql
       - name: Upload generated SQL for security review
         uses: actions/upload-artifact@v4
         with:
