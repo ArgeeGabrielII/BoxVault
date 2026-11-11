@@ -1,10 +1,24 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
-import { createHash } from 'node:crypto';
 
-// This is the narrow data-access boundary for *future* authenticated endpoints.
-// No controller currently invokes it. Keep access denied until session issuance,
-// rate limiting and MFA challenge verification have shipped.
+/**
+ * This capability must be created ONLY after the authentication guard has
+ * verified a signed, unexpired access credential and live session status
+ * using a separate least-privileged authentication service/database identity.
+ *
+ * Never accept VerifiedPrincipal from request JSON, headers, or query params.
+ * No real issuer/guard exists yet; do NOT expose inventory controllers.
+ */
+export interface VerifiedPrincipal {
+  readonly userId: string;
+  readonly sessionId: string;
+  readonly verifiedAt: Date;
+}
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// Content queries are strictly restricted to the runtime DB identity.
+// It must not have SELECT access to AuthSession, TotpFactor or recovery codes.
 @Injectable()
 export class TenantBoundaryService implements OnModuleDestroy {
   private readonly prisma = new PrismaClient();
@@ -13,45 +27,37 @@ export class TenantBoundaryService implements OnModuleDestroy {
     await this.prisma.$disconnect();
   }
 
-  // A session bearer is a secret: never log or persist raw values.
-  // Session hashes require the same deployment pepper used at issuance time.
-  private digest(raw: string): string {
-    const pepper = process.env.AUTH_SESSION_PEPPER;
-    if (!pepper || pepper.length < 32) throw new Error('Session pepper is not configured');
-    return createHash('sha256').update(pepper).update('\0').update(raw).digest('hex');
-  }
-
   async withAuthorizedTenant<T>(
-    sessionBearer: string,
+    principal: VerifiedPrincipal,
     tenantId: string,
     operation: (tx: Prisma.TransactionClient, userId: string) => Promise<T>,
   ): Promise<T> {
-    if (!/^[0-9a-fA-F-]{36}$/.test(tenantId)) throw new Error('Invalid tenant identifier');
-    if (!sessionBearer || sessionBearer.length < 32 || sessionBearer.length > 512) {
+    if (!principal || !uuidPattern.test(principal.userId) ||
+        !uuidPattern.test(principal.sessionId) ||
+        !(principal.verifiedAt instanceof Date) ||
+        !Number.isFinite(principal.verifiedAt.getTime())) {
       throw new Error('Authentication required');
     }
-    const now = new Date();
-    // The auth repository must have tightly scoped access to AuthSession.
-    // Admin/finance sessions must be separately classified before production.
-    const session = await this.prisma.authSession.findUnique({
-      where: { refreshTokenHash: this.digest(sessionBearer) },
-      select: { userId: true, revokedAt: true, expiresAt: true },
-    });
-    if (!session || session.revokedAt || session.expiresAt <= now) {
-      throw new Error('Authentication required');
-    }
-    return this.prisma.$transaction(async (tx) => {
-      // set_config(..., true) scopes claims to THIS transaction only.
-      // No application-supplied user ID is accepted.
-      await tx.$queryRaw`SELECT set_config('app.user_id', ${session.userId}, true)`;
+    if (!uuidPattern.test(tenantId)) throw new Error('Invalid tenant identifier');
+
+    // Fail closed for stale/invalid principal contexts. An actual AuthGuard
+    // must validate session revocation, expiry, MFA and token issuer before
+    // constructing the verified principal. This check alone is not AuthN.
+    const age = Date.now() - principal.verifiedAt.getTime();
+    if (age < -30_000 || age > 60_000) throw new Error('Authentication required');
+
+    return this.prisma.$transaction(async tx => {
+      // In this *same* transaction: no pooled connection can retain another
+      // user's context after commit or rollback.
+      await tx.$queryRaw`SELECT set_config('app.user_id', ${principal.userId}, true)`;
       await tx.$queryRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-      const memberships = await tx.$queryRaw<Array<{ allowed: boolean }>>`
-        SELECT security.active_member(${tenantId}::uuid, ${session.userId}::uuid) AS allowed
+      const rows = await tx.$queryRaw<Array<{ allowed: boolean }>>`
+        SELECT security.active_member(${tenantId}::uuid, ${principal.userId}::uuid) AS allowed
       `;
-      if (memberships.length !== 1 || memberships[0].allowed !== true) {
+      if (rows.length !== 1 || rows[0].allowed !== true) {
         throw new Error('Access denied');
       }
-      return operation(tx, session.userId);
-    }, { maxWait: 3000, timeout: 10000 });
+      return operation(tx, principal.userId);
+    }, { maxWait: 3_000, timeout: 10_000 });
   }
 }
