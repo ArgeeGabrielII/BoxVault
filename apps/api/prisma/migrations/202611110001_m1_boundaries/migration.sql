@@ -111,11 +111,21 @@ CREATE POLICY container_select ON "Container" FOR SELECT USING
 CREATE POLICY container_insert ON "Container" FOR INSERT WITH CHECK
  ("tenantId"=security.tenant_id() AND "ownerUserId"=security.actor_id()
   AND "shareMode"='PRIVATE' AND security.member_can_edit("tenantId",security.actor_id()));
+-- Container sharing/ownership are sensitive. In M1 only the creator can
+-- mutate container metadata or delete the container. Edit-granted members can
+-- update child items/media but cannot widen sharing or take ownership.
+-- Ownership transfer requires a dedicated, audited future service path.
 CREATE POLICY container_update ON "Container" FOR UPDATE
- USING (security.container_allowed(id,"tenantId",true))
- WITH CHECK (security.container_allowed(id,"tenantId",true));
+ USING ("tenantId"=security.tenant_id()
+  AND "ownerUserId"=security.actor_id()
+  AND security.member_can_edit("tenantId",security.actor_id()))
+ WITH CHECK ("tenantId"=security.tenant_id()
+  AND "ownerUserId"=security.actor_id()
+  AND security.member_can_edit("tenantId",security.actor_id()));
 CREATE POLICY container_delete ON "Container" FOR DELETE USING
- (security.container_allowed(id,"tenantId",true));
+ ("tenantId"=security.tenant_id()
+  AND "ownerUserId"=security.actor_id()
+  AND security.member_can_edit("tenantId",security.actor_id()));
 ALTER TABLE "ContainerAccessGrant" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ContainerAccessGrant" FORCE ROW LEVEL SECURITY;
 CREATE POLICY grant_view ON "ContainerAccessGrant" FOR SELECT USING
@@ -126,8 +136,9 @@ CREATE POLICY grant_view ON "ContainerAccessGrant" FOR SELECT USING
 CREATE POLICY grant_manage_insert ON "ContainerAccessGrant" FOR INSERT WITH CHECK (
  "tenantId"=security.tenant_id() AND
  security.active_member("tenantId","granteeUserId") AND
+ "grantedBy"=security.actor_id() AND
  EXISTS (SELECT 1 FROM public."Container" b WHERE b.id="ContainerAccessGrant"."containerId"
- AND b."tenantId"="tenantId" AND b."ownerUserId"=security.actor_id()
+ AND b."tenantId"="ContainerAccessGrant"."tenantId" AND b."ownerUserId"=security.actor_id()
  AND b."shareMode"='SELECTED_MEMBERS'));
 CREATE POLICY grant_manage_update ON "ContainerAccessGrant" FOR UPDATE
  USING ("tenantId"=security.tenant_id() AND EXISTS (
