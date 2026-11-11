@@ -47,3 +47,7 @@ Related: [authentication-google-mfa-captcha.md](authentication-google-mfa-captch
 
 ## Database authorization E2E test
 See [critical-authorization-e2e-tests.md](critical-authorization-e2e-tests.md). Real database test is written but **not yet executed or passed**; HTTP and authentication E2E remain future work.
+
+## Live Neon free-tier security trial (2026-11-11)
+
+See [m1-neon-free-tier-validation.md](m1-neon-free-tier-validation.md) for an actual PostgreSQL **RLS proof-of-concept** in isolated `m1-security-test` on the project's Free plan. This verifies core policy behavior but **does not substitute** for running the real Prisma migration and Node.js DB/API E2E tests. Keep the PR in draft.
