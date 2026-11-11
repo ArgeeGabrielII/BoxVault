@@ -308,6 +308,8 @@ model AuthRateLimit {
   key        String @id
   count      Int @default(0)
   windowEnds DateTime
+
+  @@index([windowEnds])
 }
 
 model AuthAuditEvent {
