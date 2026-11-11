@@ -137,7 +137,7 @@ test('AUTH-HTTP-08: verified-email signup, personal tenant and single-use passwo
   const { PrismaClient } = await import('@prisma/client');
   const file=process.env.BOXVAULT_TEST_MAIL_FILE;
   assert.ok(file,'CI mailbox fixture is required');
-  const inbox=()=>fs.readFileSync(file,'utf8').replace(/=\r?\n/g,'');
+  const inbox=()=>fs.readFileSync(file,'utf8').replace(/=\r?\n/g,'').replace(/=3D/gi,'=');
   const getToken=(portion)=>{
     const tokens=[...portion.matchAll(/token=([A-Za-z0-9_-]{43})/g)];
     assert.ok(tokens.length>0,'Expected a real single-use SMTP-delivered token');
@@ -154,7 +154,7 @@ test('AUTH-HTTP-08: verified-email signup, personal tenant and single-use passwo
   assert.equal(unreadable.status,401,'Unverified identity must never receive a session');
   const delivered=inbox().slice(before.length);
   const verifyToken=getToken(delivered);
-  const verified=await req('/api/v1/auth/verify-email','POST',undefined,{token:verifyToken});
+  const verified=await req('/api/v1/auth/verify-email','POST',undefined,{token:verifyToken,password:original});
   assert.equal(verified.status,201);
   assert.deepEqual(await verified.json(),{verified:true});
   const reused=await req('/api/v1/auth/verify-email','POST',undefined,{token:verifyToken});
