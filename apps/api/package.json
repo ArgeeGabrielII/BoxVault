@@ -10,7 +10,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "test:authz:e2e": "node --test test/authorization.e2e.test.mjs"
+    "test:authz:e2e": "node --test test/authorization.e2e.test.mjs",
+    "test:auth-http:contract": "node --test test/authentication.http.contract.test.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
