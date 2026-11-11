@@ -46,9 +46,7 @@ ALTER TABLE "ContainerAccessGrant" ADD CONSTRAINT "ContainerAccessGrant_grantor_
 -- Runtime DB role must not have CREATE in public, BYPASSRLS, superuser, or table ownership.
 CREATE SCHEMA IF NOT EXISTS security;
 REVOKE ALL ON SCHEMA security FROM PUBLIC;
--- Functions are security definer so policies can examine memberships and grants
--- without circular RLS recursion. Own with dedicated no-login role; grant EXECUTE
--- narrowly to the app runtime role after provisioning. No untrusted search path.
+-- Security-definer helpers require a vetted dedicated no-login policy role.\n-- The migration owner must not be the runtime database role.\n-- Review function ownership and RLS recursion before applying.
 CREATE OR REPLACE FUNCTION security.actor_id() RETURNS uuid
 LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
  SELECT nullif(current_setting('app.user_id', true), '')::uuid
@@ -123,22 +121,22 @@ ALTER TABLE "ContainerAccessGrant" FORCE ROW LEVEL SECURITY;
 CREATE POLICY grant_view ON "ContainerAccessGrant" FOR SELECT USING
  ("tenantId"=security.tenant_id() AND
   (security.actor_id()="granteeUserId" OR EXISTS (
-   SELECT 1 FROM public."Container" b WHERE b.id="containerId"
-     AND b."tenantId"="tenantId" AND b."ownerUserId"=security.actor_id())));
+   SELECT 1 FROM public."Container" b WHERE b.id="ContainerAccessGrant"."containerId"
+     AND b."tenantId"="ContainerAccessGrant"."tenantId" AND b."ownerUserId"=security.actor_id())));
 CREATE POLICY grant_manage_insert ON "ContainerAccessGrant" FOR INSERT WITH CHECK (
  "tenantId"=security.tenant_id() AND
  security.active_member("tenantId","granteeUserId") AND
- EXISTS (SELECT 1 FROM public."Container" b WHERE b.id="containerId"
+ EXISTS (SELECT 1 FROM public."Container" b WHERE b.id="ContainerAccessGrant"."containerId"
  AND b."tenantId"="tenantId" AND b."ownerUserId"=security.actor_id()
  AND b."shareMode"='SELECTED_MEMBERS'));
 CREATE POLICY grant_manage_update ON "ContainerAccessGrant" FOR UPDATE
  USING ("tenantId"=security.tenant_id() AND EXISTS (
- SELECT 1 FROM public."Container" b WHERE b.id="containerId" AND b."ownerUserId"=security.actor_id()))
+ SELECT 1 FROM public."Container" b WHERE b.id="ContainerAccessGrant"."containerId" AND b."ownerUserId"=security.actor_id()))
  WITH CHECK ("tenantId"=security.tenant_id() AND EXISTS (
- SELECT 1 FROM public."Container" b WHERE b.id="containerId" AND b."ownerUserId"=security.actor_id()));
+ SELECT 1 FROM public."Container" b WHERE b.id="ContainerAccessGrant"."containerId" AND b."ownerUserId"=security.actor_id()));
 CREATE POLICY grant_manage_delete ON "ContainerAccessGrant" FOR DELETE USING
  ("tenantId"=security.tenant_id() AND EXISTS (
- SELECT 1 FROM public."Container" b WHERE b.id="containerId" AND b."ownerUserId"=security.actor_id()));
+ SELECT 1 FROM public."Container" b WHERE b.id="ContainerAccessGrant"."containerId" AND b."ownerUserId"=security.actor_id()));
 ALTER TABLE "Item" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Item" FORCE ROW LEVEL SECURITY;
 CREATE POLICY item_read ON "Item" FOR SELECT USING
