@@ -44,14 +44,23 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Generate Prisma Client
         run: pnpm --filter @boxvault/api db:generate
-      - name: Build baseline from original Prisma schema
+      - name: Apply committed Prisma migrations on disposable PostgreSQL
+        run: pnpm --filter @boxvault/api db:deploy
+      - name: Confirm migration history was recorded
         run: |
-          pnpm --filter @boxvault/api exec prisma migrate diff --from-empty --to-schema-datamodel prisma/baseline.prisma --script > /tmp/boxvault-baseline.sql
-          test -s /tmp/boxvault-baseline.sql
-      - name: Apply baseline and draft RLS migration to disposable DB
+          psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$ BEGIN
+            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 2 THEN
+              RAISE EXCEPTION 'Expected exactly two applied M1 migrations';
+            END IF;
+          END $$;
+          SQL
+      - name: Verify Prisma model has no schema drift
         run: |
-          psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 -f /tmp/boxvault-baseline.sql
-          psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 -f apps/api/prisma/migrations/202611110001_m1_boundaries/migration.sql
+          pnpm --filter @boxvault/api exec prisma migrate diff \
+            --from-url "$DIRECT_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code
       - name: Provision isolated non-bypass runtime role
         run: |
           psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 <<'SQL'
