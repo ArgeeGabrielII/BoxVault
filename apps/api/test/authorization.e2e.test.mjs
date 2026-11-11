@@ -120,6 +120,9 @@ test('SEC-06: removed member immediately loses ACL, box and child access',async(
   await admin.tenantMember.update({where:{tenantId_userId:{tenantId:t.a,userId:u.editor}},data:{status:'REMOVED'}});
   for(const [table,rid] of [['Container',c.family],['Container',c.selected],['Item',item.selected],['MediaAsset',media.selected]])
     assert.equal(await canSee(u.editor,t.a,table,rid),false,table+' leaked after removal');
+  assert.equal(await canSee(u.editor,t.a,'ContainerAccessGrant',
+    (await admin.containerAccessGrant.findFirstOrThrow({where:{tenantId:t.a,granteeUserId:u.editor},select:{id:true}})).id),false,
+    'revoked member leaked historical grant metadata');
 });
 test('SEC-07: unauthenticated/missing tenant claims fail closed',async()=>{
   assert.ok(seeded);
