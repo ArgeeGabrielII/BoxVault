@@ -128,6 +128,13 @@ test('SEC-09: non-owner with read permission cannot widen sharing',async()=>{
   const modified=await scoped(u.viewer,t.a,tx=>tx.$executeRawUnsafe('UPDATE "Container" SET "shareMode"=$1::"ContainerShareMode" WHERE id=$2::uuid','ALL_FAMILY',c.selected));
   assert.equal(modified,0);
 });
+test('SEC-10: family editor may edit items but cannot transfer ownership or change sharing',async()=>{
+  assert.ok(seeded);
+  const changed=await scoped(u.editor,t.a,tx=>tx.$executeRawUnsafe('UPDATE "Container" SET "shareMode"=$1::"ContainerShareMode" WHERE id=$2::uuid','PRIVATE',c.family));
+  assert.equal(changed,0,'editor reclassified another user container');
+  const ownership=await scoped(u.editor,t.a,tx=>tx.$executeRawUnsafe('UPDATE "Container" SET "ownerUserId"=$1::uuid WHERE id=$2::uuid',u.editor,c.family));
+  assert.equal(ownership,0,'editor stole ownership of shared container');
+});
 after(async()=>{
   try{
     const filter={tenantId:{in:Object.values(t)}};
