@@ -6,6 +6,9 @@
 
 | File | Contents |
 |---|---|
+| [family-sharing-access-control.md](family-sharing-access-control.md) | Private-by-default container sharing with selected members or all family members; ACL-aware RLS and tests |
+| [security-first-standard.md](security-first-standard.md) | Mandatory SaaS security requirements |
+| [security-release-checklist.md](security-release-checklist.md) | Production go-live security gates and negative tests |
 | [product-requirements.md](product-requirements.md) | Users, roles, all feature requirements, workflows, MVP and acceptance criteria |
 | [solution-architecture.md](solution-architecture.md) | Monorepo, component boundaries, iOS/web/backend integration, QR/NFC and media architecture |
 | [data-model.md](data-model.md) | Entities, relations, constraints, tenancy, migration strategy and retention |
@@ -24,6 +27,7 @@
 - Target fixed customer-facing prices: **2027 through 2029**, subject to later business/legal review. Model expense inflation at **10% annually**; do not silently reprice an active term.
 - Customers buy closed-loop, non-cash-redeemable software credits through the **React web app only**, via manual bank transfer to the owner's bank QR and receipt submission; authorized administrator independently verifies receipt.
 - The **native iOS** app is for inventory, QR/NFC, and account/plan-status features only. **No purchases, pricing, credit top-ups, receipt submissions or external purchasing links/calls to action** in the iOS UI.
+- Family sharing is **private by default per container**; owners explicitly grant access to selected family members or all active members. See [family-sharing-access-control.md](family-sharing-access-control.md).
 - A subscription is owned by a **tenant** (individual or family), not a device. Family members have distinct user accounts.
 - Platform administrators may access account/billing status and privacy-safe operational metadata, **not customer inventory content** through the admin application. The initial security model is role-restricted, **not cryptographic zero knowledge**.
 - Hosting direction: **home or hybrid** is under consideration, not final.
