@@ -1,0 +1,63 @@
+name: M1 PostgreSQL Authorization Gate
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/m1-postgres-authz.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authorization:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ephemeral_ci_only
+          POSTGRES_DB: boxvault_authz
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d boxvault_authz"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:ephemeral_ci_only@localhost:5432/boxvault_authz?schema=public
+      DIRECT_URL: postgresql://postgres:ephemeral_ci_only@localhost:5432/boxvault_authz?schema=public
+      AUTHZ_ADMIN_DATABASE_URL: postgresql://boxvault_fixture:ephemeral_fixture_only@localhost:5432/boxvault_authz?schema=public
+      AUTHZ_RUNTIME_DATABASE_URL: postgresql://boxvault_runtime_m1:ephemeral_runtime_only@localhost:5432/boxvault_authz?schema=public
+      PGPASSWORD: ephemeral_ci_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.18.0"
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm db:generate
+      - name: Apply committed baseline + M1 migrations
+        run: pnpm --filter @boxvault/api db:deploy
+      - name: Provision isolated fixture and runtime identities
+        run: |
+          psql -h localhost -U postgres -d boxvault_authz -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE boxvault_fixture LOGIN BYPASSRLS PASSWORD 'ephemeral_fixture_only';
+          CREATE ROLE boxvault_runtime_m1 LOGIN PASSWORD 'ephemeral_runtime_only';
+          GRANT CONNECT ON DATABASE boxvault_authz TO boxvault_fixture,boxvault_runtime_m1;
+          GRANT USAGE ON SCHEMA public TO boxvault_fixture,boxvault_runtime_m1;
+          GRANT ALL ON ALL TABLES IN SCHEMA public TO boxvault_fixture;
+          GRANT USAGE ON SCHEMA security TO boxvault_runtime_m1;
+          GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA security TO boxvault_runtime_m1;
+          GRANT SELECT ON "Tenant","TenantMember","Container","ContainerAccessGrant","Item","MediaAsset" TO boxvault_runtime_m1;
+          GRANT INSERT,UPDATE,DELETE ON "Container","ContainerAccessGrant","Item","MediaAsset" TO boxvault_runtime_m1;
+          SQL
+      - name: Execute critical RLS authorization tests
+        run: pnpm --filter @boxvault/api test:authz:e2e
