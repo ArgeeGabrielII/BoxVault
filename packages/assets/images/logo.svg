@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="BoxVault logo">
+  <rect width="128" height="128" rx="26" fill="#153D51"/>
+  <path d="M30 47 64 29l34 18v38L64 104 30 85V47Z" fill="none" stroke="#B6E3D1" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M30 47 64 66l34-19M64 66v38" fill="none" stroke="#B6E3D1" stroke-width="7" stroke-linejoin="round"/>
+</svg>
