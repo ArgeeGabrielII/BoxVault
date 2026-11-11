@@ -1,6 +1,6 @@
 /**
  * SECURITY GATE: HTTP authentication / MFA contracts.
- * This suite is EXPECTED TO FAIL while M1 authentication routes are unimplemented.
+ * Real integration checks against isolated PostgreSQL; never accept 404 as auth success.
  * It does NOT use mocked sessions or accept 404 as a substitute for authentication.
  * Run against the started BoxVault NestJS API after building.
  */
@@ -49,4 +49,85 @@ test('AUTH-HTTP-05: admin payment review requires privileged authentication',asy
 test('AUTH-HTTP-06: password login must not expose account enumeration',async()=>{
   const r=await req('/api/v1/auth/login','POST',undefined,{email:'nonexistent@example.invalid',password:'invalid'});
   assert.ok([400,401,429].includes(r.status),'Login endpoint must reject without exposing internal data; 404 is not acceptable');
+});
+
+test('AUTH-HTTP-07: password session, MFA setup, one-time recovery and refresh rotation',async()=>{
+  const loginPayload={email:'m1-auth-test@example.invalid',password:'M1-Test-strong-password-123!'};
+  const start=await req('/api/v1/auth/login','POST',undefined,loginPayload);
+  assert.equal(start.status,201,'Valid password must authenticate');
+  const first=await start.json();
+  assert.equal(first.mfaRequired,false);
+  assert.equal(typeof first.accessToken,'string');
+  assert.equal(first.tokenType,'Bearer');
+  const firstCookie=start.headers.get('set-cookie')?.split(';')[0];
+  assert.ok(firstCookie?.startsWith('boxvault_refresh='));
+  assert.match(start.headers.get('set-cookie')??'',/httponly/i);
+  assert.match(start.headers.get('set-cookie')??'',/samesite=strict/i);
+
+  // Valid JWT is not an admin credential or proof of tenant membership.
+  const admin=await req('/api/v1/admin/topups','GET',first.accessToken);
+  assert.equal(admin.status,403);
+  const missingTenant=await req('/api/v1/containers','GET',first.accessToken);
+  assert.equal(missingTenant.status,400);
+
+  const setup=await req('/api/v1/auth/mfa/totp/setup','POST',first.accessToken,{});
+  assert.equal(setup.status,201);
+  const provisioning=await setup.json();
+  assert.match(provisioning.provisioningUri,/^otpauth:\/\/totp\//);
+  // Local synthetic code generation (no live user data).
+  const parsed=new URL(provisioning.provisioningUri);
+  const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const raw=parsed.searchParams.get('secret');
+  assert.ok(raw);
+  let bits=0,value=0;const bytes=[];
+  for(const char of raw){value=(value<<5)|alphabet.indexOf(char);bits+=5;if(bits>=8){bits-=8;bytes.push((value>>>bits)&255);}}
+  const crypto=await import('node:crypto');
+  const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));
+  const h=crypto.createHmac('sha1',Buffer.from(bytes)).update(counter).digest();
+  const offset=h[h.length-1]&15;
+  const code=((h.readUInt32BE(offset)&0x7fffffff)%1000000).toString().padStart(6,'0');
+  const confirm=await req('/api/v1/auth/mfa/totp/confirm','POST',first.accessToken,{code});
+  assert.equal(confirm.status,201);
+  const result=await confirm.json();
+  assert.equal(result.reloginRequired,true);
+  assert.equal(result.recoveryCodes.length,10);
+
+  // Enrollment invalidates all older access and refresh sessions.
+  const obsolete=await req('/api/v1/admin/topups','GET',first.accessToken);
+  assert.equal(obsolete.status,401);
+
+  const next=await req('/api/v1/auth/login','POST',undefined,loginPayload);
+  assert.equal(next.status,201);
+  const pending=await next.json();
+  assert.equal(pending.mfaRequired,true);
+  assert.equal(pending.accessToken,undefined);
+
+  // First single-use recovery code completes MFA; it cannot be replayed.
+  const verify=await req('/api/v1/auth/mfa/challenges/verify','POST',undefined,
+    {challengeId:pending.challengeId,code:result.recoveryCodes[0]});
+  assert.equal(verify.status,201);
+  const authenticated=await verify.json();
+  assert.equal(typeof authenticated.accessToken,'string');
+  const replay=await req('/api/v1/auth/mfa/challenges/verify','POST',undefined,
+    {challengeId:pending.challengeId,code:result.recoveryCodes[0]});
+  assert.equal(replay.status,401);
+  const cookie=verify.headers.get('set-cookie')?.split(';')[0];
+  assert.ok(cookie?.startsWith('boxvault_refresh='));
+
+  const rotated=await fetch(new URL('/api/v1/auth/refresh',base),{
+    method:'POST',headers:{cookie},redirect:'manual',
+  });
+  assert.equal(rotated.status,201);
+  const renewed=await rotated.json();
+  assert.equal(typeof renewed.accessToken,'string');
+  assert.notEqual(rotated.headers.get('set-cookie')?.split(';')[0],cookie);
+  const reuse=await fetch(new URL('/api/v1/auth/refresh',base),{
+    method:'POST',headers:{cookie},redirect:'manual',
+  });
+  assert.equal(reuse.status,401);
+
+  const logout=await req('/api/v1/auth/logout','POST',renewed.accessToken,{});
+  assert.equal(logout.status,201);
+  const afterLogout=await req('/api/v1/admin/topups','GET',renewed.accessToken);
+  assert.equal(afterLogout.status,401);
 });
