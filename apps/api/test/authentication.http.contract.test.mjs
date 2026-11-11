@@ -131,3 +131,73 @@ test('AUTH-HTTP-07: password session, MFA setup, one-time recovery and refresh r
   const afterLogout=await req('/api/v1/admin/topups','GET',renewed.accessToken);
   assert.equal(afterLogout.status,401);
 });
+
+test('AUTH-HTTP-08: verified-email signup, personal tenant and single-use password recovery',async()=>{
+  const fs=await import('node:fs');
+  const { PrismaClient } = await import('@prisma/client');
+  const file=process.env.BOXVAULT_TEST_MAIL_FILE;
+  assert.ok(file,'CI mailbox fixture is required');
+  const inbox=()=>fs.readFileSync(file,'utf8').replace(/=\r?\n/g,'');
+  const getToken=(portion)=>{
+    const tokens=[...portion.matchAll(/token=([A-Za-z0-9_-]{43})/g)];
+    assert.ok(tokens.length>0,'Expected a real single-use SMTP-delivered token');
+    return tokens.at(-1)[1];
+  };
+  const email='signup-ci-boxvault@example.invalid';
+  const original='M1-Another-Strong-Pass-123!';
+  const newer='M1-A-Different-Strong-Pass-456!';
+  const before=inbox();
+  const register=await req('/api/v1/auth/register','POST',undefined,{email,password:original});
+  assert.equal(register.status,201);
+  assert.deepEqual(await register.json(),{accepted:true});
+  const unreadable=await req('/api/v1/auth/login','POST',undefined,{email,password:original});
+  assert.equal(unreadable.status,401,'Unverified identity must never receive a session');
+  const delivered=inbox().slice(before.length);
+  const verifyToken=getToken(delivered);
+  const verified=await req('/api/v1/auth/verify-email','POST',undefined,{token:verifyToken});
+  assert.equal(verified.status,201);
+  assert.deepEqual(await verified.json(),{verified:true});
+  const reused=await req('/api/v1/auth/verify-email','POST',undefined,{token:verifyToken});
+  assert.equal(reused.status,401,'Email token must be single use');
+
+  const db=new PrismaClient({datasources:{db:{url:process.env.AUTHZ_ADMIN_DATABASE_URL}}});
+  let tenantId;
+  try {
+    const user=await db.user.findUnique({where:{email},include:{memberships:true}});
+    assert.ok(user?.emailVerifiedAt);
+    assert.equal(user.memberships.length,1,'New verified user gets one personal tenant');
+    assert.equal(user.memberships[0].role,'OWNER');
+    tenantId=user.memberships[0].tenantId;
+  } finally {await db.$disconnect();}
+
+  const login=await req('/api/v1/auth/login','POST',undefined,{email,password:original});
+  assert.equal(login.status,201);
+  const auth=await login.json();
+  assert.equal(auth.mfaRequired,false);
+  const listed=await req('/api/v1/containers?tenantId='+tenantId,'GET',auth.accessToken);
+  assert.equal(listed.status,200);
+  assert.deepEqual((await listed.json()).data,[]);
+
+  const resetBefore=inbox();
+  const sent=await req('/api/v1/auth/password-reset/request','POST',undefined,{email});
+  assert.equal(sent.status,201);
+  assert.deepEqual(await sent.json(),{accepted:true});
+  const resetToken=getToken(inbox().slice(resetBefore.length));
+  const change=await req('/api/v1/auth/password-reset/confirm','POST',undefined,
+    {token:resetToken,password:newer});
+  assert.equal(change.status,201);
+  const replay=await req('/api/v1/auth/password-reset/confirm','POST',undefined,
+    {token:resetToken,password:newer});
+  assert.equal(replay.status,401);
+  const old=await req('/api/v1/auth/login','POST',undefined,{email,password:original});
+  assert.equal(old.status,401);
+  const stale=await req('/api/v1/containers?tenantId='+tenantId,'GET',auth.accessToken);
+  assert.equal(stale.status,401,'Password reset must revoke older access sessions');
+  const fresh=await req('/api/v1/auth/login','POST',undefined,{email,password:newer});
+  assert.equal(fresh.status,201);
+  assert.equal(typeof (await fresh.json()).accessToken,'string');
+  const nonexistent=await req('/api/v1/auth/password-reset/request','POST',undefined,
+    {email:'nobody-boxvault@example.invalid'});
+  assert.equal(nonexistent.status,201);
+  assert.deepEqual(await nonexistent.json(),{accepted:true});
+});
