@@ -56,7 +56,7 @@ export class AuthHardeningService implements OnModuleDestroy {
 
   async captcha(token: unknown, action: string) {
     // The only bypass is an explicit CI/dev configuration, never production.
-    if (process.env.AUTH_BOT_PROTECTION_MODE === 'off' && process.env.NODE_ENV !== 'production')
+    if (process.env.AUTH_BOT_PROTECTION_MODE === 'off' && process.env.NODE_ENV === 'test')
       return;
     const secret = process.env.RECAPTCHA_SECRET_KEY;
     const hostname = process.env.RECAPTCHA_HOSTNAME;
@@ -104,6 +104,16 @@ export class AuthHardeningService implements OnModuleDestroy {
     if (row?.count !== 1) throw new UnauthorizedException('Bot verification failed');
   }
 
+  assertMailerConfigured() {
+    if (!process.env.SMTP_HOST || !process.env.SMTP_FROM || !process.env.PUBLIC_WEB_URL)
+      throw new ServiceUnavailableException('Email delivery is not configured');
+    const isTest = process.env.NODE_ENV === 'test' &&
+      process.env.SMTP_ALLOW_PLAINTEXT_TEST === 'true' &&
+      process.env.SMTP_HOST === '127.0.0.1';
+    if (!isTest && (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD))
+      throw new ServiceUnavailableException('Email delivery is not configured');
+  }
+
   async email(email: string, purpose: 'verify-email' | 'reset-password', token: string) {
     const host = process.env.SMTP_HOST, from = process.env.SMTP_FROM,
       origin = process.env.PUBLIC_WEB_URL;
@@ -138,7 +148,7 @@ export class AuthHardeningService implements OnModuleDestroy {
       'REGISTERED', 'EMAIL_VERIFIED', 'LOGIN_SUCCEEDED', 'GOOGLE_LOGIN',
       'MFA_CHALLENGE_PASSED', 'MFA_ENROLLED', 'MFA_RECOVERY_USED',
       'MFA_DISABLED', 'PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET_COMPLETED',
-      'SESSIONS_REVOKED', 'ADMIN_ACCESS_DENIED', 'ADMIN_ACCESS_GRANTED',
+      'SESSIONS_REVOKED', 'EMAIL_DELIVERY_FAILED', 'ADMIN_ACCESS_DENIED', 'ADMIN_ACCESS_GRANTED',
       'ADMIN_STEP_UP',
     ]);
     if (!kinds.has(kind)) throw new Error('Invalid audit event');
