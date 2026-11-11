@@ -18,6 +18,11 @@ jobs:
           version: '10.18.0'
       - name: Install
         run: pnpm install --no-frozen-lockfile
+      - name: Generate Prisma client
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/boxvault
+          DIRECT_URL: postgresql://test:test@localhost:5432/boxvault
+        run: pnpm db:generate
       - name: Typecheck
         run: pnpm typecheck
       - name: Build
