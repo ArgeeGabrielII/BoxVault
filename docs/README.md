@@ -1,6 +1,6 @@
 # BoxVault documentation
 
-> Status: **Product and technical design baseline**, 2026-11-11. Features below describe the **target application**, not deployed or completed functionality. The current scaffold contains only a health API, starter web/iOS UIs, and a preliminary Prisma schema.
+> Status: **Product and technical design baseline**, 2026-11-11. Features below describe the **target application**, not deployed or completed functionality. The `main` scaffold has a health API and starter web/iOS UIs; the M1 feature branch adds preliminary authentication/MFA and RLS-based container reads that still require security review.
 
 ## Document map
 
@@ -9,6 +9,7 @@
 | [neon-agent-skills-mcp.md](neon-agent-skills-mcp.md) | Neon agent skills, OAuth MCP project configuration, preservation policy and verification state |
 | [neon-connection.md](neon-connection.md) | Neon dev PostgreSQL configuration, pooled/direct connection strings, ChatGPT connection, secrets, RLS test prerequisites |
 | [m1-security-gate-status.md](m1-security-gate-status.md) | Milestone 1 DB/RLS/HTTP security acceptance gates, CI evidence and explicit release blockers |
+| [m1-authentication-implementation.md](m1-authentication-implementation.md) | Implemented password, Google, TOTP MFA and session services, CI tests and remaining production blockers |
 | [authentication-google-mfa-captcha.md](authentication-google-mfa-captcha.md) | Google Sign-In, optional customer TOTP MFA, mandatory admin MFA, reCAPTCHA, authentication security and implementation gates |
 | [web-experience-seo-compliance.md](web-experience-seo-compliance.md) | Source checklist: 404, metadata, OG/favicon, robots/sitemap, alt text, responsive UX, loading/errors, confirmations, privacy/terms, cookies, analytics and above-fold CTA |
 | [family-sharing-access-control.md](family-sharing-access-control.md) | Private-by-default container sharing with selected members or all family members; ACL-aware RLS and tests |
