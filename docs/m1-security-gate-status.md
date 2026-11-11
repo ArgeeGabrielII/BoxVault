@@ -61,4 +61,8 @@ The canonical M1 Prisma schema now explicitly models the three composite tenant-
 
 The API contract test follows the existing documented routes: `/api/v1/containers`, `/api/v1/containers/:id`, `/api/v1/admin/topups`, `/api/v1/auth/login`, `/api/v1/auth/google` and `/api/v1/auth/mfa/challenges/verify`. The latter two are specified in the Google/MFA design, not yet wired.
 
-**Latest verification check:** no successful workflow run was returned for the current PR head, and PR #4 remains draft; no claims of successful end-to-end tests. The pull request is currently reported non-mergeable; resolve its base-branch integration and review checks only after critical gates pass.
+**Latest verification check:** no successful workflow run was returned for the current PR head, and PR #4 remains draft; no claims of successful end-to-end tests. The pull request's branch conflict was subsequently resolved without merging into main; CI results and security acceptance remain outstanding.
+
+## Main-branch reconciliation
+
+Merged the latest `main` into the M1 **feature branch only**, preserving its Neon agent skills, project OAuth MCP configuration, non-secret env examples, and `docs/neon-connection.md`, while retaining the updated M1 Prisma/ACL/RLS schema. The `docs/README.md` index includes both Neon and security-gate documentation. GitHub now reports PR #4 as **mergeable**, but it remains **draft/unapproved** and has not been merged into `main`. No Neon cloud resources were changed by the Git merge.
