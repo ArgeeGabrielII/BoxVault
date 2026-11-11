@@ -179,6 +179,18 @@ test('AUTH-HTTP-07: password session, MFA setup, one-time recovery and refresh r
     {challengeId:thirdChallenge.challengeId,code:result.recoveryCodes[2]});
   assert.equal(thirdVerified.status,201);
   const thirdSession=await thirdVerified.json();
+  const sessions=await req('/api/v1/auth/sessions','GET',thirdSession.accessToken);
+  assert.equal(sessions.status,200);
+  const inventory=await sessions.json();
+  assert.ok(Array.isArray(inventory.sessions) && inventory.sessions.length>=3);
+  const events=await req('/api/v1/auth/security/events','GET',thirdSession.accessToken);
+  assert.equal(events.status,200);
+  const history=await events.json();
+  assert.ok(history.events.some(x=>x.kind==='MFA_ENROLLED'));
+  assert.ok(history.events.some(x=>x.kind==='REFRESH_REPLAY_DETECTED'));
+  assert.ok(history.events.every(x=>typeof x.kind==='string' && !('token' in x) && !('email' in x)));
+  const revokedOthers=await req('/api/v1/auth/sessions/revoke-others','POST',thirdSession.accessToken,{});
+  assert.equal(revokedOthers.status,201);
   const logout=await req('/api/v1/auth/logout','POST',thirdSession.accessToken,{});
   assert.equal(logout.status,201);
   const afterLogout=await req('/api/v1/admin/topups','GET',thirdSession.accessToken);
@@ -249,6 +261,12 @@ test('AUTH-HTTP-08: verified-email signup, personal tenant and single-use passwo
   const fresh=await req('/api/v1/auth/login','POST',undefined,{email,password:newer});
   assert.equal(fresh.status,201);
   assert.equal(typeof (await fresh.json()).accessToken,'string');
+  const audit=await req('/api/v1/auth/security/events','GET',
+    (await (await req('/api/v1/auth/login','POST',undefined,{email,password:newer})).json()).accessToken);
+  assert.equal(audit.status,200);
+  const recorded=await audit.json();
+  assert.ok(recorded.events.some(x=>x.kind==='EMAIL_VERIFIED'));
+  assert.ok(recorded.events.some(x=>x.kind==='PASSWORD_RESET_COMPLETED'));
   const nonexistent=await req('/api/v1/auth/password-reset/request','POST',undefined,
     {email:'nobody-boxvault@example.invalid'});
   assert.equal(nonexistent.status,201);
