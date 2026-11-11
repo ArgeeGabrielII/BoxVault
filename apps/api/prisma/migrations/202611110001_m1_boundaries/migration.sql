@@ -88,7 +88,7 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalo
 $$;
 
 CREATE OR REPLACE FUNCTION security.grant_visible(g_tenant uuid, g_container uuid, g_grantee uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog AS $
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog AS $$
  SELECT security.active_member(g_tenant, security.actor_id())
    AND g_tenant = security.tenant_id()
    AND (
@@ -97,7 +97,7 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalo
         WHERE b.id = g_container AND b."tenantId" = g_tenant
           AND b."ownerUserId" = security.actor_id())
    )
-$;
+$$;
 
 REVOKE ALL ON FUNCTION security.grant_visible(uuid,uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION security.actor_id() FROM PUBLIC;
