@@ -3,6 +3,7 @@ import {
   UnauthorizedException, ForbiddenException, HttpException, HttpStatus,
 } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { AuthHardeningService, normalizeEmail } from './auth-hardening.service';
 import { OAuth2Client } from 'google-auth-library';
 import * as argon2 from 'argon2';
 import { SignJWT, jwtVerify } from 'jose';
@@ -97,10 +98,12 @@ export class AuthService implements OnModuleDestroy {
   // Auth identity uses a distinct DB credential, not the RLS inventory credential.
   private readonly db: PrismaClient;
   private readonly google = new OAuth2Client();
-  private readonly throttle = new Map<string, { until: number; attempts: number }>();
+  private readonly hardening: AuthHardeningService;
+
   private readonly fakeHash = argon2.hash(randomBytes(32).toString('hex'), { type: argon2.argon2id });
 
-  constructor() {
+  constructor(hardening: AuthHardeningService) {
+    this.hardening = hardening;
     const url = process.env.AUTH_DATABASE_URL;
     this.db = new PrismaClient({
       datasources: { db: { url: url || 'postgresql://unconfigured:unconfigured@localhost:5432/unconfigured' } },
@@ -117,13 +120,6 @@ export class AuthService implements OnModuleDestroy {
       throw new ServiceUnavailableException('Authentication is not configured');
     }
     return { pepper, key: new TextEncoder().encode(jwtKey), encryptionKey: Buffer.from(enc, 'base64') };
-  }
-  private limit(key: string) {
-    // Per-instance throttle is defense in depth; distributed/IP and CAPTCHA
-    // admission controls are mandatory before production.
-    const now = Date.now(), value = this.throttle.get(key);
-    if (!value || value.until < now) { this.throttle.set(key, { until: now + 60_000, attempts: 1 }); return; }
-    if (++value.attempts > 8) throw new HttpException('Try again later', HttpStatus.TOO_MANY_REQUESTS);
   }
   private async issue(userId: string, mfa: boolean): Promise<IssuedSession> {
     const cfg = this.config(), refreshToken = randomBytes(48).toString('base64url');
@@ -175,14 +171,16 @@ export class AuthService implements OnModuleDestroy {
   async passwordLogin(email: unknown, password: unknown, ip: string) {
     if (typeof email !== 'string' || typeof password !== 'string' ||
         email.length > 254 || password.length > 1024 || !email.includes('@') || password.length < 1) throw FAIL();
-    this.limit('login:' + ip + ':' + sha('identity', email.trim().toLowerCase()));
+    await this.hardening.limit('login', ip, email.trim().toLowerCase());
     this.config();
     const user = await this.db.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     const hash = user?.passwordHash ?? await this.fakeHash;
     let verified = false;
     try { verified = await argon2.verify(hash, password); } catch { /* fail closed */ }
-    if (!user || !user.passwordHash || !verified) throw FAIL();
-    return this.authenticated(user.id);
+    if (!user || !user.passwordHash || !verified || !user.emailVerifiedAt) throw FAIL();
+    const result = await this.authenticated(user.id);
+    await this.hardening.audit('LOGIN_SUCCEEDED', user.id);
+    return result;
   }
   // Linking is explicit: an authenticated, recently established BoxVault session
   // plus a freshly verified Google ID token. Email equality does not link users.
@@ -215,7 +213,7 @@ export class AuthService implements OnModuleDestroy {
 
   async googleLogin(idToken: unknown, ip: string) {
     if (typeof idToken !== 'string' || idToken.length < 100 || idToken.length > 12000) throw FAIL();
-    this.limit('google:' + ip);
+    await this.hardening.limit('google', ip);
     this.config();
     const clients = [process.env.GOOGLE_WEB_CLIENT_ID, process.env.GOOGLE_IOS_CLIENT_ID].filter(
       (v): v is string => !!v,
@@ -234,7 +232,11 @@ export class AuthService implements OnModuleDestroy {
     });
     // Never silently merge password accounts by matching Google email.
     if (!identity) throw FAIL();
-    return this.authenticated(identity.userId);
+    const user = await this.db.user.findUnique({ where: { id: identity.userId } });
+    if (!user?.emailVerifiedAt) throw FAIL();
+    const result = await this.authenticated(identity.userId);
+    await this.hardening.audit('GOOGLE_LOGIN', identity.userId);
+    return result;
   }
   private async satisfyFactor(tx: Prisma.TransactionClient, userId: string, code: string,
     factor: { secretCiphertext: string; lastUsedStep: bigint | null }) {
@@ -263,7 +265,7 @@ export class AuthService implements OnModuleDestroy {
   async verifyChallenge(challengeId: unknown, code: unknown, ip: string) {
     if (typeof challengeId !== 'string' || !/^[0-9a-f-]{36}$/i.test(challengeId) ||
         typeof code !== 'string' || code.length > 64) throw FAIL();
-    this.limit('mfa:' + ip + ':' + challengeId);
+    await this.hardening.limit('mfa', ip, challengeId);
     this.config();
     // Count failed submissions OUTSIDE the factor-verification transaction:
     // otherwise a rollback on bad TOTP would restore the attempts counter.
@@ -289,7 +291,9 @@ export class AuthService implements OnModuleDestroy {
         return challenge.userId;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (e) { if (e instanceof ServiceUnavailableException) throw e; throw FAIL(); }
-    return this.issue(userId, true);
+    const session = await this.issue(userId, true);
+    await this.hardening.audit('MFA_CHALLENGE_PASSED', userId);
+    return session;
   }
   async refresh(refreshToken: unknown) {
     if (typeof refreshToken !== 'string' || !/^[a-zA-Z0-9_-]{64}$/.test(refreshToken)) throw FAIL();
@@ -362,6 +366,190 @@ export class AuthService implements OnModuleDestroy {
         });
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch { throw FAIL(); }
+    await this.hardening.audit('MFA_ENROLLED', principal.userId);
     return { recoveryCodes: codes, reloginRequired: true };
   }
+  /**
+   * Registration is intentionally identity-only until verified email is proven.
+   * The personal tenant is provisioned by a narrowly granted SECURITY DEFINER
+   * function after verification, never by the content runtime connection.
+   */
+  async register(emailInput: unknown, passwordInput: unknown, ip: string) {
+    const email = normalizeEmail(emailInput);
+    if (!email || typeof passwordInput !== 'string' ||
+        passwordInput.length < 12 || passwordInput.length > 128 ||
+        !/[A-Z]/.test(passwordInput) || !/[a-z]/.test(passwordInput) ||
+        !/[0-9]/.test(passwordInput)) {
+      throw new BadRequestException('Invalid registration details');
+    }
+    this.config();
+    await this.hardening.limit('register', ip, email);
+    const existing = await this.db.user.findUnique({
+      where: { email }, select: { id: true, emailVerifiedAt: true },
+    });
+    if (existing?.emailVerifiedAt) return { accepted: true };
+    let userId: string;
+    if (existing) userId = existing.id;
+    else {
+      // Never log or return raw user email on errors.
+      const passwordHash = await argon2.hash(passwordInput, { type: argon2.argon2id });
+      try {
+        const created = await this.db.user.create({ data: { email, passwordHash } });
+        userId = created.id;
+      } catch { return { accepted: true }; }
+    }
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = this.hardening.tokenHash(token);
+    await this.db.emailActionToken.create({
+      data: { userId, kind: 'VERIFY_EMAIL', tokenHash,
+        expiresAt: new Date(Date.now() + 30 * 60_000) },
+    });
+    await this.hardening.email(email, 'verify-email', token);
+    await this.hardening.audit('REGISTERED', userId);
+    return { accepted: true };
+  }
+
+  async verifyEmail(token: unknown) {
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw FAIL();
+    this.config();
+    const digest = this.hardening.tokenHash(token);
+    const userId = await this.db.$transaction(async tx => {
+      const row = await tx.emailActionToken.findUnique({ where: { tokenHash: digest } });
+      if (!row || row.kind !== 'VERIFY_EMAIL' || row.usedAt || row.expiresAt <= new Date()) throw FAIL();
+      const consumed = await tx.emailActionToken.updateMany({
+        where: { id: row.id, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      });
+      if (consumed.count !== 1) throw FAIL();
+      await tx.user.update({ where: { id: row.userId },
+        data: { emailVerifiedAt: new Date() } });
+      // The definer function checks verified email and serializes onboarding.
+      await tx.$executeRaw`SELECT security.bootstrap_personal_tenant(
+        ${row.userId}::uuid, ${randomUUID()}::uuid, ${randomUUID()}::uuid
+      )`;
+      return row.userId;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    await this.hardening.audit('EMAIL_VERIFIED', userId);
+    return { verified: true };
+  }
+
+  async requestPasswordReset(emailInput: unknown, ip: string) {
+    const email = normalizeEmail(emailInput);
+    await this.hardening.limit('reset', ip, email || undefined);
+    this.config();
+    if (!email) return { accepted: true };
+    const user = await this.db.user.findUnique({ where: { email } });
+    if (user?.passwordHash && user.emailVerifiedAt) {
+      const token = randomBytes(32).toString('base64url');
+      await this.db.emailActionToken.create({
+        data: { userId: user.id, kind: 'RESET_PASSWORD',
+          tokenHash: this.hardening.tokenHash(token),
+          expiresAt: new Date(Date.now() + 15 * 60_000) },
+      });
+      await this.hardening.email(email, 'reset-password', token);
+      await this.hardening.audit('PASSWORD_RESET_REQUESTED', user.id);
+    }
+    return { accepted: true };
+  }
+
+  async resetPassword(token: unknown, newPassword: unknown) {
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token) ||
+        typeof newPassword !== 'string' || newPassword.length < 12 ||
+        newPassword.length > 128 || !/[A-Z]/.test(newPassword) ||
+        !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) throw FAIL();
+    this.config();
+    const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
+    const digest = this.hardening.tokenHash(token);
+    const userId = await this.db.$transaction(async tx => {
+      const row = await tx.emailActionToken.findUnique({ where: { tokenHash: digest } });
+      if (!row || row.kind !== 'RESET_PASSWORD' || row.usedAt || row.expiresAt <= new Date()) throw FAIL();
+      const consumed = await tx.emailActionToken.updateMany({
+        where: { id: row.id, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      });
+      if (consumed.count !== 1) throw FAIL();
+      await tx.user.update({ where: { id: row.userId }, data: { passwordHash } });
+      await tx.authSession.updateMany({ where: { userId: row.userId, revokedAt: null },
+        data: { revokedAt: new Date() } });
+      await tx.emailActionToken.updateMany({
+        where: { userId: row.userId, kind: 'RESET_PASSWORD', usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      return row.userId;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    await this.hardening.audit('PASSWORD_RESET_COMPLETED', userId);
+    return { changed: true, reloginRequired: true };
+  }
+
+  async disableTotp(principal: AccessPrincipal, password: unknown, code: unknown) {
+    if (typeof password !== 'string' || typeof code !== 'string' || code.length > 64) throw FAIL();
+    // Deliberately require live password reauthentication in addition to active
+    // access; provider-only identities need reviewed recovery path.
+    const user = await this.db.user.findUnique({ where: { id: principal.userId } });
+    if (!user?.passwordHash || !await argon2.verify(user.passwordHash, password)) throw FAIL();
+    const operator = await this.db.platformOperator.findUnique({ where: { userId: principal.userId } });
+    if (operator?.enabled) throw new ForbiddenException('Operator MFA must remain enabled');
+    await this.db.$transaction(async tx => {
+      const factor = await tx.totpFactor.findUnique({ where: { userId: principal.userId } });
+      if (!factor?.enabledAt) throw FAIL();
+      await this.satisfyFactor(tx, principal.userId, code, factor);
+      await tx.totpFactor.delete({ where: { userId: principal.userId } });
+      await tx.mfaRecoveryCode.deleteMany({ where: { userId: principal.userId } });
+      await tx.authSession.updateMany({ where: { userId: principal.userId, revokedAt: null },
+        data: { revokedAt: new Date() } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    await this.hardening.audit('MFA_DISABLED', principal.userId);
+    return { disabled: true, reloginRequired: true };
+  }
+
+  async adminAccess(principal: AccessPrincipal) {
+    const operator = await this.db.platformOperator.findUnique({
+      where: { userId: principal.userId },
+    });
+    const factor = await this.db.totpFactor.findUnique({ where: { userId: principal.userId } });
+    const user = await this.db.user.findUnique({ where: { id: principal.userId } });
+    if (!operator?.enabled || !factor?.enabledAt || !user?.emailVerifiedAt ||
+        !principal.mfaAuthenticatedAt ||
+        Date.now() - principal.mfaAuthenticatedAt.getTime() > 5 * 60_000) {
+      await this.hardening.audit('ADMIN_ACCESS_DENIED', principal.userId);
+      throw new ForbiddenException('Privileged MFA and step-up required');
+    }
+    await this.hardening.audit('ADMIN_ACCESS_GRANTED', principal.userId);
+    return operator.role;
+  }
+
+  async adminStepUp(principal: AccessPrincipal, code: unknown) {
+    if (typeof code !== 'string' || !/^\d{6}$/.test(code)) throw FAIL();
+    const operator = await this.db.platformOperator.findUnique({ where: { userId: principal.userId } });
+    if (!operator?.enabled) throw new ForbiddenException();
+    const cfg = this.config();
+    const now = new Date();
+    const step = await this.db.$transaction(async tx => {
+      const factor = await tx.totpFactor.findUnique({ where: { userId: principal.userId } });
+      if (!factor?.enabledAt) throw FAIL();
+      const step = matchStep(decrypt(factor.secretCiphertext, cfg.encryptionKey), code, factor.lastUsedStep);
+      if (step === null) throw FAIL();
+      const updated = await tx.totpFactor.updateMany({
+        where: { userId: principal.userId,
+          OR: [{ lastUsedStep: null }, { lastUsedStep: { lt: step } }] },
+        data: { lastUsedStep: step },
+      });
+      if (updated.count !== 1) throw FAIL();
+      const refreshed = await tx.authSession.updateMany({
+        where: { id: principal.sessionId, userId: principal.userId, revokedAt: null,
+          expiresAt: { gt: now } },
+        data: { mfaAuthenticatedAt: now },
+      });
+      if (refreshed.count !== 1) throw FAIL();
+      return step;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    void step;
+    const accessToken = await new SignJWT({ sid: principal.sessionId, mfa: true })
+      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).setSubject(principal.userId)
+      .setIssuer(ISSUER).setAudience(AUDIENCE).setIssuedAt()
+      .setExpirationTime('10m').sign(cfg.key);
+    await this.hardening.audit('ADMIN_STEP_UP', principal.userId);
+    return { accessToken, accessExpiresIn: ACCESS_SECONDS, tokenType: 'Bearer' };
+  }
+
 }
