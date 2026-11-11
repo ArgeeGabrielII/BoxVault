@@ -424,7 +424,7 @@ export class AuthService implements OnModuleDestroy {
       await tx.user.update({ where: { id: row.userId },
         data: { emailVerifiedAt: new Date() } });
       // The definer function checks verified email and serializes onboarding.
-      await tx.$executeRaw`SELECT security.bootstrap_personal_tenant(
+      await tx.$queryRaw`SELECT security.bootstrap_personal_tenant(
         ${row.userId}::uuid, ${randomUUID()}::uuid, ${randomUUID()}::uuid
       )`;
       return row.userId;
