@@ -6,6 +6,7 @@
 
 | File | Contents |
 |---|---|
+| [neon-connection.md](neon-connection.md) | Neon dev PostgreSQL configuration, pooled/direct connection strings, ChatGPT connection, secrets, RLS test prerequisites |
 | [authentication-google-mfa-captcha.md](authentication-google-mfa-captcha.md) | Google Sign-In, optional customer TOTP MFA, mandatory admin MFA, reCAPTCHA, authentication security and implementation gates |
 | [web-experience-seo-compliance.md](web-experience-seo-compliance.md) | Source checklist: 404, metadata, OG/favicon, robots/sitemap, alt text, responsive UX, loading/errors, confirmations, privacy/terms, cookies, analytics and above-fold CTA |
 | [family-sharing-access-control.md](family-sharing-access-control.md) | Private-by-default container sharing with selected members or all family members; ACL-aware RLS and tests |
