@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AuthProvider {
+  GOOGLE
+}
+
 enum MembershipRole {
   OWNER
   EDITOR
@@ -35,9 +39,13 @@ enum LedgerEntryType {
 model User {
   id           String         @id @default(uuid()) @db.Uuid
   email        String         @unique
-  passwordHash String
+  passwordHash String?
   createdAt    DateTime       @default(now())
   memberships  TenantMember[]
+  authIdentities AuthIdentity[]
+  totpFactor     TotpFactor?
+  recoveryCodes  MfaRecoveryCode[]
+  authSessions   AuthSession[]
 }
 
 model Tenant {
@@ -155,4 +163,55 @@ model TopupRequest {
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, status])
+}
+
+ // Authentication schema foundation only. No production authentication service is implemented.
+ // All secret ciphertext must use application-level authenticated encryption and managed keys.
+model AuthIdentity {
+  id              String       @id @default(uuid()) @db.Uuid
+  userId          String       @db.Uuid
+  provider        AuthProvider
+  providerSubject String
+  createdAt       DateTime     @default(now())
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+model TotpFactor {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @unique @db.Uuid
+  secretCiphertext  String
+  encryptionKeyId   String
+  enabledAt         DateTime?
+  pendingExpiresAt  DateTime?
+  lastUsedStep      BigInt?
+  createdAt         DateTime  @default(now())
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MfaRecoveryCode {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  codeHash    String    @unique
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt])
+}
+
+model AuthSession {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @db.Uuid
+  refreshTokenHash   String    @unique
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  mfaAuthenticatedAt DateTime?
+  createdAt          DateTime  @default(now())
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
 }
