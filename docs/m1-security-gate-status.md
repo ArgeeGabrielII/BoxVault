@@ -54,3 +54,11 @@ Neon organization `org-purple-surf-16785136`, project `shiny-field-66278071`: re
 ## Internal boundary correction
 
 Replaced the prototype's refresh-token database lookup in `TenantBoundaryService` with a `VerifiedPrincipal` input. The **content runtime role is never granted access to auth/MFA tables**. A future authenticated access-token guard and separate auth-service identity must issue and validate that principal; TypeScript structure alone is not an authorization credential. See `apps/api/src/security/README.md`.
+
+## Prisma relation consistency
+
+The canonical M1 Prisma schema now explicitly models the three composite tenant-membership foreign keys already present in the SQL migration: container owner membership, ACL grantee membership, and ACL grantor membership. Their SQL constraint names are preserved via `map`. This allows the migration drift gate to compare relationship constraints, not just tables. **Prisma validation and drift comparison are still pending CI execution.**
+
+The API contract test follows the existing documented routes: `/api/v1/containers`, `/api/v1/containers/:id`, `/api/v1/admin/topups`, `/api/v1/auth/login`, `/api/v1/auth/google` and `/api/v1/auth/mfa/challenges/verify`. The latter two are specified in the Google/MFA design, not yet wired.
+
+**Latest verification check:** no successful workflow run was returned for the current PR head, and PR #4 remains draft; no claims of successful end-to-end tests. The pull request is currently reported non-mergeable; resolve its base-branch integration and review checks only after critical gates pass.
