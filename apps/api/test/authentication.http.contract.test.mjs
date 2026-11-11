@@ -143,7 +143,7 @@ test('AUTH-HTTP-07: password session, MFA setup, one-time recovery and refresh r
   assert.ok(cookie?.startsWith('boxvault_refresh='));
 
   const rotated=await fetch(new URL('/api/v1/auth/refresh',base),{
-    method:'POST',headers:{cookie},redirect:'manual',
+    method:'POST',headers:{cookie,origin:'http://localhost:5173'},redirect:'manual',
   });
   assert.equal(rotated.status,201);
   const renewed=await rotated.json();
@@ -164,7 +164,7 @@ test('AUTH-HTTP-07: password session, MFA setup, one-time recovery and refresh r
   assert.equal(sessionBeforeReplay.status,403,'Unstepped authenticated session is valid but not admin');
 
   const reuse=await fetch(new URL('/api/v1/auth/refresh',base),{
-    method:'POST',headers:{cookie},redirect:'manual',
+    method:'POST',headers:{cookie,origin:'http://localhost:5173'},redirect:'manual',
   });
   assert.equal(reuse.status,401);
   const compromised=await req('/api/v1/admin/topups','GET',secondSession.accessToken);
