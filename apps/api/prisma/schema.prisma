@@ -7,6 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum MembershipStatus {
+  ACTIVE
+  REMOVED
+}
+
+enum ContainerShareMode {
+  PRIVATE
+  SELECTED_MEMBERS
+  ALL_FAMILY
+}
+
+enum ContainerGrantPermission {
+  VIEW
+  EDIT
+}
+
 enum AuthProvider {
   GOOGLE
 }
@@ -64,6 +80,7 @@ model TenantMember {
   tenantId  String         @db.Uuid
   userId    String         @db.Uuid
   role      MembershipRole
+  status    MembershipStatus @default(ACTIVE)
   tenant    Tenant         @relation(fields: [tenantId], references: [id])
   user      User           @relation(fields: [userId], references: [id])
 
@@ -79,11 +96,31 @@ model Container {
   location    String?
   createdAt   DateTime    @default(now())
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  ownerUserId String      @db.Uuid
+  shareMode   ContainerShareMode @default(PRIVATE)
+  accessGrants ContainerAccessGrant[]
   items       Item[]
   media       MediaAsset[]
 
   @@unique([id, tenantId])
   @@index([tenantId])
+  @@index([tenantId, ownerUserId])
+}
+
+model ContainerAccessGrant {
+  id          String @id @default(uuid()) @db.Uuid
+  tenantId    String @db.Uuid
+  containerId String @db.Uuid
+  granteeUserId String @db.Uuid
+  permission ContainerGrantPermission
+  grantedBy   String @db.Uuid
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+  container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@unique([containerId, granteeUserId])
+  @@index([tenantId, granteeUserId, revokedAt])
+  @@index([containerId, revokedAt])
 }
 
 model Item {
