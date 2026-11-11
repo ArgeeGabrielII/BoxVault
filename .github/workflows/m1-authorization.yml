@@ -50,8 +50,8 @@ jobs:
         run: |
           psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 <<'SQL'
           DO $$ BEGIN
-            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 4 THEN
-              RAISE EXCEPTION 'Expected exactly four applied M1 migrations';
+            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 5 THEN
+              RAISE EXCEPTION 'Expected exactly five applied M1 migrations';
             END IF;
           END $$;
           SQL
@@ -143,7 +143,8 @@ jobs:
           GRANT SELECT,INSERT,UPDATE,DELETE ON public."User",public."AuthIdentity",
             public."AuthSession",public."AuthChallenge",public."TotpFactor",
             public."MfaRecoveryCode",public."EmailActionToken",
-            public."AuthRateLimit",public."AuthAuditEvent" TO boxvault_auth_m1;
+            public."AuthRateLimit",public."AuthAuditEvent",
+            public."RefreshTokenReuse" TO boxvault_auth_m1;
           GRANT SELECT ON public."PlatformOperator" TO boxvault_auth_m1;
           GRANT USAGE ON SCHEMA security TO boxvault_auth_m1;
           GRANT EXECUTE ON FUNCTION security.bootstrap_personal_tenant(uuid,uuid,uuid) TO boxvault_auth_m1;
