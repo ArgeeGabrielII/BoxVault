@@ -73,3 +73,27 @@ Generate and commit a **Prisma baseline migration**, repair/review `202611110001
 - [Critical authorization E2E tests](critical-authorization-e2e-tests.md)
 - [Family sharing security design](family-sharing-access-control.md)
 - [Neon connection](neon-connection.md)
+
+## Follow-up: actual public schema and revoked-grant check (2026-11-11)
+
+**Read-only inspection of the real BoxVault public schema:** the existing isolated `m1-security-test` branch now contains 16 `public` BoxVault tables and the existing `m1lab` schema. The public tables have RLS ENABLE/FORCE on `Tenant`, `TenantMember`, `Container`, `ContainerAccessGrant`, `Item`, `MediaAsset` and finance tables. Auth and user tables are intentionally inaccessible to the content runtime via grants (they require separate auth-service privileges). **These public tables were found already present when inspected; they were not created by the follow-up.** There is **no** `_prisma_migrations` table, so the schema is not evidence of successful canonical Prisma migration deployment.
+
+**Security bug discovered on public schema:** with tenant context supplied for a member with `status = REMOVED`, the original `grant_view` policy returned one historical ACL grant even though it correctly hid containers and children. This violates immediate revocation and leaks sharing metadata.
+
+**Correction applied only to isolated test branch:** added `security.grant_visible(uuid,uuid,uuid)` with trusted `SECURITY DEFINER` function ownership, pinned `search_path = pg_catalog`, and an explicit active-membership check; replaced `grant_view` with the predicate and kept EXECUTE restricted to the test runtime role. Mirrored the policy in `apps/api/prisma/migrations/202611110001_m1_boundaries/migration.sql` and extended SEC-06 to assert that revoked users cannot inspect old grants. No customer/default `dev` branch was changed.
+
+**Observed read-only PostgreSQL results using `boxvault_runtime_m1` (non-BYPASSRLS):**
+
+| Synthetic identity in tenant A | ACL grants | Visible containers | Visible items | Visible media |
+|---|---:|---:|---:|---:|
+| Active owner | 2 | 3 | 3 | 3 |
+| Active viewer | 1 | 2 | 2 | 2 |
+| Active ungranted family member | 0 | 1 | 1 | 1 |
+| Removed editor | 0 | 0 | 0 | 0 |
+| Nonmember operator | 0 | 0 | 0 | 0 |
+
+**Additional implementation:** committed `.github/workflows/m1-authorization.yml` to test on a free GitHub Actions PostgreSQL 18 service with ephemeral credentials; committed `apps/api/prisma/baseline.prisma` as the pre-M1 schema input. The workflow generates an **ephemeral** baseline SQL, applies the candidate RLS migration, and runs `SEC-00` through `SEC-10` using a restricted role. **No successful CI test result has been observed yet.** Generating baseline SQL at CI runtime does not replace committing and reviewing a real versioned Prisma baseline migration.
+
+**Free-tier invariant rechecked:** Neon plan `free_v3`, two branches (`dev`, `m1-security-test`) of the ten available, test compute fixed at 0.25 CU, and no paid Neon resources or plan changes. The default `dev` branch still has zero application tables.
+
+**Security limitation:** PostgreSQL session settings such as `app.user_id` and `app.tenant_id` are *not cryptographic identity*. The backend must authenticate and set these claims using a tightly scoped server-side transaction, never accept arbitrary SQL or user-selected claims. The real Node.js tests and HTTP authentication E2E remain unverified.
