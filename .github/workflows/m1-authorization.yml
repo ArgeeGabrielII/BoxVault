@@ -143,8 +143,8 @@ jobs:
           GRANT SELECT,INSERT,UPDATE,DELETE ON public."User",public."AuthIdentity",
             public."AuthSession",public."AuthChallenge",public."TotpFactor",
             public."MfaRecoveryCode",public."EmailActionToken",
-            public."AuthRateLimit",public."AuthAuditEvent",
-            public."RefreshTokenReuse" TO boxvault_auth_m1;
+            public."AuthRateLimit",public."RefreshTokenReuse" TO boxvault_auth_m1;
+          GRANT SELECT,INSERT ON public."AuthAuditEvent" TO boxvault_auth_m1;
           GRANT SELECT ON public."PlatformOperator" TO boxvault_auth_m1;
           GRANT USAGE ON SCHEMA security TO boxvault_auth_m1;
           GRANT EXECUTE ON FUNCTION security.bootstrap_personal_tenant(uuid,uuid,uuid) TO boxvault_auth_m1;
@@ -153,6 +153,18 @@ jobs:
         run: pnpm --filter @boxvault/api exec node test/seed-auth-ci.mjs
       - name: Build API
         run: pnpm --filter @boxvault/api build
+      - name: Verify real database CAPTCHA tokens and audit append-only permissions
+        run: |
+          pnpm --filter @boxvault/api exec node --test test/captcha.integration.test.mjs
+          psql -h localhost -U postgres -d boxvault_auth_ci -v ON_ERROR_STOP=1 <<'SQL'
+          DO $ BEGIN
+            IF has_table_privilege('boxvault_auth_m1','public."AuthAuditEvent"','UPDATE') OR
+               has_table_privilege('boxvault_auth_m1','public."AuthAuditEvent"','DELETE') OR
+               has_table_privilege('boxvault_runtime_m1','public."AuthAuditEvent"','SELECT') THEN
+              RAISE EXCEPTION 'Audit trail privileges are not append-only';
+            END IF;
+          END $;
+          SQL
       - name: Start API and enforce HTTP auth and MFA contract
         run: |
           pnpm --filter @boxvault/api exec node test/smtp-fixture.mjs >/tmp/boxvault-smtp-ci.log 2>&1 &
