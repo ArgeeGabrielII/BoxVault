@@ -47,6 +47,16 @@ test('SEC-00: runtime database role is restricted and RLS is enforced',async()=>
     assert.equal(policy.forced,true,table+' FORCE RLS off');
     assert.equal(policy.owns,false,table+' runtime owns table');
   }
+  // A content runtime role must never read or mutate auth, MFA or finance tables.
+  // RLS on inventory cannot compensate for a leaked AuthSession or TOTP secret.
+  for(const table of ['User','AuthSession','AuthIdentity','TotpFactor',
+    'MfaRecoveryCode','Plan','CreditWallet','TopupRequest']){
+    const [rights]=await app.$queryRawUnsafe(
+      "SELECT has_table_privilege(current_user, format('public.%I',$1::text),'SELECT') AS readable," +
+      " has_table_privilege(current_user, format('public.%I',$1::text),'UPDATE') AS writable",table);
+    assert.equal(rights.readable,false,table+' readable by content runtime');
+    assert.equal(rights.writable,false,table+' mutable by content runtime');
+  }
   const [roleAdmin]=await admin.$queryRawUnsafe('SELECT rolbypassrls AS bypass FROM pg_roles WHERE rolname=current_user');
   assert.equal(roleAdmin.bypass,true,'Fixture role must BYPASSRLS');
   assert.deepEqual(await app.$queryRawUnsafe('SELECT id FROM "Container"'),[]);
