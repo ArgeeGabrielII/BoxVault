@@ -16,23 +16,27 @@
 
 | Gate | Definition of pass | Status |
 |---|---|---|
-| DB-01 | Both versioned Prisma migrations apply cleanly on a fresh disposable PostgreSQL instance and are recorded | **Unverified in CI** |
+| DB-01 | Both versioned Prisma migrations apply cleanly on a fresh disposable PostgreSQL instance and are recorded | **PASS in GitHub Actions (2026-11-11, commit c91f7a9)** |
 | DB-02 | Prisma schema-vs-database diff reports no drift | **Unverified in CI** |
-| RLS-01 | SEC-00..SEC-10 pass using distinct fixture and **non-BYPASSRLS** content runtime database identities | **Unverified in Node.js/CI**; earlier manual Neon SQL policy probes passed |
+| RLS-01 | SEC-00..SEC-10 pass using distinct fixture and **non-BYPASSRLS** content runtime database identities | **PASS in GitHub Actions (2026-11-11, commit c91f7a9)**; earlier manual Neon SQL policy probes also passed |
 | RLS-02 | Removed member cannot read historical `ContainerAccessGrant`, sibling-private content, or child media; unauthorized tenant switch denied | **Verified manually on isolated Neon test branch**, regression test added |
-| AUTH-01 | Email/password Argon2id, verified Google token (sub/aud/iss/exp), account linking, secure session issuance/rotation, anti-enumeration | **Not implemented** |
+| AUTH-01 | Email/password Argon2id, verified Google token (sub/aud/iss/exp), account linking, secure session issuance/rotation, anti-enumeration | **Partially implemented: core password/Google + sessions, missing onboarding, recovery, captcha, production hardening** |
 | AUTH-02 | Optional TOTP with one-time recovery codes and challenge-gated session issuance; mandatory privileged MFA and step-up | **Not implemented** |
-| HTTP-01 | Real API returns 401 for missing/forged authentication before tenant/inventory access; invalid Google/MFA challenges denied | **Contract added, expected failing until endpoints exist** |
-| HTTP-02 | Authenticated cross-tenant/ACL/QR/media negative and positive cases pass through real NestJS controllers | **Not implemented / not testable** |
+| HTTP-01 | Real API returns 401 for missing/forged authentication before tenant/inventory access; invalid Google/MFA challenges denied | **PASS in GitHub Actions (2026-11-11, commit c91f7a9)** |
+| HTTP-02 | Authenticated cross-tenant/ACL/QR/media negative and positive cases pass through real NestJS controllers | **Partially implemented: authenticated container reads; positive multi-tenant HTTP scenarios pending** |
 | OPS-01 | Security tests required by branch protection; review of credentials/roles and policies; safe migration/rollback | **Needs repository administration and security review** |
 
-## Immediate action for CI evidence
+## CI execution evidence
 
-Open [GitHub Actions on PR #4](https://github.com/ArgeeGabrielII/BoxVault/pull/4/checks). For the first version of these tests, expect an unsuccessful run until any migration, permission or missing-endpoint failure is corrected.
+All three GitHub Actions checks at commit `c91f7a9` completed successfully on 2026-11-11:
 
-The current GitHub integration did not expose a successful workflow run for the updated commit. **No actual CI pass is claimed.** GitHub Actions execution and branch protection controls may require repository-side configuration; do not bypass them or convert a failed test into a skip.
+- General TypeScript CI — **PASS**.
+- PostgreSQL M1 authorization gate (real disposable PostgreSQL 18 migrations, RLS, SEC-00..SEC-10) — **PASS**.
+- Auth HTTP contract (real disposable PostgreSQL 18 with separate auth/content database roles and synthetic Argon2id user; verifies password login, TOTP enrollment, recovery code, refresh rotation and logout) — **PASS**.
 
-The database gate uses a disposable PostgreSQL service in GitHub Actions, **not** Neon, to preserve the strict free-tier requirement. Synthetic fixtures only; do not use the persistent default `dev` branch. Use the existing `m1-security-test` Neon branch for read-only/manual diagnostics where appropriate.
+The HTML/HTTP integration suite does **not** prove production readiness: live Google OAuth cannot be tested without an authorized sandbox client ID and real provider flow; no self-service registration, email verification, password reset, persistent distributed rate limiting, abuse protection, platform-admin MFA or full media/QR handlers exist yet.
+
+Security tests are now **passing for the scoped M1 implementation**. Branch protection, independent review and remaining production requirements are **still blockers**. Retest after any further source changes.
 
 ## Authentication build order
 
@@ -66,3 +70,9 @@ The API contract test follows the existing documented routes: `/api/v1/container
 ## Main-branch reconciliation
 
 Merged the latest `main` into the M1 **feature branch only**, preserving its Neon agent skills, project OAuth MCP configuration, non-secret env examples, and `docs/neon-connection.md`, while retaining the updated M1 Prisma/ACL/RLS schema. The `docs/README.md` index includes both Neon and security-gate documentation. GitHub now reports PR #4 as **mergeable**, but it remains **draft/unapproved** and has not been merged into `main`. No Neon cloud resources were changed by the Git merge.
+
+## Auth implementation follow-up (2026-11-11)
+
+The actual NestJS authentication and MFA service is present in `apps/api/src/auth/`. See [m1-authentication-implementation.md](m1-authentication-implementation.md) for endpoint behavior and every remaining hardening gap. Google sign-in is verified for already-linked identities; first-time Google onboarding remains denied until securely implemented. Admin endpoints are fail-closed with mandatory future role/MFA enforcement.
+
+The free-tier invariant remains mandatory. Both CI jobs use disposable PostgreSQL service containers on GitHub Actions; the persistent Neon default `dev` branch is untouched.
