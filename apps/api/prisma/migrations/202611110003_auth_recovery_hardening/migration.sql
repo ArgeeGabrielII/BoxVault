@@ -22,6 +22,7 @@ CREATE TABLE "AuthRateLimit" (
  "windowEnds" TIMESTAMP(3) NOT NULL,
  CONSTRAINT "AuthRateLimit_pkey" PRIMARY KEY ("key")
 );
+CREATE INDEX "AuthRateLimit_windowEnds_idx" ON "AuthRateLimit"("windowEnds");
 CREATE TABLE "AuthAuditEvent" (
  "id" UUID NOT NULL,
  "userId" UUID,
