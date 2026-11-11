@@ -1,4 +1,4 @@
-name: M1 Generate Prisma Baseline SQL
+name: M1 Generate Main Prisma Baseline SQL
 
 on:
   push:
@@ -17,6 +17,8 @@ jobs:
       DIRECT_URL: postgresql://test:test@localhost:5432/boxvault
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
