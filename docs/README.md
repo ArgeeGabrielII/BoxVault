@@ -6,6 +6,7 @@
 
 | File | Contents |
 |---|---|
+| [m1-security-gate-status.md](m1-security-gate-status.md) | Milestone 1 DB/RLS/HTTP security acceptance gates, CI evidence and explicit release blockers |
 | [authentication-google-mfa-captcha.md](authentication-google-mfa-captcha.md) | Google Sign-In, optional customer TOTP MFA, mandatory admin MFA, reCAPTCHA, authentication security and implementation gates |
 | [web-experience-seo-compliance.md](web-experience-seo-compliance.md) | Source checklist: 404, metadata, OG/favicon, robots/sitemap, alt text, responsive UX, loading/errors, confirmations, privacy/terms, cookies, analytics and above-fold CTA |
 | [family-sharing-access-control.md](family-sharing-access-control.md) | Private-by-default container sharing with selected members or all family members; ACL-aware RLS and tests |
