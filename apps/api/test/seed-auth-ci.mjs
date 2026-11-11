@@ -10,6 +10,7 @@ try {
       id:'70000000-0000-4000-8000-000000000001',
       email:'m1-auth-test@example.invalid',
       passwordHash:await argon2.hash('M1-Test-strong-password-123!',{type:argon2.argon2id}),
+      emailVerifiedAt:new Date(),
     },
   });
 } finally { await db.$disconnect(); }
