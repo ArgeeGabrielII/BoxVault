@@ -33,8 +33,11 @@ export class AuthHardeningService implements OnModuleDestroy {
 
   /** Atomic across all API instances and processes, not memory-local. */
   async limit(category: string, ip: string, account?: string) {
-    const now = new Date(), seconds = category === 'reset' || category === 'register' ? 3600 : 60;
-    const maximum = category === 'reset' || category === 'register' ? 5 : 10;
+    const sensitive = category === 'mfa-confirm' || category === 'mfa-disable' ||
+      category === 'admin-step-up' || category === 'mfa-rotate';
+    const hourly = category === 'reset' || category === 'register';
+    const now = new Date(), seconds = sensitive ? 600 : hourly ? 3600 : 60;
+    const maximum = sensitive || hourly ? 5 : 10;
     const keys = [this.hash(category + ':ip:' + ip)];
     if (account) keys.push(this.hash(category + ':account:' + account));
     for (const key of keys) {
@@ -147,7 +150,7 @@ export class AuthHardeningService implements OnModuleDestroy {
     const kinds = new Set([
       'REGISTERED', 'EMAIL_VERIFIED', 'LOGIN_SUCCEEDED', 'GOOGLE_LOGIN',
       'MFA_CHALLENGE_PASSED', 'MFA_ENROLLED', 'MFA_RECOVERY_USED',
-      'MFA_DISABLED', 'PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET_COMPLETED',
+      'MFA_DISABLED', 'MFA_RECOVERY_ROTATED', 'PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET_COMPLETED',
       'SESSIONS_REVOKED', 'REFRESH_REPLAY_DETECTED', 'EMAIL_DELIVERY_FAILED', 'ADMIN_ACCESS_DENIED', 'ADMIN_ACCESS_GRANTED',
       'ADMIN_STEP_UP',
     ]);
