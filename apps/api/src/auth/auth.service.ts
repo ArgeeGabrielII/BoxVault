@@ -383,6 +383,7 @@ export class AuthService implements OnModuleDestroy {
       throw new BadRequestException('Invalid registration details');
     }
     this.config();
+    this.hardening.assertMailerConfigured();
     await this.hardening.limit('register', ip, email);
     const existing = await this.db.user.findUnique({
       where: { email }, select: { id: true, emailVerifiedAt: true },
@@ -404,7 +405,8 @@ export class AuthService implements OnModuleDestroy {
       data: { userId, kind: 'VERIFY_EMAIL', tokenHash,
         expiresAt: new Date(Date.now() + 30 * 60_000) },
     });
-    await this.hardening.email(email, 'verify-email', token);
+    try { await this.hardening.email(email, 'verify-email', token); }
+    catch { await this.hardening.audit('EMAIL_DELIVERY_FAILED', userId); }
     await this.hardening.audit('REGISTERED', userId);
     return { accepted: true };
   }
@@ -443,6 +445,7 @@ export class AuthService implements OnModuleDestroy {
     const email = normalizeEmail(emailInput);
     await this.hardening.limit('reset', ip, email || undefined);
     this.config();
+    this.hardening.assertMailerConfigured();
     if (!email) return { accepted: true };
     const user = await this.db.user.findUnique({ where: { email } });
     if (user?.passwordHash && user.emailVerifiedAt) {
@@ -452,7 +455,8 @@ export class AuthService implements OnModuleDestroy {
           tokenHash: this.hardening.tokenHash(token),
           expiresAt: new Date(Date.now() + 15 * 60_000) },
       });
-      await this.hardening.email(email, 'reset-password', token);
+      try { await this.hardening.email(email, 'reset-password', token); }
+      catch { await this.hardening.audit('EMAIL_DELIVERY_FAILED', user.id); }
       await this.hardening.audit('PASSWORD_RESET_REQUESTED', user.id);
     }
     return { accepted: true };
