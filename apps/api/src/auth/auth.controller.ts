@@ -55,6 +55,15 @@ export class AuthController {
     return { mfaRequired: false, ...this.publish(res, session) };
   }
 
+  @UseGuards(AccessGuard)
+  @Post('providers/google/link')
+  async linkGoogle(@Req() req: AuthedRequest, @Body() body: { idToken?: unknown },
+                   @Res({ passthrough: true }) res: Response) {
+    const result = await this.auth.linkGoogle(req.principal, body?.idToken);
+    res.setHeader('Cache-Control', 'no-store');
+    return result;
+  }
+
   @Post('refresh')
   async refresh(@Req() req: Request, @Headers('origin') origin: string | undefined,
                 @Res({ passthrough: true }) res: Response) {
