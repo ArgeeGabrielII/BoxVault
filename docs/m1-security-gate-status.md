@@ -16,12 +16,12 @@
 
 | Gate | Definition of pass | Status |
 |---|---|---|
-| DB-01 | Both versioned Prisma migrations apply cleanly on a fresh disposable PostgreSQL instance and are recorded | **PASS in GitHub Actions (2026-11-11, commit c91f7a9)** |
-| DB-02 | Prisma schema-vs-database diff reports no drift | **Unverified in CI** |
+| DB-01 | All three versioned Prisma migrations apply cleanly on a fresh disposable PostgreSQL instance and are recorded | **PASS in GitHub Actions (2026-11-11, commit c91f7a9)** |
+| DB-02 | Prisma schema-vs-database diff reports no drift | **PASS in GitHub Actions (2026-11-11, commit c91f7a9)** |
 | RLS-01 | SEC-00..SEC-10 pass using distinct fixture and **non-BYPASSRLS** content runtime database identities | **PASS in GitHub Actions (2026-11-11, commit c91f7a9)**; earlier manual Neon SQL policy probes also passed |
-| RLS-02 | Removed member cannot read historical `ContainerAccessGrant`, sibling-private content, or child media; unauthorized tenant switch denied | **Verified manually on isolated Neon test branch**, regression test added |
+| RLS-02 | Removed member cannot read historical `ContainerAccessGrant`, sibling-private content, or child media; unauthorized tenant switch denied | **PASS in PostgreSQL CI and verified manually on isolated Neon test branch** |
 | AUTH-01 | Email/password Argon2id, verified Google token (sub/aud/iss/exp), account linking, secure session issuance/rotation, anti-enumeration | **Partially implemented: core password/Google + sessions, missing onboarding, recovery, captcha, production hardening** |
-| AUTH-02 | Optional TOTP with one-time recovery codes and challenge-gated session issuance; mandatory privileged MFA and step-up | **Not implemented** |
+| AUTH-02 | Optional TOTP with one-time recovery codes and challenge-gated session issuance; mandatory privileged MFA and step-up | **Partially implemented: customer TOTP, one-time recovery and challenges passed HTTP CI; platform-admin MFA/step-up not implemented** |
 | HTTP-01 | Real API returns 401 for missing/forged authentication before tenant/inventory access; invalid Google/MFA challenges denied | **PASS in GitHub Actions (2026-11-11, commit c91f7a9)** |
 | HTTP-02 | Authenticated cross-tenant/ACL/QR/media negative and positive cases pass through real NestJS controllers | **Partially implemented: authenticated container reads; positive multi-tenant HTTP scenarios pending** |
 | OPS-01 | Security tests required by branch protection; review of credentials/roles and policies; safe migration/rollback | **Needs repository administration and security review** |
