@@ -26,6 +26,7 @@ Missing URLs are a **hard failure**, not a skipped test. Do not enable this as a
 - **SEC-07:** Missing actor/tenant claims fail closed.
 - **SEC-08:** QR locator token is not authorization.
 - **SEC-09:** Non-owner cannot widen sharing.
+- **SEC-10:** An editor with access to ALL_FAMILY cannot rewrite another owner's share mode or take ownership of that container; current draft RLS may fail this intentionally strict test.
 
 ## Production acceptance limitations
 
