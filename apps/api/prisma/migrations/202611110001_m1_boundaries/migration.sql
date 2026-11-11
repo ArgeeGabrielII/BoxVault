@@ -87,6 +87,19 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalo
  )
 $$;
 
+CREATE OR REPLACE FUNCTION security.grant_visible(g_tenant uuid, g_container uuid, g_grantee uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog AS $
+ SELECT security.active_member(g_tenant, security.actor_id())
+   AND g_tenant = security.tenant_id()
+   AND (
+      g_grantee = security.actor_id()
+      OR EXISTS (SELECT 1 FROM public."Container" b
+        WHERE b.id = g_container AND b."tenantId" = g_tenant
+          AND b."ownerUserId" = security.actor_id())
+   )
+$;
+
+REVOKE ALL ON FUNCTION security.grant_visible(uuid,uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION security.actor_id() FROM PUBLIC;
 REVOKE ALL ON FUNCTION security.tenant_id() FROM PUBLIC;
 REVOKE ALL ON FUNCTION security.active_member(uuid,uuid) FROM PUBLIC;
@@ -128,11 +141,9 @@ CREATE POLICY container_delete ON "Container" FOR DELETE USING
   AND security.member_can_edit("tenantId",security.actor_id()));
 ALTER TABLE "ContainerAccessGrant" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ContainerAccessGrant" FORCE ROW LEVEL SECURITY;
+-- Removal must revoke access even to old grant metadata.
 CREATE POLICY grant_view ON "ContainerAccessGrant" FOR SELECT USING
- ("tenantId"=security.tenant_id() AND
-  (security.actor_id()="granteeUserId" OR EXISTS (
-   SELECT 1 FROM public."Container" b WHERE b.id="ContainerAccessGrant"."containerId"
-     AND b."tenantId"="ContainerAccessGrant"."tenantId" AND b."ownerUserId"=security.actor_id())));
+ (security.grant_visible("tenantId","containerId","granteeUserId"));
 CREATE POLICY grant_manage_insert ON "ContainerAccessGrant" FOR INSERT WITH CHECK (
  "tenantId"=security.tenant_id() AND
  security.active_member("tenantId","granteeUserId") AND
