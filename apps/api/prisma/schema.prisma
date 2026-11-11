@@ -82,6 +82,9 @@ model TenantMember {
   userId    String         @db.Uuid
   role      MembershipRole
   status    MembershipStatus @default(ACTIVE)
+  ownedContainers Container[] @relation("OwnedContainerMembership")
+  accessReceived ContainerAccessGrant[] @relation("AccessGranteeMembership")
+  accessGiven ContainerAccessGrant[] @relation("AccessGrantorMembership")
   tenant    Tenant         @relation(fields: [tenantId], references: [id])
   user      User           @relation(fields: [userId], references: [id])
 
@@ -98,6 +101,7 @@ model Container {
   createdAt   DateTime    @default(now())
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
   ownerUserId String      @db.Uuid
+  ownerMembership TenantMember @relation("OwnedContainerMembership", fields: [tenantId, ownerUserId], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction)
   shareMode   ContainerShareMode @default(PRIVATE)
   accessGrants ContainerAccessGrant[]
   items       Item[]
@@ -115,6 +119,8 @@ model ContainerAccessGrant {
   granteeUserId String @db.Uuid
   permission ContainerGrantPermission
   grantedBy   String @db.Uuid
+  granteeMembership TenantMember @relation("AccessGranteeMembership", fields: [tenantId, granteeUserId], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction)
+  grantorMembership TenantMember @relation("AccessGrantorMembership", fields: [tenantId, grantedBy], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction)
   revokedAt   DateTime?
   createdAt   DateTime @default(now())
   container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId], onDelete: Cascade)
