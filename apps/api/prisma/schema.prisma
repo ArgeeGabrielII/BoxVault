@@ -68,6 +68,7 @@ model User {
   emailTokens EmailActionToken[]
   auditEvents AuthAuditEvent[]
   platformOperator PlatformOperator?
+  spentRefreshTokens RefreshTokenReuse[]
 }
 
 model Tenant {
@@ -325,4 +326,15 @@ model PlatformOperator {
   enabled Boolean @default(false)
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshTokenReuse {
+  tokenHash String @id
+  userId String @db.Uuid
+  sessionId String @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
