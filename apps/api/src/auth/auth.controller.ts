@@ -202,4 +202,11 @@ export class AuthController {
     return this.auth.revokeOtherSessions(req.principal);
   }
 
+  @UseGuards(AccessGuard)
+  @Get('security/events')
+  async securityEvents(@Req() req: AuthedRequest, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.hardening.eventsForUser(req.principal.userId);
+  }
+
 }
