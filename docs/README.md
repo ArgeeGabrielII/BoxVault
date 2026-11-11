@@ -6,6 +6,7 @@
 
 | File | Contents |
 |---|---|
+| [neon-agent-skills-mcp.md](neon-agent-skills-mcp.md) | Neon agent skills, OAuth MCP project configuration, preservation policy and verification state |
 | [neon-connection.md](neon-connection.md) | Neon dev PostgreSQL configuration, pooled/direct connection strings, ChatGPT connection, secrets, RLS test prerequisites |
 | [authentication-google-mfa-captcha.md](authentication-google-mfa-captcha.md) | Google Sign-In, optional customer TOTP MFA, mandatory admin MFA, reCAPTCHA, authentication security and implementation gates |
 | [web-experience-seo-compliance.md](web-experience-seo-compliance.md) | Source checklist: 404, metadata, OG/favicon, robots/sitemap, alt text, responsive UX, loading/errors, confirmations, privacy/terms, cookies, analytics and above-fold CTA |
