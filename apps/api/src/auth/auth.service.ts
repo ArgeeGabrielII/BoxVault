@@ -1,6 +1,6 @@
 import {
   BadRequestException, Injectable, OnModuleDestroy, ServiceUnavailableException,
-  UnauthorizedException, ForbiddenException, TooManyRequestsException,
+  UnauthorizedException, ForbiddenException, HttpException, HttpStatus,
 } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { OAuth2Client } from 'google-auth-library';
@@ -123,7 +123,7 @@ export class AuthService implements OnModuleDestroy {
     // admission controls are mandatory before production.
     const now = Date.now(), value = this.throttle.get(key);
     if (!value || value.until < now) { this.throttle.set(key, { until: now + 60_000, attempts: 1 }); return; }
-    if (++value.attempts > 8) throw new TooManyRequestsException('Try again later');
+    if (++value.attempts > 8) throw new HttpException('Try again later', HttpStatus.TOO_MANY_REQUESTS);
   }
   private async issue(userId: string, mfa: boolean): Promise<IssuedSession> {
     const cfg = this.config(), refreshToken = randomBytes(48).toString('base64url');
@@ -236,17 +236,19 @@ export class AuthService implements OnModuleDestroy {
         typeof code !== 'string' || code.length > 64) throw FAIL();
     this.limit('mfa:' + ip + ':' + challengeId);
     this.config();
+    // Count failed submissions OUTSIDE the factor-verification transaction:
+    // otherwise a rollback on bad TOTP would restore the attempts counter.
+    const attempt = await this.db.authChallenge.updateMany({
+      where: { id: challengeId, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
+      data: { attempts: { increment: 1 } },
+    });
+    if (attempt.count !== 1) throw FAIL();
     let userId: string;
     try {
       userId = await this.db.$transaction(async tx => {
         const challenge = await tx.authChallenge.findUnique({ where: { id: challengeId } });
         if (!challenge || challenge.expiresAt <= new Date() || challenge.consumedAt ||
-            challenge.attempts >= 5) throw FAIL();
-        const attempt = await tx.authChallenge.updateMany({
-          where: { id: challenge.id, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
-          data: { attempts: { increment: 1 } },
-        });
-        if (attempt.count !== 1) throw FAIL();
+            challenge.attempts > 5) throw FAIL();
         const factor = await tx.totpFactor.findUnique({ where: { userId: challenge.userId } });
         if (!factor?.enabledAt) throw FAIL();
         await this.satisfyFactor(tx, challenge.userId, code, factor);
