@@ -72,3 +72,11 @@ Before registration, isolated test branch: **6 users, 2 tenants, 5 memberships, 
 ### Note on historical checklist above
 
 The original matrix above records status when the audit was first created; the dated update here supersedes those pending statuses where an observed result is now available.
+
+## Follow-up — repeated login CAPTCHA rejection (2026-11-12, Asia/Manila)
+
+Operator confirmed receipt of a second Brevo verification message and completion of email verification. Subsequent local tester login again returned HTTP **401** with generic `Bot verification failed`; no session or access token was issued. This remains a **CAPTCHA-blocked login**, not a proven credential failure.
+
+**Diagnostic improvement:** commit [`775a764`](https://github.com/ArgeeGabrielII/BoxVault/commit/775a7649b6c1e8d917c58f97a5eeffcf8b1f7f69) adds `NODE_ENV=development`-only *reason-code* warnings to the NestJS server when Google CAPTCHA verification denies a request. Reason codes differentiate provider failure, host/action mismatch, missing/low score and invalid or stale challenge timestamp. Existing user-facing 401 responses and the minimum score of 0.5 remain unchanged. No raw CAPTCHA tokens, provider payload, keys, user identifiers, or timestamps are logged by this change.
+
+**Next evidence needed:** pull code, restart local API, perform a single fresh login with live `login` reCAPTCHA token, and record only the reason code(s) from the server warning. If Google returned a low score, review the score-based reCAPTCHA admin metrics and local test characteristics rather than disabling verification. No independent production login evidence or runtime API deployment is claimed.
