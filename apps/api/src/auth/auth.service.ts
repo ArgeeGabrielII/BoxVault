@@ -465,22 +465,31 @@ export class AuthService implements OnModuleDestroy {
     // password can never be used for account takeover.
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
     const digest = this.hardening.tokenHash(token);
-    const userId = await this.db.$transaction(async tx => {
-      // The database function consumes an unexpired VERIFY_EMAIL proof atomically,
-      // derives the user ID from that proof and provisions exactly one personal tenant.
-      // No caller-supplied user ID or mutable session claim is trusted.
-      const verified = await tx.$queryRaw<Array<{ userId: string }>>`
-        SELECT security.bootstrap_verified_email_tenant(
-          ${digest}::text, ${randomUUID()}::uuid, ${randomUUID()}::uuid
-        ) AS "userId"
-      `;
-      const verifiedId = verified[0]?.userId;
-      if (!verifiedId) throw FAIL();
-      // Password is established in the same transaction as token consumption,
-      // email verification and tenant creation. A failure rolls back all four.
-      await tx.user.update({ where: { id: verifiedId }, data: { passwordHash } });
-      return verifiedId;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    let userId: string;
+    try {
+      const userId = await this.db.$transaction(async tx => {
+        // The database function consumes an unexpired VERIFY_EMAIL proof atomically,
+        // derives the user ID from that proof and provisions exactly one personal tenant.
+        // No caller-supplied user ID or mutable session claim is trusted.
+        const verified = await tx.$queryRaw<Array<{ userId: string }>>`
+          SELECT security.bootstrap_verified_email_tenant(
+            ${digest}::text, ${randomUUID()}::uuid, ${randomUUID()}::uuid
+          ) AS "userId"
+        `;
+        const verifiedId = verified[0]?.userId;
+        if (!verifiedId) throw FAIL();
+        // Password is established in the same transaction as token consumption,
+        // email verification and tenant creation. A failure rolls back all four.
+        await tx.user.update({ where: { id: verifiedId }, data: { passwordHash } });
+        return verifiedId;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      // Invalid, expired, or replayed proof is an authentication failure.
+      // Keep unrelated database/service failures observable, not reported as 401.
+      const sqlstate = (error as { meta?: { code?: string } })?.meta?.code;
+      if (sqlstate === '42501') throw FAIL();
+      throw error;
+    }
     await this.hardening.audit('EMAIL_VERIFIED', userId);
     return { verified: true };
   }
