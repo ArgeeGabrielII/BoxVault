@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>BoxVault M1 — Local Registration Test</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color-scheme:light}body{max-width:760px;margin:38px auto;padding:0 20px;background:#f4f7fa;color:#1c2b38}main{background:white;padding:28px;border-radius:16px;box-shadow:0 5px 22px #12213114}h1{font-size:1.55rem;margin:0 0 9px}p,li{line-height:1.55;color:#475569}label{display:block;font-size:.9rem;font-weight:600;margin:16px 0 5px}input{box-sizing:border-box;width:100%;padding:11px 12px;border:1px solid #b7c4d0;border-radius:8px;font-size:1rem}button{padding:11px 16px;border:0;background:#1a5a8a;color:white;font-size:1rem;font-weight:600;border-radius:8px;margin-top:14px;cursor:pointer}button:disabled{opacity:.55;cursor:wait}hr{border:none;border-top:1px solid #e4e8ed;margin:25px 0}.notice{font-size:.89rem;background:#edf4f9;border-radius:8px;padding:11px 13px}.output{margin-top:20px;background:#f2f5f8;border-radius:8px;padding:14px;white-space:pre-wrap;word-break:break-word;min-height:75px;font-family:ui-monospace,monospace;font-size:.88rem}.fine{font-size:.8rem;color:#64748b}
+</style>
+<script>
+if (location.search || location.hash) history.replaceState(null,'',location.pathname);
+</script>
+</head>
+<body><main>
+<h1>BoxVault M1 · Local registration test</h1>
+<p class="notice"><strong>Local-only:</strong> Serve this file at <code>http://localhost:5173</code>. API requests go to <code>http://localhost:3000/api/v1</code>. Use a fresh test email you control. Do not use a personal/banking password.</p>
+<label for="siteKey">Google reCAPTCHA v3 PUBLIC site key</label><input id="siteKey" autocomplete="off" placeholder="Paste the site key, not the secret" spellcheck="false">
+<label for="email">Test email address</label><input id="email" type="email" autocomplete="off" placeholder="test-inbox@example.com">
+<label for="password">Test password (12–128 chars; upper, lower, digit)</label><input id="password" type="password" autocomplete="new-password" placeholder="Use a unique disposable test password">
+<button id="register">1. Register + send Brevo email</button>
+<hr>
+<label for="token">Verification token from Brevo email link (token=...)</label><input id="token" type="password" autocomplete="off" placeholder="Paste the 43-character token only" spellcheck="false">
+<label for="verifiedPassword">Password to establish on verification</label><input id="verifiedPassword" type="password" autocomplete="new-password" placeholder="Can be the same disposable test password">
+<button id="verify">2. Verify email + create personal tenant</button>
+<button id="replay">3. Try token replay (expect HTTP 401)</button>
+<hr>
+<button id="login">4. Login with fresh reCAPTCHA token</button>
+<pre id="output" class="output" role="status" aria-live="polite">Ready. Enter your public site key and fresh test account details.</pre>
+<p class="fine">No values are saved to localStorage, cookies or disk. Response bodies are restricted to statuses and non-secret summaries. A login access token is never displayed. The reCAPTCHA provider necessarily receives browser-side challenge signals.</p>
+</main>
+<script>
+'use strict';
+const BASE='http://localhost:3000/api/v1/auth';
+const el=id=>document.getElementById(id);
+const buttons=['register','verify','replay','login'].map(el);
+const output=el('output');
+let loadedKey=null;
+const setBusy=busy=>buttons.forEach(b=>b.disabled=busy);
+const write=s=>{output.textContent=s};
+async function captcha(action){
+  const key=el('siteKey').value.trim();
+  if(!key) throw new Error('Enter your PUBLIC reCAPTCHA v3 site key.');
+  if(loadedKey && key!==loadedKey) throw new Error('Site key changed: reload the page to use another key.');
+  if(!loadedKey){
+    await new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://www.google.com/recaptcha/api.js?render='+encodeURIComponent(key);
+      s.async=true;s.onload=resolve;s.onerror=()=>reject(new Error('Could not load Google reCAPTCHA'));
+      document.head.appendChild(s);
+    });
+    loadedKey=key;
+  }
+  if(!window.grecaptcha) throw new Error('reCAPTCHA is not available.');
+  await new Promise(resolve=>window.grecaptcha.ready(resolve));
+  return await window.grecaptcha.execute(key,{action});
+}
+async function call(path,body){
+  const r=await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'omit',referrerPolicy:'no-referrer'});
+  let data={};try{data=await r.json()}catch{}
+  return {http:r.status,ok:r.ok,body:data};
+}
+async function run(name,action){
+  setBusy(true);write(name+' in progress...');
+  try{const result=await action();write(result)}
+  catch(e){write('ERROR: '+(e?.message||'Unknown failure')+'\nDo not share credentials, raw tokens or passwords.')}
+  finally{setBusy(false)}
+}
+el('register').onclick=()=>run('Register',async()=>{
+  const email=el('email').value.trim(),password=el('password').value;
+  if(!email||!password)throw new Error('Enter test email and password');
+  const captchaToken=await captcha('register');
+  const r=await call('/register',{email,password,captchaToken});
+  return `Registration: HTTP ${r.http}\nAccepted: ${r.body?.accepted===true}\n${r.ok?'Check your Brevo-delivered inbox and copy only the token value from the verification URL.':'API error: '+JSON.stringify(r.body)}`;
+});
+el('verify').onclick=()=>run('Verify email',async()=>{
+  const token=el('token').value.trim(),password=el('verifiedPassword').value;
+  if(!token||!password)throw new Error('Paste your verification token and enter the new password.');
+  const r=await call('/verify-email',{token,password});
+  return `Verification: HTTP ${r.http}\nVerified: ${r.body?.verified===true}\n${r.ok?'Check Neon tenant/OWNER membership with a read-only query.':'API error: '+JSON.stringify(r.body)}`;
+});
+el('replay').onclick=()=>run('Token replay',async()=>{
+  const token=el('token').value.trim(),password=el('verifiedPassword').value;
+  if(!token||!password)throw new Error('Keep the same token and password from verification.');
+  const r=await call('/verify-email',{token,password});
+  return `Replay: HTTP ${r.http}\n${r.http===401?'PASS: replay rejected as expected.':'UNEXPECTED: investigate before proceeding.'}`;
+});
+el('login').onclick=()=>run('Login',async()=>{
+  const email=el('email').value.trim(),password=el('verifiedPassword').value;
+  if(!email||!password)throw new Error('Enter email and verified account password.');
+  const captchaToken=await captcha('login');
+  const r=await call('/login',{email,password,captchaToken});
+  return `Login: HTTP ${r.http}\nMFA required: ${r.body?.mfaRequired===true}\nAccess token issued: ${typeof r.body?.accessToken==='string'}\n${r.ok?'Access credentials were NOT displayed or saved.':'API error: '+JSON.stringify(r.body)}`;
+});
+</script>
+</body></html>
