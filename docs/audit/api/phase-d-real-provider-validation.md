@@ -118,3 +118,9 @@ Operator confirmed receipt of a second Brevo verification message and completion
 **Source change:** commit [`f316d3a`](https://github.com/ArgeeGabrielII/BoxVault/commit/f316d3ab0bc8c5fb7e47b9057d8de5e4398a65a4) adds development-only `timestampPresent` (boolean) and `challengeAgeSeconds` (rounded relative offset or null) to the existing redacted CAPTCHA failure warning. No CAPTCHA token, provider response, private secret or absolute challenge timestamp is logged. The effective validation window stays at 120 seconds and generic unauthorized responses remain unchanged.
 
 **Next evidence needed:** local API reload, single login attempt, and the sanitized `timestampPresent`/`challengeAgeSeconds` values if validation fails. Diagnose missing/invalid timestamp or excessively old/future challenge, without bypassing CAPTCHA.
+
+## Fresh-browser CAPTCHA retry — 2026-11-12 (Asia/Manila)
+
+**Operator-reported result:** After a previous `challenge_timestamp_invalid_or_stale` login denial with `timestampPresent: true` and `challengeAgeSeconds: 428`, reopening the tester in a fresh browser tab and attempting login succeeded. The exact HTTP response for this retry was not pasted; success is reported by the operator. This is consistent with a stale browser challenge but does **not** establish that long-lived reCAPTCHA script reuse is the sole cause. The 120-second server freshness threshold was not changed.
+
+**Next check:** authenticated tenant isolation remains pending (expected unauthenticated HTTP 401, own tenant HTTP 200, unrelated tenant HTTP 403). Do not refresh the tester after login because its access token is volatile in-memory only.
