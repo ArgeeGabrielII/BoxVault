@@ -44,12 +44,10 @@ BEGIN
      SET "emailVerifiedAt" = CURRENT_TIMESTAMP
    WHERE id = token_user;
 
-  -- Revoke any other outstanding verification links for this user.
-  UPDATE public."EmailActionToken"
-     SET "usedAt" = CURRENT_TIMESTAMP
-   WHERE "userId" = token_user
-     AND kind = 'VERIFY_EMAIL'::public."EmailActionKind"
-     AND "usedAt" IS NULL;
+  -- Other verification links remain logically invalid because the user's
+  -- emailVerifiedAt is now non-NULL. Avoid eagerly updating other token rows:
+  -- two simultaneous verifications would otherwise lock different tokens,
+  -- then contend on the same user and deadlock on each other's token.
   RETURN token_user;
 END;
 $$;
