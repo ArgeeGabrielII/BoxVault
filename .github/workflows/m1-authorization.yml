@@ -50,8 +50,8 @@ jobs:
         run: |
           psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 <<'SQL'
           DO $$ BEGIN
-            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 5 THEN
-              RAISE EXCEPTION 'Expected exactly five applied M1 migrations';
+            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 6 THEN
+              RAISE EXCEPTION 'Expected exactly six applied M1 migrations';
             END IF;
           END $$;
           SQL
