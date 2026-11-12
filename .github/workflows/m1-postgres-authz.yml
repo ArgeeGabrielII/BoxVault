@@ -55,7 +55,12 @@ jobs:
           GRANT USAGE ON SCHEMA public TO boxvault_fixture,boxvault_runtime_m1;
           GRANT ALL ON ALL TABLES IN SCHEMA public TO boxvault_fixture;
           GRANT USAGE ON SCHEMA security TO boxvault_runtime_m1;
-          GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA security TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.actor_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.tenant_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.active_member(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.member_can_edit(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.container_allowed(uuid,uuid,boolean) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.grant_visible(uuid,uuid,uuid) TO boxvault_runtime_m1;
           GRANT SELECT ON "Tenant","TenantMember","Container","ContainerAccessGrant","Item","MediaAsset" TO boxvault_runtime_m1;
           GRANT INSERT,UPDATE,DELETE ON "Container","ContainerAccessGrant","Item","MediaAsset" TO boxvault_runtime_m1;
           SQL
