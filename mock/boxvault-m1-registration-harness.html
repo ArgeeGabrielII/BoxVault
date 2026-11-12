@@ -6,7 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <title>BoxVault M1 — Local Registration Test</title>
 <style>
-:root{font-family:system-ui,-apple-system,sans-serif;color-scheme:light}body{max-width:760px;margin:38px auto;padding:0 20px;background:#f4f7fa;color:#1c2b38}main{background:white;padding:28px;border-radius:16px;box-shadow:0 5px 22px #12213114}h1{font-size:1.55rem;margin:0 0 9px}p,li{line-height:1.55;color:#475569}label{display:block;font-size:.9rem;font-weight:600;margin:16px 0 5px}input{box-sizing:border-box;width:100%;padding:11px 12px;border:1px solid #b7c4d0;border-radius:8px;font-size:1rem}button{padding:11px 16px;border:0;background:#1a5a8a;color:white;font-size:1rem;font-weight:600;border-radius:8px;margin-top:14px;cursor:pointer}button:disabled{opacity:.55;cursor:wait}hr{border:none;border-top:1px solid #e4e8ed;margin:25px 0}.notice{font-size:.89rem;background:#edf4f9;border-radius:8px;padding:11px 13px}.output{margin-top:20px;background:#f2f5f8;border-radius:8px;padding:14px;white-space:pre-wrap;word-break:break-word;min-height:75px;font-family:ui-monospace,monospace;font-size:.88rem}.fine{font-size:.8rem;color:#64748b}
+:root{font-family:system-ui,-apple-system,sans-serif;color-scheme:light}body{max-width:760px;margin:38px auto;padding:0 20px;background:#f4f7fa;color:#1c2b38}main{background:white;padding:28px;border-radius:16px;box-shadow:0 5px 22px #12213114}h1{font-size:1.55rem;margin:0 0 9px}p,li{line-height:1.55;color:#475569}label{display:block;font-size:.9rem;font-weight:600;margin:16px 0 5px}input{box-sizing:border-box;width:100%;padding:11px 12px;border:1px solid #b7c4d0;border-radius:8px;font-size:1rem}button{padding:11px 16px;border:0;background:#1a5a8a;color:white;font-size:1rem;font-weight:600;border-radius:8px;margin-top:14px;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.password-row{display:flex;gap:8px;align-items:stretch}.password-row input{flex:1;min-width:0}.password-row .toggle-password{margin-top:0;min-width:86px;background:#4d6476;font-size:.9rem}hr{border:none;border-top:1px solid #e4e8ed;margin:25px 0}.notice{font-size:.89rem;background:#edf4f9;border-radius:8px;padding:11px 13px}.output{margin-top:20px;background:#f2f5f8;border-radius:8px;padding:14px;white-space:pre-wrap;word-break:break-word;min-height:75px;font-family:ui-monospace,monospace;font-size:.88rem}.fine{font-size:.8rem;color:#64748b}
 </style>
 <script>
 if (location.search || location.hash) history.replaceState(null,'',location.pathname);
@@ -17,14 +17,15 @@ if (location.search || location.hash) history.replaceState(null,'',location.path
 <p class="notice"><strong>Local-only:</strong> Serve this file at <code>http://localhost:5173</code>. API requests go to <code>http://localhost:3000/api/v1</code>. Use a fresh test email you control. Do not use a personal/banking password.</p>
 <label for="siteKey">Google reCAPTCHA v3 PUBLIC site key</label><input id="siteKey" autocomplete="off" placeholder="Paste the site key, not the secret" spellcheck="false">
 <label for="email">Test email address</label><input id="email" type="email" autocomplete="off" placeholder="test-inbox@example.com">
-<label for="password">Test password (12–128 chars; upper, lower, digit)</label><input id="password" type="password" autocomplete="new-password" placeholder="Use a unique disposable test password">
+<label for="password">Test password (12–128 chars; upper, lower, digit)</label><div class="password-row"><input id="password" type="password" autocomplete="new-password" placeholder="Use a unique disposable test password"><button type="button" class="toggle-password" data-for="password" aria-pressed="false" aria-label="Show registration password">Show</button></div>
 <button id="register">1. Register + send Brevo email</button>
 <hr>
 <label for="token">Verification token from Brevo email link (token=...)</label><input id="token" type="password" autocomplete="off" placeholder="Paste the 43-character token only" spellcheck="false">
-<label for="verifiedPassword">Password to establish on verification</label><input id="verifiedPassword" type="password" autocomplete="new-password" placeholder="Can be the same disposable test password">
+<label for="verifiedPassword">Password to establish on verification</label><div class="password-row"><input id="verifiedPassword" type="password" autocomplete="new-password" placeholder="Can be the same disposable test password"><button type="button" class="toggle-password" data-for="verifiedPassword" aria-pressed="false" aria-label="Show verification and login password">Show</button></div>
 <button id="verify">2. Verify email + create personal tenant</button>
 <button id="replay">3. Try token replay (expect HTTP 401)</button>
 <hr>
+<p class="fine">Login uses the password set in <strong>Password to establish on verification</strong>, not necessarily the original registration password.</p>
 <button id="login">4. Login with fresh reCAPTCHA token</button>
 <pre id="output" class="output" role="status" aria-live="polite">Ready. Enter your public site key and fresh test account details.</pre>
 <p class="fine">No values are saved to localStorage, cookies or disk. Response bodies are restricted to statuses and non-secret summaries. A login access token is never displayed. The reCAPTCHA provider necessarily receives browser-side challenge signals.</p>
@@ -35,6 +36,16 @@ const BASE='http://localhost:3000/api/v1/auth';
 const el=id=>document.getElementById(id);
 const buttons=['register','verify','replay','login'].map(el);
 const output=el('output');
+for(const button of document.querySelectorAll('.toggle-password')){
+  button.addEventListener('click',()=>{
+    const field=el(button.dataset.for);
+    const reveal=field.type==='password';
+    field.type=reveal?'text':'password';
+    button.textContent=reveal?'Hide':'Show';
+    button.setAttribute('aria-pressed',String(reveal));
+    button.setAttribute('aria-label',(reveal?'Hide ':'Show ')+(field.id==='password'?'registration password':'verification and login password'));
+  });
+}
 let loadedKey=null;
 const setBusy=busy=>buttons.forEach(b=>b.disabled=busy);
 const write=s=>{output.textContent=s};
