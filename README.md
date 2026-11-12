@@ -16,7 +16,7 @@ QR/NFC-powered storage organization. One monorepo for the customer web portal, n
 - `packages/assets` — shared first-party visual assets
 - `packages/contracts` — OpenAPI / cross-platform generated clients
 - `packages/config` — future shared lint/formatting config
-- `docs` — architecture and security decisions
+- [`docs`](docs/README.md) — categorized product, architecture, security, development and operations documentation
 - `infrastructure` — deployment configuration
 
 ## Local setup (no Docker required)
