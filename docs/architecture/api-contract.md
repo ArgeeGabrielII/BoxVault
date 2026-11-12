@@ -1,6 +1,6 @@
 # Proposed REST API Contract
 
-Status: API design draft. On `main`, only `GET /api/v1/health` is implemented. On the **M1 feature branch**, partial auth/MFA routes plus authenticated `GET /containers` and `GET /containers/:id` and a deny-by-default admin `GET /admin/topups` route are implemented. Most routes below remain specifications; see [m1-authentication-implementation.md](../m1-authentication-implementation.md).
+Status: API design draft. On `main`, only `GET /api/v1/health` is implemented. On the **M1 feature branch**, partial auth/MFA routes plus authenticated `GET /containers` and `GET /containers/:id` and a deny-by-default admin `GET /admin/topups` route are implemented. Most routes below remain specifications; see [m1-authentication-implementation.md](../security/m1-authentication-implementation.md).
 
 ## 1. Conventions
 
