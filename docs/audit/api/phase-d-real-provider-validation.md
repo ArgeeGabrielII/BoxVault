@@ -80,3 +80,21 @@ Operator confirmed receipt of a second Brevo verification message and completion
 **Diagnostic improvement:** commit [`775a764`](https://github.com/ArgeeGabrielII/BoxVault/commit/775a7649b6c1e8d917c58f97a5eeffcf8b1f7f69) adds `NODE_ENV=development`-only *reason-code* warnings to the NestJS server when Google CAPTCHA verification denies a request. Reason codes differentiate provider failure, host/action mismatch, missing/low score and invalid or stale challenge timestamp. Existing user-facing 401 responses and the minimum score of 0.5 remain unchanged. No raw CAPTCHA tokens, provider payload, keys, user identifiers, or timestamps are logged by this change.
 
 **Next evidence needed:** pull code, restart local API, perform a single fresh login with live `login` reCAPTCHA token, and record only the reason code(s) from the server warning. If Google returned a low score, review the score-based reCAPTCHA admin metrics and local test characteristics rather than disabling verification. No independent production login evidence or runtime API deployment is claimed.
+
+## Successful verified login — 2026-11-12 (Asia/Manila)
+
+**Evidence:** Operator-reported local mock-browser login response; independent read-only audit-event inspection on Neon `m1-security-test`.
+
+| Check | Observed result | Evidence classification |
+|---|---|---|
+| `POST /api/v1/auth/login` | HTTP **201** | Operator-reported |
+| Live reCAPTCHA v3 `login` challenge | Passed API acceptance path | Inferred from success with CAPTCHA enforcement enabled; no token retained |
+| Account MFA challenge | `mfaRequired: false` | Operator-reported |
+| Bearer access token | Issued, not displayed or saved by mock UI | Operator-reported |
+| Login audit event | `LOGIN_SUCCEEDED` at **2026-11-12T04:23:14.740Z** (12:23:14 Asia/Manila) | Independently verified from `AuthAuditEvent` |
+| Earlier events | `REGISTERED` at 04:22:37 UTC and `EMAIL_VERIFIED` at 04:23:04 UTC | Independently verified by kind/time; user-specific linkage not inspected in this check |
+| Preservation | 9 users, 5 tenants, 8 memberships, 5 containers, 2 access grants, 4 items, 4 media assets, six applied migrations | Independent read-only Neon aggregate counts |
+
+**Interpretation:** Phase D baseline register → email verification → login now succeeds against the local API and isolated test database. Multiple synthetic sign-ups occurred after the initial preservation baseline (6 users / 2 tenants / 5 memberships); the latest counts are therefore **9 / 5 / 8**. Original inventory row counts remain unchanged. This is not a claim of full record-level parity, MFA recovery testing, refresh rotation, cross-tenant authorization acceptance, or production readiness.
+
+**Remaining work:** Confirm authenticated `GET /api/v1/containers` using the newly minted bearer token without displaying/storing it; run fresh CAPTCHA and anti-replay negative checks where needed; confirm authorization in actual principal-scoped RLS context; address verification-link token exposure in Python server logs before additional email tests; evaluate strict production cookie/CSRF, MFA and account recovery separately. Keep PR #4 draft and unmerged.
