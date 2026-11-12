@@ -110,3 +110,11 @@ Operator confirmed receipt of a second Brevo verification message and completion
 - No API authorization rules, database privileges, migrations, user records or default Neon `dev` branch were modified.
 
 **Next evidence needed:** operator-provided three HTTP statuses and pass/fail text from the tester; follow with independently verified RLS and cross-tenant negative cases before security release approval.
+
+## CAPTCHA timestamp diagnostic refinement — 2026-11-12 (Asia/Manila)
+
+**Operator evidence:** macOS UTC `2026-11-12T04:39:50Z` and Google HTTPS Date `Thu, 12 Nov 2026 04:39:50 GMT` matched exactly, reducing likelihood of a system-wide MacBook clock offset at that instant. Earlier login CAPTCHA warning was `challenge_timestamp_invalid_or_stale` despite a prior successful login.
+
+**Source change:** commit [`f316d3a`](https://github.com/ArgeeGabrielII/BoxVault/commit/f316d3ab0bc8c5fb7e47b9057d8de5e4398a65a4) adds development-only `timestampPresent` (boolean) and `challengeAgeSeconds` (rounded relative offset or null) to the existing redacted CAPTCHA failure warning. No CAPTCHA token, provider response, private secret or absolute challenge timestamp is logged. The effective validation window stays at 120 seconds and generic unauthorized responses remain unchanged.
+
+**Next evidence needed:** local API reload, single login attempt, and the sanitized `timestampPresent`/`challengeAgeSeconds` values if validation fails. Diagnose missing/invalid timestamp or excessively old/future challenge, without bypassing CAPTCHA.
