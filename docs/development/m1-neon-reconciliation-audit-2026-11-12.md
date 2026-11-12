@@ -7,7 +7,7 @@
 
 ## Evidence gathered
 
-- Current Prisma schema and all five migration files were inspected alongside `docs/README.md`, `docs/m1-authentication-hardening.md`, `docs/m1-security-gate-status.md`, and `docs/m1-neon-free-tier-validation.md`.
+- Current Prisma schema and all five migration files were inspected alongside `docs/README.md`, `docs/security/m1-authentication-hardening.md`, `docs/security/m1-security-gate-status.md`, and `docs/development/m1-neon-free-tier-validation.md`.
 - Live `public` database contains the original auth, inventory, tenancy and billing tables plus `m1lab` fixtures. Six tables absent: `AuthChallenge`, `EmailActionToken`, `AuthRateLimit`, `AuthAuditEvent`, `PlatformOperator`, `RefreshTokenReuse`.
 - Existing columns `User.emailVerifiedAt` and `AuthSession.privilegedStepUpAt` absent.
 - `security.bootstrap_personal_tenant(uuid,uuid,uuid)` absent.
@@ -37,4 +37,4 @@
 - The existing schema is nonempty but has no Prisma migration ledger: direct `prisma migrate dev`, `migrate reset`, or replay of baseline is unsafe.
 - Current `security.bootstrap_personal_tenant` migration implementation is a `SECURITY DEFINER` function owned by migration role; review its arbitrary UUID parameters, atomicity, RLS behavior, and function grants before exposure.
 - Branch-level inspection does not validate the MacBook's working tree, local runtime connection strings or actual email flow; those require local checks.
-- Existing `docs/m1-security-gate-status.md` describes an older iteration; update status with final SHA after successful live acceptance tests.
+- Existing `docs/security/m1-security-gate-status.md` describes an older iteration; update status with final SHA after successful live acceptance tests.

@@ -69,9 +69,9 @@ Generate and commit a **Prisma baseline migration**, repair/review `202611110001
 
 ## References
 
-- [Milestone 1 security foundation](milestone-01-security-foundation.md)
-- [Critical authorization E2E tests](critical-authorization-e2e-tests.md)
-- [Family sharing security design](family-sharing-access-control.md)
+- [Milestone 1 security foundation](../planning/milestone-01-security-foundation.md)
+- [Critical authorization E2E tests](../security/critical-authorization-e2e-tests.md)
+- [Family sharing security design](../product/family-sharing-access-control.md)
 - [Neon connection](neon-connection.md)
 
 ## Follow-up: actual public schema and revoked-grant check (2026-11-11)

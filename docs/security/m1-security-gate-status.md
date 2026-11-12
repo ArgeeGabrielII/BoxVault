@@ -69,7 +69,7 @@ The API contract test follows the existing documented routes: `/api/v1/container
 
 ## Main-branch reconciliation
 
-Merged the latest `main` into the M1 **feature branch only**, preserving its Neon agent skills, project OAuth MCP configuration, non-secret env examples, and `docs/neon-connection.md`, while retaining the updated M1 Prisma/ACL/RLS schema. The `docs/README.md` index includes both Neon and security-gate documentation. GitHub now reports PR #4 as **mergeable**, but it remains **draft/unapproved** and has not been merged into `main`. No Neon cloud resources were changed by the Git merge.
+Merged the latest `main` into the M1 **feature branch only**, preserving its Neon agent skills, project OAuth MCP configuration, non-secret env examples, and `docs/development/neon-connection.md`, while retaining the updated M1 Prisma/ACL/RLS schema. The `docs/README.md` index includes both Neon and security-gate documentation. GitHub now reports PR #4 as **mergeable**, but it remains **draft/unapproved** and has not been merged into `main`. No Neon cloud resources were changed by the Git merge.
 
 ## Auth implementation follow-up (2026-11-11)
 
