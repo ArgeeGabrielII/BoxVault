@@ -1,5 +1,7 @@
 # BoxVault architecture
 
+**Implementation snapshot (2026-11-12; PR #4):** This is the original architecture overview. The current feature branch additionally contains auth/MFA services, restricted auth-versus-content database roles, RLS-protected container-read foundations, and migrations `000`–`005`. Isolated-Neon database phases A–C and scoped earlier CI passed; full browser tenant authorization (own-tenant HTTP 403), media, QR and financial handlers, and launch security gates remain outstanding. See [solution architecture](solution-architecture.md), [M1 audit](../audit/README.md) and [roadmap](../planning/delivery-roadmap.md).
+
 ## Application boundaries
 - apps/web: React 19 + Vite + Bootstrap 5. Customer inventory and **web-only** manual bank-transfer/credit requests, plus an admin area.
 - apps/ios: native SwiftUI companion app, Camera/QR, Core NFC and inventory. No purchasing, bank QR display, receipt uploads, external payment links, or calls to action to buy credits.

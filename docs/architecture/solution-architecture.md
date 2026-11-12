@@ -1,5 +1,7 @@
 # Technical Solution Architecture
 
+**Implementation snapshot (2026-11-12; PR #4):** The modular-monolith topology remains the target. M1 has staged NestJS authentication (password/Google, email verification, recovery, TOTP, sessions and operator step-up), Prisma migrations `000`–`005`, separate restricted database roles, and tenant/container RLS on the feature branch. Isolated Neon test-branch migrations and privileges are verified; scoped CI passed at a recorded earlier commit. Private media storage, complete QR/NFC and inventory flows, production hosting, and an accepted own-tenant HTTP read are **not** established. See [engineering audit](../audit/README.md) and [roadmap](../planning/delivery-roadmap.md).
+
 Status: proposed architecture; existing scaffold has partial implementations only.
 
 ## 1. Repository and application boundaries
@@ -59,7 +61,7 @@ Recommended future public entry: domain + HTTPS reverse proxy/Cloudflare Tunnel.
 | Customer + admin web | React 19, Vite, TypeScript, Bootstrap 5 | Admin routes share build initially but must have strict server permissions |
 | iPhone | Swift 5.10+, SwiftUI, AVFoundation, PhotosUI, Core NFC | iOS 17+ target (scaffold); use Keychain tokens |
 | API | Node.js 22, NestJS 11 | API prefix `/api/v1`, validation, guards, interceptors |
-| Persistence | PostgreSQL, Prisma 6 | Schema baseline exists; migrations/RLS not implemented |
+| Persistence | PostgreSQL, Prisma 6 | M1 migrations and RLS implemented on branch; isolated test verified, not production-approved |
 | Asset/media store | Private S3-compatible or cloud object storage | Choice pending; thumbnails, checksum and quotas |
 | Shared contracts | NestJS-generated OpenAPI | Generate typed TS and Swift clients; do not share TS directly with Swift |
 | Background work | Queued job processor/cron | Thumbnail generation, email, expiration, reconciliation |

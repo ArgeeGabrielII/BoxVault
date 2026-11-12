@@ -1,6 +1,8 @@
 # Family Container Sharing and Access Control
 
-**Status:** Approved product requirement; implementation pending. **Security classification:** P0 — no inventory access without explicit authorization.
+**Implementation snapshot (2026-11-12; PR #4):** PRIVATE / SELECTED_MEMBERS / ALL_FAMILY ACL and tenant-scoped RLS policies are implemented in the M1 database/API foundation, with scoped PostgreSQL and isolated-Neon verification of important negative cases (including revoked grants). This is **not** complete family-sharing acceptance: invitations, four-seat concurrency, full ACL mutation/read HTTP coverage, media access, and real client UX still require implementation and verification. The own-tenant browser read case remains unresolved. See [M1 security gates](../security/m1-security-gate-status.md) and [roadmap](../planning/delivery-roadmap.md).
+
+**Status:** Approved product requirement; M1 database/API authorization foundation implemented, full client and release acceptance pending. **Security classification:** P0 — no inventory access without explicit authorization.
 
 ## 1. Sharing policy
 
@@ -100,4 +102,4 @@ Display a compact sharing indicator without showing private container details to
 | Admin attempts to access private photos | Denied |
 | Search/thumbnail/export with unshared container | No result, counts or media |
 
-**This is a specification, not implemented authorization.** Do not release container/media endpoints until ACL-aware server checks, RLS and corresponding tests are passing.
+**Historical design note:** The original specification predates the M1 ACL/RLS implementation; independent full-scope authorization acceptance remains pending. Do not release container/media endpoints until ACL-aware server checks, RLS and corresponding tests are passing.

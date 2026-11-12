@@ -1,5 +1,7 @@
 # Product Requirements Document (PRD)
 
+**Implementation snapshot (2026-11-12; PR #4):** The MVP requirements remain the approved target, not a completed product. A NestJS authentication/tenant/RLS foundation exists on the feature branch; database phases A–C were verified on an isolated Neon test branch, and a local registration → email verification → login was observed. Family invitation/seat-limit UI, inventory CRUD, media, web-only payment processing, and native app onboarding are not accepted. A browser own-tenant read returned unexpected HTTP 403; release acceptance remains blocked. See [roadmap](../planning/delivery-roadmap.md) and [Phase D audit](../audit/api/phase-d-real-provider-validation.md).
+
 Version 0.1 • Owner: Product/Engineering • Status: proposed
 
 ## 1. Product vision and personas

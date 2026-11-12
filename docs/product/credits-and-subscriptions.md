@@ -1,5 +1,7 @@
 # Manual Credits, Annual Subscriptions and Financial Reporting
 
+**Implementation snapshot (2026-11-12; PR #4):** Fixed-price and closed-loop credit designs remain **specifications**, not an operational billing service. M1 adds authentication and privileged-operator guard foundations, but actual payment-review processing is deliberately unavailable (guarded `GET /api/v1/admin/topups` returns 501 for authorized operators). No verified web top-up, transfer approval, ledger posting, redemption, or mobile-payment-policy acceptance is claimed. See [roadmap](../planning/delivery-roadmap.md).
+
 Status: proposed design. No payment gateway is connected or needed for MVP.
 
 ## 1. Fixed annual prices

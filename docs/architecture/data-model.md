@@ -1,6 +1,8 @@
 # Database and Data Model Specification
 
-Status: **target schema**; current `apps/api/prisma/schema.prisma` is an incomplete starter and is not yet secured by PostgreSQL RLS.
+**Implementation snapshot (2026-11-12; PR #4):** The description below is the *target logical model*, but the M1 branch now includes **six versioned Prisma migrations** (`202611110000`–`202611110005`), auth/session/MFA/recovery/audit records, tenant membership constraints, and tenant-aware RLS/ACL controls. The isolated `m1-security-test` Neon branch has verified A/B/C history, deployment and restricted-role grants. This does **not** establish production schema migration, all financial/media models or independent acceptance of live HTTP authorization. See [database audit](../audit/database/phase-b-schema-deployment.md) and [roadmap](../planning/delivery-roadmap.md).
+
+Status: **target schema**; M1 branch now includes staged auth/tenant migrations and PostgreSQL RLS; complete target schema and production acceptance remain pending.
 
 ## 1. Principles
 

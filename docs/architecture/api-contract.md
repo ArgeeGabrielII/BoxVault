@@ -1,5 +1,7 @@
 # Proposed REST API Contract
 
+**Implementation snapshot (2026-11-12; PR #4):** Routes in the tables below include both proposed and branch-implemented APIs. On the M1 branch, login/Google linking, email registration and verification, password reset, TOTP/MFA, session controls, guarded container reads and fail-closed admin top-ups have backend implementations. Positive local registration → verification → login was observed, but browser own-tenant GET returned 403 rather than expected 200. No full production endpoint acceptance, QR/media CRUD or payment-review service is claimed. See [API M1 implementation audit](../audit/api/m1-implementation.md), [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
+
 Status: API design draft. On `main`, only `GET /api/v1/health` is implemented. On the **M1 feature branch**, partial auth/MFA routes plus authenticated `GET /containers` and `GET /containers/:id` and a deny-by-default admin `GET /admin/topups` route are implemented. Most routes below remain specifications; see [m1-authentication-implementation.md](../security/m1-authentication-implementation.md).
 
 ## 1. Conventions
@@ -161,4 +163,4 @@ Generate negative tests for unauthenticated access, wrong tenant, revoked member
 
 ## M1 feature-branch route implementation (2026-11-11)
 
-The M1 feature branch currently implements `POST /auth/login`, `POST /auth/google`, `POST /auth/providers/google/link`, `POST /auth/mfa/challenges/verify`, `POST /auth/mfa/totp/setup`, `POST /auth/mfa/totp/confirm`, `POST /auth/refresh`, `POST /auth/logout`, guarded `GET /containers` and `GET /containers/:id`, plus fail-closed `GET /admin/topups`. Endpoints not listed here remain proposed. In particular, first-time registration, password reset and all customer admin-payment processing are **not yet implemented**. These endpoints have not been released to production.
+**Current branch supplement (2026-11-12):** M1 implements the earlier login/Google/TOTP/refresh/logout/container-read routes **and** server-side registration, recipient-controlled email verification, password-reset, session management and privileged MFA/step-up controls. The `GET /admin/topups` route remains deliberately non-operational for payment review. A positive local register → verify → login was reported, but browser authorization is not accepted (own-tenant GET returned 403). Implementation is branch-only and has not been released to production. See [API audit](../audit/api/m1-implementation.md) and [Phase D](../audit/api/phase-d-real-provider-validation.md).

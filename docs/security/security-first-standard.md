@@ -1,6 +1,8 @@
 # BoxVault Security-First Engineering Standard
 
-**Status:** Mandatory design baseline, not yet implemented. **Scope:** React customer/admin web, SwiftUI iOS, NestJS API, PostgreSQL/Prisma, QR/NFC labels, private media, manual payments and home/hybrid hosting.
+**Implementation snapshot (2026-11-12; PR #4):** These standards remain **mandatory release requirements**, not a claim of production compliance. Some M1 controls are coded (auth/MFA, session replay protections, tenant/ACL RLS, restricted DB roles), and test-only PostgreSQL evidence exists. The real browser tenant-isolation exercise found an unresolved own-tenant HTTP 403; latest-head/complete negative tests, private media/QR/payment controls, recovery/monitoring and independent sign-off are outstanding. **Do not merge PR #4 or deploy for paying customers** on existing evidence. See [roadmap](../planning/delivery-roadmap.md).
+
+**Status:** Mandatory design baseline; **partially implemented in draft M1**, not production approved. **Scope:** React customer/admin web, SwiftUI iOS, NestJS API, PostgreSQL/Prisma, QR/NFC labels, private media, manual payments and home/hybrid hosting.
 
 ## 1. Security invariants (must hold for every release)
 
@@ -105,4 +107,4 @@ Security acceptance required before merge:
 7. Secure dependencies, secret handling and migration rollback reviewed.
 8. Relevant docs, OpenAPI contracts and threat model updated.
 
-**Current status:** These are architectural requirements; the existing scaffold has none of the protected application flows secured yet. **Do not deploy it for paid customers** until the release gate is satisfied.
+**Current status:** These are architectural requirements; the M1 feature branch has some protected flows and scoped test evidence, but does not yet satisfy the full security release gate. **Do not deploy it for paid customers** until the release gate is satisfied.

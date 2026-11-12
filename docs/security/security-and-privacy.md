@@ -1,5 +1,7 @@
 # Security, Tenant Isolation and Privacy Specification
 
+**Implementation snapshot (2026-11-12; PR #4):** This document defines mandatory security policy. Its M1 implementation includes auth/MFA/session safeguards, restricted database roles, and tenant/container ACL-aware RLS. Isolated test-branch DB permissions and scoped CI have recorded evidence; full current-head CI, web/iOS integration, all authenticated cross-tenant/media/QR/finance negative tests, operator provisioning, key/secret operations and independent security review are **not accepted**. The legacy overprivileged test auth role is an outstanding risk. See [security gates](m1-security-gate-status.md) and [roadmap](../planning/delivery-roadmap.md).
+
 Status: design requirements; not a claim of deployed security controls.
 
 ## 1. Trust model and protected data
