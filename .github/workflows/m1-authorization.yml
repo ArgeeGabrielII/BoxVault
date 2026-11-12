@@ -71,7 +71,12 @@ jobs:
           GRANT SELECT,INSERT,UPDATE,DELETE ON
             public."Container",public."ContainerAccessGrant",public."Item",public."MediaAsset"
             TO boxvault_runtime_m1;
-          GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA security TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.actor_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.tenant_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.active_member(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.member_can_edit(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.container_allowed(uuid,uuid,boolean) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.grant_visible(uuid,uuid,uuid) TO boxvault_runtime_m1;
           SQL
       - name: Execute critical SEC-00 through SEC-10 authorization tests
         run: pnpm --filter @boxvault/api test:authz:e2e
@@ -108,7 +113,7 @@ jobs:
       PGPASSWORD: ci_ephemeral_fixture_only
       DIRECT_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_auth_ci?schema=public
       AUTHZ_ADMIN_DATABASE_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_auth_ci?schema=public
-      AUTH_DATABASE_URL: postgresql://boxvault_auth_m1:ci_ephemeral_auth_only@localhost:5432/boxvault_auth_ci?schema=public
+      AUTH_DATABASE_URL: postgresql://boxvault_auth_runtime_m1:ci_ephemeral_auth_only@localhost:5432/boxvault_auth_ci?schema=public
       DATABASE_URL: postgresql://boxvault_runtime_m1:ci_ephemeral_runtime_only@localhost:5432/boxvault_auth_ci?schema=public
       AUTH_SESSION_PEPPER: ci-only-session-pepper-not-for-production-2026
       AUTH_ACCESS_JWT_KEY: ci-only-jwt-key-must-never-be-used-in-prod
@@ -132,23 +137,30 @@ jobs:
         run: |
           psql -h localhost -U postgres -d boxvault_auth_ci -v ON_ERROR_STOP=1 <<'SQL'
           CREATE ROLE boxvault_runtime_m1 LOGIN PASSWORD 'ci_ephemeral_runtime_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
-          CREATE ROLE boxvault_auth_m1 LOGIN PASSWORD 'ci_ephemeral_auth_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
-          GRANT CONNECT ON DATABASE boxvault_auth_ci TO boxvault_runtime_m1,boxvault_auth_m1;
+          CREATE ROLE boxvault_auth_runtime_m1 LOGIN PASSWORD 'ci_ephemeral_auth_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+          GRANT CONNECT ON DATABASE boxvault_auth_ci TO boxvault_runtime_m1,boxvault_auth_runtime_m1;
           GRANT USAGE ON SCHEMA public,security TO boxvault_runtime_m1;
           GRANT SELECT ON public."Tenant",public."TenantMember" TO boxvault_runtime_m1;
           GRANT SELECT,INSERT,UPDATE,DELETE ON public."Container",public."Item",
             public."MediaAsset",public."ContainerAccessGrant" TO boxvault_runtime_m1;
-          GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA security TO boxvault_runtime_m1;
-          GRANT USAGE ON SCHEMA public TO boxvault_auth_m1;
+          GRANT EXECUTE ON FUNCTION security.actor_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.tenant_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.active_member(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.member_can_edit(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.container_allowed(uuid,uuid,boolean) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.grant_visible(uuid,uuid,uuid) TO boxvault_runtime_m1;
+          GRANT USAGE ON SCHEMA public TO boxvault_auth_runtime_m1;
           GRANT SELECT,INSERT,UPDATE,DELETE ON public."User",public."AuthIdentity",
             public."AuthSession",public."AuthChallenge",public."TotpFactor",
             public."MfaRecoveryCode",public."EmailActionToken",
-            public."AuthRateLimit",public."RefreshTokenReuse" TO boxvault_auth_m1;
-          GRANT SELECT,INSERT ON public."AuthAuditEvent" TO boxvault_auth_m1;
-          GRANT SELECT ON public."PlatformOperator" TO boxvault_auth_m1;
-          GRANT USAGE ON SCHEMA security TO boxvault_auth_m1;
-          GRANT EXECUTE ON FUNCTION security.bootstrap_personal_tenant(uuid,uuid,uuid) TO boxvault_auth_m1;
+            public."AuthRateLimit",public."RefreshTokenReuse" TO boxvault_auth_runtime_m1;
+          GRANT SELECT,INSERT ON public."AuthAuditEvent" TO boxvault_auth_runtime_m1;
+          GRANT SELECT ON public."PlatformOperator" TO boxvault_auth_runtime_m1;
+          GRANT USAGE ON SCHEMA security TO boxvault_auth_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.bootstrap_verified_email_tenant(text,uuid,uuid) TO boxvault_auth_runtime_m1;
           SQL
+      - name: Verify token-bound tenant onboarding negative security cases
+        run: pnpm --filter @boxvault/api exec node --test test/onboarding.negative.test.mjs
       - name: Seed synthetic password identity
         run: pnpm --filter @boxvault/api exec node test/seed-auth-ci.mjs
       - name: Build API
@@ -158,8 +170,8 @@ jobs:
           pnpm --filter @boxvault/api exec node --test test/captcha.integration.test.mjs
           psql -h localhost -U postgres -d boxvault_auth_ci -v ON_ERROR_STOP=1 <<'SQL'
           DO $$ BEGIN
-            IF has_table_privilege('boxvault_auth_m1','public."AuthAuditEvent"','UPDATE') OR
-               has_table_privilege('boxvault_auth_m1','public."AuthAuditEvent"','DELETE') OR
+            IF has_table_privilege('boxvault_auth_runtime_m1','public."AuthAuditEvent"','UPDATE') OR
+               has_table_privilege('boxvault_auth_runtime_m1','public."AuthAuditEvent"','DELETE') OR
                has_table_privilege('boxvault_runtime_m1','public."AuthAuditEvent"','SELECT') THEN
               RAISE EXCEPTION 'Audit trail privileges are not append-only';
             END IF;
