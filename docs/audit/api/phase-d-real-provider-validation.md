@@ -124,3 +124,15 @@ Operator confirmed receipt of a second Brevo verification message and completion
 **Operator-reported result:** After a previous `challenge_timestamp_invalid_or_stale` login denial with `timestampPresent: true` and `challengeAgeSeconds: 428`, reopening the tester in a fresh browser tab and attempting login succeeded. The exact HTTP response for this retry was not pasted; success is reported by the operator. This is consistent with a stale browser challenge but does **not** establish that long-lived reCAPTCHA script reuse is the sole cause. The 120-second server freshness threshold was not changed.
 
 **Next check:** authenticated tenant isolation remains pending (expected unauthenticated HTTP 401, own tenant HTTP 200, unrelated tenant HTTP 403). Do not refresh the tester after login because its access token is volatile in-memory only.
+
+## Phase D browser tenant-isolation result — 2026-11-12 (Asia/Manila)
+
+**Operator-reported HTTP outcomes:** unauthenticated GET /containers **401** (expected), authenticated own-tenant GET **403** (unexpected, expected 200), authenticated unrelated-tenant GET **403** (expected). Overall **FAIL / INVESTIGATE**, not acceptance.
+
+**Independent Neon checks (read-only):** most recent `LOGIN_SUCCEEDED` principal has one active OWNER membership; latest session was active and unexpired. `security.active_member(t,u)` is SECURITY DEFINER, uses `search_path=pg_catalog`; inventory role can execute it and has SELECT on TenantMember. Executed a transaction against `m1-security-test` **as `boxvault_runtime_m1`**, with transaction-local `app.user_id` and `app.tenant_id` copied from the latest logged-in principal and its actual membership (no privileged writes). Results: `active_member=true`, one visible tenant membership, zero visible containers. Therefore correct-principal/correct-tenant database isolation **passed** under the restricted role.
+
+**Interpretation:** HTTP own-tenant 403 is still unresolved. A mismatched UUID supplied for a different registered test account is a strong possibility, but is **not yet proven**; runtime route principal matching and request query values have not been observed together. Do not grant wider permissions or change RLS policies on this evidence.
+
+**Next action:** Re-run the read-only UUID lookup for the *same email address currently logged in* (prefer latest verified account) and retry the exact owner-tenant UUID without refreshing the browser/session. Reproduce the result and investigate principal/session binding only if 403 persists.
+
+**Preservation:** no role, schema, user or inventory writes performed for this investigation.
