@@ -92,6 +92,8 @@ export class AuthHardeningService implements OnModuleDestroy {
       throw new ServiceUnavailableException('Bot verification unavailable');
     }
     const challengeAt = Date.parse(response.challenge_ts || '');
+    const challengeAgeSeconds = Number.isFinite(challengeAt)
+      ? Math.round((Date.now() - challengeAt) / 1000) : null;
     const failures: string[] = [];
     if (response.success !== true) failures.push('google_verification_failed');
     if (response.hostname !== hostname) failures.push('hostname_mismatch');
@@ -99,13 +101,19 @@ export class AuthHardeningService implements OnModuleDestroy {
     if (typeof response.score !== 'number' || !Number.isFinite(response.score))
       failures.push('score_missing');
     else if (response.score < 0.5) failures.push('score_below_threshold');
-    if (!Number.isFinite(challengeAt) || Math.abs(Date.now() - challengeAt) > 120_000)
+    if (challengeAgeSeconds === null || Math.abs(challengeAgeSeconds) > 120)
       failures.push('challenge_timestamp_invalid_or_stale');
     if (failures.length) {
-      // Local-only diagnostics: reason codes, never CAPTCHA tokens, secret keys,
-      // user identifiers, Google provider payloads or verification timestamps.
+      // Local-only diagnostics: never print CAPTCHA tokens, secret keys, user
+      // identifiers, provider payloads or absolute verification timestamps.
+      // Age is a rounded duration, not a timestamp or authentication credential.
       if (process.env.NODE_ENV === 'development')
-        console.warn('[auth][captcha][development]', { action, reasons: failures });
+        console.warn('[auth][captcha][development]', {
+          action, reasons: failures,
+          timestampPresent: typeof response.challenge_ts === 'string' &&
+            response.challenge_ts.length > 0,
+          challengeAgeSeconds,
+        });
       throw new UnauthorizedException('Bot verification failed');
     }
     // A replay is denied even across API instances.
