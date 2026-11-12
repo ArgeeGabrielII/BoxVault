@@ -125,7 +125,7 @@ On iOS: AVFoundation reads QR; NDEF URL tags can trigger supported background re
 
 **Fully managed:** React static hosting, Cloud Run NestJS, managed PostgreSQL, managed object storage. Highest recurring fixed OPEX, less physical maintenance.
 
-Do not deploy development defaults, default passwords, public PostgreSQL or open storage buckets. See [operations-and-deployment.md](operations-and-deployment.md).
+Do not deploy development defaults, default passwords, public PostgreSQL or open storage buckets. See [operations-and-deployment.md](../operations/operations-and-deployment.md).
 
 ## 8. Evolution path
 

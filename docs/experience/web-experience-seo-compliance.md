@@ -4,7 +4,7 @@ Version 0.1 • Source: 17-item project source checklist (2026-11-11) • Status
 
 ## Purpose and applicability
 
-This document translates the source checklist into testable BoxVault requirements. It applies to the **React web application** and its public-facing pages, with additional authenticated-portal and native-iOS considerations where relevant. Preserve the existing security-first, privacy-by-default, tenant-scoped architecture in [security-first-standard.md](security-first-standard.md) and [product-requirements.md](product-requirements.md).
+This document translates the source checklist into testable BoxVault requirements. It applies to the **React web application** and its public-facing pages, with additional authenticated-portal and native-iOS considerations where relevant. Preserve the existing security-first, privacy-by-default, tenant-scoped architecture in [security-first-standard.md](../security/security-first-standard.md) and [product-requirements.md](../product/product-requirements.md).
 
 **Page classes**
 - **Public marketing**: landing, features, FAQ, contact, publicly approved plan-information pages, privacy, terms, confirmation pages where safe.
@@ -73,11 +73,11 @@ Public pages may be discoverable. All authenticated/customer/operator/transactio
 - [ ] Public landing-page CTA is visible without initial scrolling on agreed responsive viewport baselines.
 
 ## Related documents
-- [product-requirements.md](product-requirements.md)
-- [security-and-privacy.md](security-and-privacy.md)
-- [security-first-standard.md](security-first-standard.md)
-- [security-release-checklist.md](security-release-checklist.md)
-- [delivery-roadmap.md](delivery-roadmap.md)
+- [product-requirements.md](../product/product-requirements.md)
+- [security-and-privacy.md](../security/security-and-privacy.md)
+- [security-first-standard.md](../security/security-first-standard.md)
+- [security-release-checklist.md](../security/security-release-checklist.md)
+- [delivery-roadmap.md](../planning/delivery-roadmap.md)
 
 ## Pending product/legal decisions
 

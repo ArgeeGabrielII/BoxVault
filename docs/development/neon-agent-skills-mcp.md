@@ -35,7 +35,7 @@ neon skills -s neon-postgres --agent <supported-agent-id> -y
 ## Compatibility with BoxVault
 
 - Keep NestJS API + Prisma 6; do not replace them with Neon Functions, Data API or Neon Auth without a separate architecture decision.
-- Keep pooled `DATABASE_URL` for runtime and direct `DIRECT_URL` for Prisma migrations, per `docs/neon-connection.md`.
+- Keep pooled `DATABASE_URL` for runtime and direct `DIRECT_URL` for Prisma migrations, per `docs/development/neon-connection.md`.
 - For M1 security tests use a **disposable test database/branch**, never the persistent production branch.
 - Use separate, rigorously limited PostgreSQL identities for fixture administration and application runtime. Validate Neon managed-role limitations before using the RLS test harness.
 - No secret fields are required in `.mcp.json`; user OAuth is done interactively by the client.

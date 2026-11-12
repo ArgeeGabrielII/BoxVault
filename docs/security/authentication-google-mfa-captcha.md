@@ -1,6 +1,6 @@
 # Authentication, Google Sign-In, MFA and Anti-Bot Controls
 
-Version 0.2 • Status: **approved direction + partial M1 implementation (branch only)**, not deployed/production approved. See [m1-authentication-implementation.md](m1-authentication-implementation.md) for implementation and verification evidence • 2026-11-11
+Version 0.2 • Status: **approved direction + partial M1 implementation (branch only)**, not deployed/production approved. See [m1-authentication-implementation.md](../m1-authentication-implementation.md) for implementation and verification evidence • 2026-11-11
 
 ## Decisions
 
