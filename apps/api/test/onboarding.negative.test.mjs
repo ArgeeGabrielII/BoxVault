@@ -22,8 +22,11 @@ test('ONBOARD-SEC: token-purpose, expiry, replay, cross-user and least-privilege
   const runtime = new PrismaClient({ datasources: { db: { url: authUrl } } });
   const userId = randomUUID();
   const otherUserId = randomUUID();
+  const racingUserId = randomUUID();
   const tenantId = randomUUID();
   const secondTenant = randomUUID();
+  const raceTenantA = randomUUID();
+  const raceTenantB = randomUUID();
   const membershipId = randomUUID();
   const prefix = randomUUID();
   const valid = 'onboarding-valid-' + prefix;
@@ -32,6 +35,8 @@ test('ONBOARD-SEC: token-purpose, expiry, replay, cross-user and least-privilege
   const expired = 'onboarding-expired-' + prefix;
   const spent = 'onboarding-spent-' + prefix;
   const other = 'onboarding-other-' + prefix;
+  const raceTokenA = 'onboarding-race-a-' + prefix;
+  const raceTokenB = 'onboarding-race-b-' + prefix;
   const invoke = (digest, tenant = randomUUID(), member = randomUUID()) =>
     runtime.$queryRaw`
       SELECT security.bootstrap_verified_email_tenant(
@@ -54,6 +59,7 @@ test('ONBOARD-SEC: token-purpose, expiry, replay, cross-user and least-privilege
     await admin.user.createMany({ data: [
       { id: userId, email: 'onboarding-' + prefix + '@example.invalid' },
       { id: otherUserId, email: 'onboarding-other-' + prefix + '@example.invalid' },
+      { id: racingUserId, email: 'onboarding-race-' + prefix + '@example.invalid' },
     ] });
     await admin.emailActionToken.createMany({ data: [
       { userId, kind: 'VERIFY_EMAIL', tokenHash: valid, expiresAt: new Date(Date.now() + 300000) },
@@ -62,6 +68,8 @@ test('ONBOARD-SEC: token-purpose, expiry, replay, cross-user and least-privilege
       { userId, kind: 'VERIFY_EMAIL', tokenHash: expired, expiresAt: new Date(Date.now() - 60000) },
       { userId, kind: 'VERIFY_EMAIL', tokenHash: spent, expiresAt: new Date(Date.now() + 300000), usedAt: new Date() },
       { userId: otherUserId, kind: 'VERIFY_EMAIL', tokenHash: other, expiresAt: new Date(Date.now() + 300000) },
+      { userId: racingUserId, kind: 'VERIFY_EMAIL', tokenHash: raceTokenA, expiresAt: new Date(Date.now() + 300000) },
+      { userId: racingUserId, kind: 'VERIFY_EMAIL', tokenHash: raceTokenB, expiresAt: new Date(Date.now() + 300000) },
     ] });
 
     for (const digest of ['forged-' + prefix, reset, expired, spent]) {
@@ -88,6 +96,17 @@ test('ONBOARD-SEC: token-purpose, expiry, replay, cross-user and least-privilege
     assert.equal(second[0].userId, otherUserId);
     assert.equal((await admin.tenantMember.findUnique({ where: { id: secondMembership } })).userId, otherUserId);
 
+    // Two different valid links raced for the same account: only one may win.
+    const raced = await Promise.allSettled([
+      invoke(raceTokenA, raceTenantA, randomUUID()),
+      invoke(raceTokenB, raceTenantB, randomUUID()),
+    ]);
+    assert.equal(raced.filter(x => x.status === 'fulfilled').length, 1,
+      'Concurrent verification must provision exactly one personal tenant');
+    assert.equal(raced.filter(x => x.status === 'rejected').length, 1);
+    assert.equal(await admin.tenantMember.count({ where: { userId: racingUserId } }), 1);
+    assert.ok((await admin.user.findUnique({ where: { id: racingUserId } })).emailVerifiedAt);
+
     // Reject verified accounts even if a new verify token was somehow issued.
     const extra = 'onboarding-postverified-' + prefix;
     await admin.emailActionToken.create({
@@ -98,10 +117,10 @@ test('ONBOARD-SEC: token-purpose, expiry, replay, cross-user and least-privilege
       'Rejected transaction must not consume token');
   } finally {
     // Only ephemeral local CI fixtures. Preserve data on any remote system.
-    await admin.tenantMember.deleteMany({ where: { userId: { in: [userId, otherUserId] } } });
-    await admin.tenant.deleteMany({ where: { id: { in: [tenantId, secondTenant] } } });
-    await admin.emailActionToken.deleteMany({ where: { userId: { in: [userId, otherUserId] } } });
-    await admin.user.deleteMany({ where: { id: { in: [userId, otherUserId] } } });
+    await admin.tenantMember.deleteMany({ where: { userId: { in: [userId, otherUserId, racingUserId] } } });
+    await admin.tenant.deleteMany({ where: { id: { in: [tenantId, secondTenant, raceTenantA, raceTenantB] } } });
+    await admin.emailActionToken.deleteMany({ where: { userId: { in: [userId, otherUserId, racingUserId] } } });
+    await admin.user.deleteMany({ where: { id: { in: [userId, otherUserId, racingUserId] } } });
     await Promise.all([admin.$disconnect(), runtime.$disconnect()]);
   }
 });
