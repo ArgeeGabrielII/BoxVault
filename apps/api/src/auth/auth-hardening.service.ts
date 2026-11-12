@@ -92,11 +92,22 @@ export class AuthHardeningService implements OnModuleDestroy {
       throw new ServiceUnavailableException('Bot verification unavailable');
     }
     const challengeAt = Date.parse(response.challenge_ts || '');
-    if (!response.success || response.hostname !== hostname ||
-        response.action !== action || typeof response.score !== 'number' ||
-        response.score < 0.5 || !Number.isFinite(challengeAt) ||
-        Math.abs(Date.now() - challengeAt) > 120_000)
+    const failures: string[] = [];
+    if (response.success !== true) failures.push('google_verification_failed');
+    if (response.hostname !== hostname) failures.push('hostname_mismatch');
+    if (response.action !== action) failures.push('action_mismatch');
+    if (typeof response.score !== 'number' || !Number.isFinite(response.score))
+      failures.push('score_missing');
+    else if (response.score < 0.5) failures.push('score_below_threshold');
+    if (!Number.isFinite(challengeAt) || Math.abs(Date.now() - challengeAt) > 120_000)
+      failures.push('challenge_timestamp_invalid_or_stale');
+    if (failures.length) {
+      // Local-only diagnostics: reason codes, never CAPTCHA tokens, secret keys,
+      // user identifiers, Google provider payloads or verification timestamps.
+      if (process.env.NODE_ENV === 'development')
+        console.warn('[auth][captcha][development]', { action, reasons: failures });
       throw new UnauthorizedException('Bot verification failed');
+    }
     // A replay is denied even across API instances.
     const replayKey = this.hash('captcha:' + token);
     const until = new Date(Date.now() + 180_000);
