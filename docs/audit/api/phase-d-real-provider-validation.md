@@ -98,3 +98,15 @@ Operator confirmed receipt of a second Brevo verification message and completion
 **Interpretation:** Phase D baseline register → email verification → login now succeeds against the local API and isolated test database. Multiple synthetic sign-ups occurred after the initial preservation baseline (6 users / 2 tenants / 5 memberships); the latest counts are therefore **9 / 5 / 8**. Original inventory row counts remain unchanged. This is not a claim of full record-level parity, MFA recovery testing, refresh rotation, cross-tenant authorization acceptance, or production readiness.
 
 **Remaining work:** Confirm authenticated `GET /api/v1/containers` using the newly minted bearer token without displaying/storing it; run fresh CAPTCHA and anti-replay negative checks where needed; confirm authorization in actual principal-scoped RLS context; address verification-link token exposure in Python server logs before additional email tests; evaluate strict production cookie/CSRF, MFA and account recovery separately. Keep PR #4 draft and unmerged.
+
+## Phase D follow-up — tenant isolation test harness prepared (2026-11-12)
+
+**Status: PENDING LIVE EXECUTION** — no claim that the new isolation checks have passed.
+
+- `mock/boxvault-m1-registration-harness.html` now retains a successful login access token in volatile page memory (never displayed or persisted) and can exercise unauthenticated/own-tenant/unrelated-tenant `GET /api/v1/containers?tenantId=...` checks.
+- Expected statuses: **401** unauthenticated, **200** own tenant, **403** unrelated tenant; no cross-tenant container payload is rendered.
+- `mock/tenant-isolation-readonly-lookup.md` provides an operator-only, parameterized, **read-only** tenant UUID lookup guarded to Neon `m1-security-test`. The application receives only the UUIDs typed by the tester; privileged owner DB credentials are never sent to it.
+- A browser refresh clears the access token and requires a fresh reCAPTCHA-backed login. The tester also includes a **Forget access token** control.
+- No API authorization rules, database privileges, migrations, user records or default Neon `dev` branch were modified.
+
+**Next evidence needed:** operator-provided three HTTP statuses and pass/fail text from the tester; follow with independently verified RLS and cross-tenant negative cases before security release approval.
