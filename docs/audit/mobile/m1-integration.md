@@ -21,4 +21,4 @@ Design documents place iOS in the companion-app role for inventory, QR/NFC and a
 
 No iOS compilation, automated tests, signing or deployment is claimed by this engineering record.
 
-**References:** [Architecture](../../solution-architecture.md), [API audit](../api/m1-implementation.md).
+**References:** [Architecture](../../architecture/solution-architecture.md), [API audit](../api/m1-implementation.md).

@@ -34,4 +34,4 @@
 
 ## Outstanding release gates
 
-Real-provider test, full security acceptance matrix, app-focused testing, MFA/session negative cases, operational logging and retention requirements, independent review, branch protection, and documented launch authorization. See [API Phase D](../api/phase-d-real-provider-validation.md) and [security release checklist](../../security-release-checklist.md).
+Real-provider test, full security acceptance matrix, app-focused testing, MFA/session negative cases, operational logging and retention requirements, independent review, branch protection, and documented launch authorization. See [API Phase D](../api/phase-d-real-provider-validation.md) and [security release checklist](../../security/security-release-checklist.md).

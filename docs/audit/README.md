@@ -41,6 +41,6 @@
 
 ## Related documentation
 
-- [M1 onboarding design](../m1-token-bound-onboarding.md) — authored before later live Neon deployment; temporal statements may be superseded by Phase B/C records here.
-- [M1 reconciliation investigation](../m1-neon-reconciliation-audit-2026-11-12.md) — historical pre-deployment assessment.
-- [M1 security acceptance gates](../m1-security-gate-status.md) — historical security-gate document; revalidate release gates against current source and evidence.
+- [M1 onboarding design](../security/m1-token-bound-onboarding.md) — authored before later live Neon deployment; temporal statements may be superseded by Phase B/C records here.
+- [M1 reconciliation investigation](../development/m1-neon-reconciliation-audit-2026-11-12.md) — historical pre-deployment assessment.
+- [M1 security acceptance gates](../security/m1-security-gate-status.md) — historical security-gate document; revalidate release gates against current source and evidence.

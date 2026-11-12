@@ -37,4 +37,4 @@ A green CI run is evidence for the associated CI jobs, not a production launch d
 
 ## References
 
-[Onboarding design](../../m1-token-bound-onboarding.md) · [M1 security checklist](../../security-release-checklist.md) · [API Phase D](phase-d-real-provider-validation.md)
+[Onboarding design](../../security/m1-token-bound-onboarding.md) · [M1 security checklist](../../security/security-release-checklist.md) · [API Phase D](phase-d-real-provider-validation.md)
