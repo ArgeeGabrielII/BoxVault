@@ -47,3 +47,28 @@ Before registration, isolated test branch: **6 users, 2 tenants, 5 memberships, 
 - Confirm successful real-provider result before declaring end-to-end authentication acceptance.
 
 **Sign-off:** Not yet granted; live provider and authorization test evidence pending.
+
+## Field execution update — 2026-11-12 (Asia/Manila)
+
+**Evidence classification:** Operator-reported HTTP results, independently corroborated by read-only Neon count/relationship inspection; not a complete successful login test.
+
+| Test | Reported HTTP result | Verification state |
+|---|---|---|
+| D-01 API health | HTTP 200, `status: ok`, `service: boxvault-api` | PASS, operator-supplied response |
+| D-02/D-03 registration with actual reCAPTCHA and API | HTTP 201, `accepted: true` | PASS, operator-reported |
+| D-04 Brevo receipt of one-time verification token | Recipient obtained link token and successfully verified | PASS by operator evidence; provider delivery log not inspected |
+| D-05 email verification | HTTP 201, `verified: true` | PASS, operator-reported |
+| D-06 user and tenant provisioning | Newest user verified, exactly **one** linked tenant membership with role **OWNER**; user count 7, tenant count 3, membership count 6 | PASS, independent Neon read-only query |
+| D-07 login | HTTP 401: `Bot verification failed`; no access token issued | **BLOCKED**: CAPTCHA verification rejected; credential/session path not established |
+| D-08 verify-email token replay | HTTP 401 | PASS, operator-reported |
+| D-09 audit-event content and privacy review | Not inspected | PENDING |
+
+**Preservation reconciliation:** Before integration: users 6 / tenants 2 / memberships 5 / containers 5 / access grants 2 / items 4 / media assets 4. After integration: users **7** / tenants **3** / memberships **6** / containers **5** / access grants **2** / items **4** / media assets **4**. All six Prisma migrations remain applied. Count equality for prior objects is not a bytewise-record integrity proof.
+
+**CAPTCHA diagnosis (source review):** `AuthHardeningService.captcha()` requires Google verification `success=true`, exact `hostname=localhost`, exact `action=login`, numeric `score >= 0.5`, and `challenge_ts` within 120 seconds. The generic HTTP 401 does **not** establish which check failed; login password authentication has not been successfully tested. Do not lower score, bypass CAPTCHA or use `NODE_ENV=test` as a workaround.
+
+**Next controlled action:** Retry a single fresh `login` CAPTCHA from `http://localhost:5173`, immediately submit and capture **status only**; if still rejected, inspect safe server-side diagnostic flags or Google reCAPTCHA admin metrics without storing or sharing raw CAPTCHA tokens. Verify actual login only after CAPTCHA succeeds. Keep PR #4 draft; do not modify production or `dev`.
+
+### Note on historical checklist above
+
+The original matrix above records status when the audit was first created; the dated update here supersedes those pending statuses where an observed result is now available.
