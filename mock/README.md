@@ -15,7 +15,7 @@ python3 -m http.server 5173 --bind 127.0.0.1
 ```
 
 - Then open `http://localhost:5173/boxvault-m1-registration-harness.html`.
-- Follow Register → check Brevo inbox → Verify email → Replay rejection (401) → Login.
+- Follow Register → check Brevo inbox → Verify email → Replay rejection (401) → Login → read-only tenant-isolation checks (401/200/403).\n- To obtain the two test-only tenant UUIDs without adding a privileged API endpoint, see [tenant-isolation-readonly-lookup.md](tenant-isolation-readonly-lookup.md). The lookup requires the isolated test branch owner connection and only performs SELECTs.\n- The tester retains a successful login's access token **in the current tab memory only**; refresh or click **Forget access token** to clear it. It never prints or persists this credential.
 - A successful real-provider flow is **not yet verified** just because the harness exists. Record test outcomes under [the Phase D engineering audit](../docs/audit/api/phase-d-real-provider-validation.md).
 
 ## Security rules
