@@ -466,20 +466,20 @@ export class AuthService implements OnModuleDestroy {
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
     const digest = this.hardening.tokenHash(token);
     const userId = await this.db.$transaction(async tx => {
-      const row = await tx.emailActionToken.findUnique({ where: { tokenHash: digest } });
-      if (!row || row.kind !== 'VERIFY_EMAIL' || row.usedAt || row.expiresAt <= new Date()) throw FAIL();
-      const consumed = await tx.emailActionToken.updateMany({
-        where: { id: row.id, usedAt: null, expiresAt: { gt: new Date() } },
-        data: { usedAt: new Date() },
-      });
-      if (consumed.count !== 1) throw FAIL();
-      await tx.user.update({ where: { id: row.userId },
-        data: { emailVerifiedAt: new Date(), passwordHash } });
-      // The definer function checks verified email and serializes onboarding.
-      await tx.$queryRaw`SELECT security.bootstrap_personal_tenant(
-        ${row.userId}::uuid, ${randomUUID()}::uuid, ${randomUUID()}::uuid
-      )::text AS provisioned`;
-      return row.userId;
+      // The database function consumes an unexpired VERIFY_EMAIL proof atomically,
+      // derives the user ID from that proof and provisions exactly one personal tenant.
+      // No caller-supplied user ID or mutable session claim is trusted.
+      const verified = await tx.$queryRaw<Array<{ userId: string }>>`
+        SELECT security.bootstrap_verified_email_tenant(
+          ${digest}::text, ${randomUUID()}::uuid, ${randomUUID()}::uuid
+        ) AS "userId"
+      `;
+      const verifiedId = verified[0]?.userId;
+      if (!verifiedId) throw FAIL();
+      // Password is established in the same transaction as token consumption,
+      // email verification and tenant creation. A failure rolls back all four.
+      await tx.user.update({ where: { id: verifiedId }, data: { passwordHash } });
+      return verifiedId;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     await this.hardening.audit('EMAIL_VERIFIED', userId);
     return { verified: true };
