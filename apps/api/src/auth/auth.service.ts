@@ -467,7 +467,7 @@ export class AuthService implements OnModuleDestroy {
     const digest = this.hardening.tokenHash(token);
     let userId: string;
     try {
-      const userId = await this.db.$transaction(async tx => {
+      userId = await this.db.$transaction(async tx => {
         // The database function consumes an unexpired VERIFY_EMAIL proof atomically,
         // derives the user ID from that proof and provisions exactly one personal tenant.
         // No caller-supplied user ID or mutable session claim is trusted.
