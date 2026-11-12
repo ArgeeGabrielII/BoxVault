@@ -1,5 +1,7 @@
 # Web Experience, SEO, Accessibility & Compliance Requirements
 
+**Implementation snapshot (2026-11-12; PR #4):** This remains a **target web UX/SEO/compliance checklist**, not a completed front end. The NestJS backend now has staged registration, login, verification, CAPTCHA and MFA infrastructure, but the React app still lacks complete production-ready signup, email-link, login, session, MFA and accessible CAPTCHA interfaces. Public metadata, legal pages, consent, analytics and responsive/error-state controls are not marked accepted. See [web audit](../audit/web/m1-registration-ui.md), [roadmap](../planning/delivery-roadmap.md) and [Phase D](../audit/api/phase-d-real-provider-validation.md).
+
 Version 0.1 • Source: 17-item project source checklist (2026-11-11) • Status: proposed requirements, **not implemented**
 
 ## Purpose and applicability

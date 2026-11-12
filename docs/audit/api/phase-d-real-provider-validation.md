@@ -1,5 +1,7 @@
 # API — Phase D: Real Brevo / reCAPTCHA signup verification
 
+**Latest audit roll-up (2026-11-12):** The first-line `PENDING` below reflects the initial audit opening. Later entries document operator-reported successful real-CAPTCHA registration, Brevo email verification and login, with independently inspected Neon auth events and tenant membership. The subsequent HTTP tenant-isolation test **failed acceptance**: unauthenticated 401 (expected), other tenant 403 (expected), **own tenant 403 (unexpected)**. Restricted-role DB predicate was true for that principal/tenant, but HTTP principal-to-tenant mapping still needs investigation. No complete current-head CI, authenticated media/QR/finance authorization or production sign-off is claimed. The dated audit entries below remain historical evidence, not a single flat status.
+
 **Date opened:** 2026-11-12 (Asia/Manila)  
 **Status:** PENDING; **no live registration verified yet**  
 **Application:** local NestJS API (`apps/api`) using restricted Neon identities.  

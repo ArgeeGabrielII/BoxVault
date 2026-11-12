@@ -1,5 +1,7 @@
 # BoxVault engineering audit register
 
+**Current roll-up (2026-11-12):** The isolated Neon A/B/C migration and least-privilege-grant work is **verified**; GitHub Actions CI has **scoped passes at commit `deed36b8`**; Phase D progressed from pending to an operator-observed successful local Brevo/reCAPTCHA register → verify → login sequence, corroborated in part by read-only Neon audit queries. **Browser tenant isolation is NOT accepted**: reported unauthenticated 401, unrelated-tenant 403, own-tenant 403 (expected 200). Latest-head CI, full HTTP authorization matrix, real client flows and release sign-off remain pending. See the chronological [Phase D audit](api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
+
 **Audit snapshot:** 2026-11-12 (Asia/Manila)  
 **Repository:** `ArgeeGabrielII/BoxVault`  
 **Working branch:** `feat/m1-auth-tenant-acl-rls`  
@@ -11,7 +13,7 @@
 | Application / component | Phase | Audit record | Observed status |
 |---|---|---|---|
 | API (NestJS) | M1 implementation and security hardening | [API / M1 implementation](api/m1-implementation.md) | Implemented; CI passed for scoped tests |
-| API (NestJS) | D — real Brevo / reCAPTCHA onboarding validation | [API / Phase D](api/phase-d-real-provider-validation.md) | Pending local integration |
+| API (NestJS) | D — real Brevo / reCAPTCHA onboarding validation | [API / Phase D](api/phase-d-real-provider-validation.md) | Local registration/verification/login observed; tenant-isolation HTTP FAIL (own 403), release pending |
 | Database (Neon / Prisma) | A — baseline history adoption | [Database / Phase A](database/phase-a-history-adoption.md) | Complete on test branch |
 | Database (Neon / Prisma) | B — authentication schema deployment | [Database / Phase B](database/phase-b-schema-deployment.md) | Complete on test branch |
 | Database (Neon / Prisma) | C — least-privilege authentication grants | [Database / Phase C](database/phase-c-identity-grants.md) | Complete on test branch |

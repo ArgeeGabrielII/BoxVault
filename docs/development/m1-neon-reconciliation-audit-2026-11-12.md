@@ -1,5 +1,7 @@
 # M1 live Neon reconciliation audit — 2026-11-12
 
+**Later state (2026-11-12):** This document records a **pre-deployment read-only investigation**, not today's migration deployment status. Subsequent, separately authorized phases A–C adopted the existing schema history, applied auth migrations and validated restricted auth-role grants on isolated `m1-security-test`, retaining observed synthetic inventory counts. Full formal migration equivalence review and production release acceptance remain pending. See [A/B/C audit register](../audit/README.md) and [roadmap](../planning/delivery-roadmap.md).
+
 **Status:** READ-ONLY INSPECTION COMPLETED; RECONCILIATION NOT APPROVED OR APPLIED.  
 **Repository branch:** `feat/m1-auth-tenant-acl-rls`; PR #4 must remain draft.  
 **Neon project:** `shiny-field-66278071`; inspected branch ONLY: `br-fragrant-salad-b3ntdaa0` (`m1-security-test`).  

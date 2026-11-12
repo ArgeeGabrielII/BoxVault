@@ -1,5 +1,7 @@
 # M1 — Authentication, Tenant Membership, Container ACL, PostgreSQL RLS
 
+**Milestone status — 2026-11-12:** M1 is **Blocked for release**, despite substantial implemented branch work. Auth/MFA and token-bound onboarding are staged; database migration history (A), schema `002`–`005` (B), and restricted-role grants (C) were verified on the isolated Neon test branch; scoped CI passed at recorded commit `deed36b8`; real-provider local registration/verification/login succeeded. Browser isolation remains **unaccepted** after own-tenant HTTP 403 (expected 200), with latest-head full tests, UI/mobile integration, protected QR/media/finance flows and independent security approval outstanding. The older unexecuted-test passages below describe earlier checkpoints. See [roadmap](delivery-roadmap.md), [audit register](../audit/README.md), [Phase D](../audit/api/phase-d-real-provider-validation.md).
+
 **Status:** implementation in progress; **not approved for production**. Branch: `feat/m1-auth-tenant-acl-rls`.
 
 ## Approved authentication policy
@@ -46,7 +48,7 @@
 Related: [authentication-google-mfa-captcha.md](../security/authentication-google-mfa-captcha.md), [family-sharing-access-control.md](../product/family-sharing-access-control.md), [security-release-checklist.md](../security/security-release-checklist.md).
 
 ## Database authorization E2E test
-See [critical-authorization-e2e-tests.md](../security/critical-authorization-e2e-tests.md). Real database test is written but **not yet executed or passed**; HTTP and authentication E2E remain future work.
+See [critical-authorization-e2e-tests.md](../security/critical-authorization-e2e-tests.md). **Historical checkpoint:** At original authoring the suite was not executed. Later scoped PostgreSQL CI and isolated Neon verification passed; full current-head HTTP security acceptance is still pending.
 
 ## Live Neon free-tier security trial (2026-11-11)
 

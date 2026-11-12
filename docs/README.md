@@ -1,5 +1,7 @@
 # BoxVault documentation
 
+**Progress snapshot — 2026-11-12:** PR #4 includes staged NestJS authentication/MFA, token-bound verified-email onboarding, restricted database roles, Prisma migrations `000`–`005`, and per-container ACL/RLS foundations. Isolated Neon database phases A–C were verified and scoped CI passed on an earlier commit; local register → email verify → login succeeded. **Current-head full acceptance remains pending**, and the browser own-tenant GET returned an unexpected 403. PR #4 is **not production-approved**. Start with the [roadmap](planning/delivery-roadmap.md), [audit register](audit/README.md), and [Phase D latest results](audit/api/phase-d-real-provider-validation.md).
+
 > **Status:** Product and technical design baseline. The `main` branch is an early scaffold; PR #4 introduces preliminary authentication and RLS controls but **is not approved for production or merging into `main` until the security release gates are met**.
 
 ## Start here

@@ -1,5 +1,7 @@
 # Operations, Deployment, Reliability and Cost Controls
 
+**Operational snapshot (2026-11-12; PR #4):** Production topology, private media store, backup/restore objectives and incident response are still **proposed**. Isolated Neon test-branch migrations/grants A–C and scoped GitHub Actions CI have evidence; these are **not** operational readiness or launch sign-off. Real local Brevo/reCAPTCHA onboarding was observed, but mail outbox/alerting, secure token logging, production WAF/rate-limits, secret rotation, audit retention, legacy privileged-role retirement, current-head tests and independent security review remain. Neon must remain on the Free tier. See [roadmap](../planning/delivery-roadmap.md), [platform audit](../audit/platform/m1-ci-and-release-gates.md) and [Phase D](../audit/api/phase-d-real-provider-validation.md).
+
 Status: proposed operational design. Production hosting has **not** been selected.
 
 ## 1. Environments

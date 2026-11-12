@@ -1,5 +1,7 @@
 # Neon M1 security test — Free-tier validation evidence
 
+**Historical test update (2026-11-12; PR #4):** This report originally documented an early RLS proof-of-concept. Later audited work adopted migrations `000`/`001`, applied `002`–`005` and verified restricted database-role grants on isolated `m1-security-test`. Scoped CI also passed at an earlier recorded SHA. These later actions do **not** imply the Neon default `dev` branch was changed, the Free plan upgraded, or production authorization verified. Consult the [A/B/C audit index](../audit/README.md) and [roadmap](../planning/delivery-roadmap.md) for current state; keep the original test observations below as history.
+
 **Test date:** 2026-11-11. **Status:** Live PostgreSQL **RLS proof-of-concept passed**; canonical Prisma migration and NestJS HTTP E2E **NOT yet verified**.
 
 ## Neon resources actually used
