@@ -1,5 +1,7 @@
 # Critical end-to-end authorization test (Milestone 1)
 
+**Verification snapshot (2026-11-12; PR #4):** Database SEC-style assertions and scoped GitHub Actions gates have recorded passing results on an earlier source commit; the isolated Neon branch additionally verified selected ACL, revocation and restricted-role cases. Do **not** interpret these as a full production HTTP authorization pass. Browser tenant-isolation testing reported unauthenticated 401, unrelated-tenant 403 and **unexpected own-tenant 403**, requiring principal/tenant binding investigation and retesting. Current-head complete RLS/ACL, QR/media, write/search/count and concurrency coverage remains pending. See [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
+
 **Implementation:** [../apps/api/test/authorization.e2e.test.mjs](../apps/api/test/authorization.e2e.test.mjs)
 
 This is a **real PostgreSQL database integration test**, not a mocked unit test. It exercises Prisma/PostgreSQL RLS; it does **not** exercise HTTP since authenticated tenant/container endpoints have not been implemented. It must not be represented as a complete API E2E suite.
@@ -30,7 +32,7 @@ Missing URLs are a **hard failure**, not a skipped test. Do not enable this as a
 
 ## Production acceptance limitations
 
-Tests not yet executed in a configured PostgreSQL environment. Additional required coverage: HTTP 401/403/404 and MFA behavior after authenticated controllers exist; media signed URL issuance; aggregate/search leaks; concurrent revocation and ACL updates; role escalation through direct SQL; auth/session expiry and refresh replay; foreign-key integrity and pooled transactions; security-function ownership and GRANT restrictions. Do not merge M1 until these controls are exercised successfully.
+Historical note: these tests had not been executed when first written; later scoped PostgreSQL and Neon test results are documented above and in the audit register. Additional required coverage: HTTP 401/403/404 and MFA behavior after authenticated controllers exist; media signed URL issuance; aggregate/search leaks; concurrent revocation and ACL updates; role escalation through direct SQL; auth/session expiry and refresh replay; foreign-key integrity and pooled transactions; security-function ownership and GRANT restrictions. Do not merge M1 until these controls are exercised successfully.
 
 ## Automated, free execution path
 

@@ -1,5 +1,7 @@
 # Authentication, Google Sign-In, MFA and Anti-Bot Controls
 
+**Implementation snapshot (2026-11-12; PR #4):** NestJS branch code includes Google ID token validation/linking, Argon2id credentials, verified-email onboarding, password reset, TOTP/recovery codes, session refresh/replay controls, and operator step-up guards. Scoped CI passed on an **earlier** commit; local registration, Brevo verification and login succeeded in the isolated test setting. These are **not** complete client or production acceptance: React/iOS flows, live negative cases, current-head CI and operational safeguards remain. See [API audit](../audit/api/m1-implementation.md), [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
+
 Version 0.2 • Status: **approved direction + partial M1 implementation (branch only)**, not deployed/production approved. See [m1-authentication-implementation.md](./m1-authentication-implementation.md) for implementation and verification evidence • 2026-11-11
 
 ## Decisions
@@ -37,7 +39,7 @@ Version 0.2 • Status: **approved direction + partial M1 implementation (branch
 | AUTH-09 | Identity audit | Events for provider link/unlink, MFA status, recovery, suspicious auth, CAPTCHA fail and session revocation, with no secrets/tokens |
 | AUTH-10 | Native iOS | Use Google native SDK or authorization code+PKCE where appropriate, exact bundle ID/config, keychain, enforce same server MFA and permissions |
 
-## Suggested API contract (proposed; no live routes yet)
+## API contract (design plus M1 branch implementation; see audit for verified routes)
 
 | Method | Route | Purpose |
 |---|---|---|

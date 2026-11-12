@@ -1,6 +1,8 @@
 # Neon PostgreSQL integration — BoxVault
 
-**Status:** Repository configuration prepared; actual credentials and connectivity **not** installed or verified. Last updated 2026-11-11.
+**Integration snapshot (2026-11-12; PR #4):** Earlier text below describes the initial configuration stage. Later audit evidence verifies connection to the **isolated** Neon `m1-security-test` branch, six finished Prisma migrations (baseline/history `000`–`001`, deployment `002`–`005`), and distinct restricted `boxvault_runtime_m1` (tenant content) and `boxvault_auth_runtime_m1` (authentication) roles. This does **not** mean production secrets, production connectivity, or full app deployment are ready. Never use migration-owner credentials as runtime credentials or change the default `dev` branch for M1 testing. See [A/B/C audits](../audit/README.md) and [roadmap](../planning/delivery-roadmap.md).
+
+**Initial configuration note (2026-11-11; superseded for isolated M1 testing):** Repository configuration prepared; connectivity was not verified at that original snapshot. See current integration snapshot above.
 
 ## Neon project reference
 

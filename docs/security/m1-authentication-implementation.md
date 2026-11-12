@@ -1,5 +1,7 @@
 # M1 authentication and MFA implementation — staged code, not production approved
 
+**Latest scoped progress (2026-11-12; PR #4):** This document records an **earlier M1 implementation stage**. Later commits added verified-email registration and token-bound personal-tenant bootstrap, password reset, PostgreSQL distributed throttling, server-side CAPTCHA, privileged-operator MFA/step-up, replay detection, account audit, and session self-service. Six migrations (`000`–`005`) are applied and isolated-branch DB privileges verified; scoped CI passed at `deed36b8`; local registration/verification/login succeeded. However real client integration, full current-head tests, own-tenant HTTP authorization, and independent release sign-off remain pending. The older “not implemented” items below are historical, not today's current branch status. See [hardening](m1-authentication-hardening.md), [database audit](../audit/README.md), [Phase D](../audit/api/phase-d-real-provider-validation.md).
+
 **Date:** 2026-11-11. **PR:** #4 (draft). **Scope:** NestJS API and disposable PostgreSQL CI. This does **not** activate any paid Neon service.
 
 ## Implemented server-side foundation

@@ -1,5 +1,7 @@
 # Milestone 1 — security acceptance gates and execution state
 
+**Current-status overlay (2026-11-12; PR #4):** This document contains **chronological 2026-11-11 test/implementation checkpoints** and must not be read as a single current-state table. Subsequent evidence: isolated Neon migrations/history/grants A–C verified; scoped GitHub CI passed at `deed36b8`; the local register → verification → login sequence succeeded with genuine provider controls (operator-reported plus read-only audit corroboration). Later browser HTTP tenant-isolation returned 401 unauthenticated / 403 unrelated / **403 own-tenant (unexpected)**; **M1 NOT ACCEPTED**, and latest-head full CI and independent release review are missing. Use the [roadmap](../planning/delivery-roadmap.md), [audit register](../audit/README.md) and [Phase D chronology](../audit/api/phase-d-real-provider-validation.md) as the latest milestone overview.
+
 **Date:** 2026-11-11. **Branch:** `feat/m1-auth-tenant-acl-rls`; **PR:** #4, draft.
 
 **Do not merge, deploy for paying customers, or mark M1 complete until every required gate has independently verified evidence.** Test code existing is not evidence that tests passed.

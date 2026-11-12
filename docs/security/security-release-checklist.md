@@ -1,5 +1,7 @@
 # BoxVault Security Acceptance Checklist
 
+**Review snapshot (2026-11-12; PR #4):** This is a **production release acceptance checklist**; none of its broad security gates should be checked simply because M1 code or isolated tests exist. Scoped PostgreSQL policies, restricted roles, migrations and auth CI have evidence, but latest-head CI, full HTTP authorization, media/QR/finance safety, independent review, operations and production sign-off are still pending. Browser own-tenant GET incorrectly returned 403. See [roadmap](../planning/delivery-roadmap.md) and [engineering audit](../audit/README.md).
+
 This file is a **release gate** and future verification tracker. **All boxes are initially unchecked.** Do not interpret the specification as proof of implementation.
 
 ## P0 — Security foundations (block customer-data persistence)

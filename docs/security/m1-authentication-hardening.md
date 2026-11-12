@@ -1,5 +1,7 @@
 # Milestone 1 — Authentication hardening and release requirements
 
+**Evidence update (2026-11-12):** The features described below are implemented on the **draft PR #4 branch**, with scoped CI evidence at recorded commit `deed36b8`. Isolated Neon phases A–C are verified and an operator-reported real Brevo/reCAPTCHA register → verify → login flow succeeded; this does **not** verify all abuse, provider, MFA, admin, restore or launch cases. The browser own-tenant authorization test still returned 403 rather than 200. Latest-head tests and independent security approval are required. See [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
+
 **Date:** 2026-11-11 · **Status:** IMPLEMENTED IN DRAFT PR #4, **NOT production-approved**. See [m1-security-gate-status.md](m1-security-gate-status.md) for actual CI evidence, not planned outcomes.
 
 ## Delivered backend controls

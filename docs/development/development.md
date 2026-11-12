@@ -1,5 +1,7 @@
 # Development workflow
 
+**Development snapshot (2026-11-12; PR #4):** The branch now has six Prisma migrations, separate restricted auth and tenant-content runtime connections, staged NestJS authentication, GitHub Actions authorization tests, and isolated Neon test-branch verification. The steps below are a **baseline local setup**, not a complete M1 runbook: do not run destructive migration/reset commands against the persistent Neon default `dev` branch. See [Neon configuration](neon-connection.md), [database audit](../audit/README.md), [M1 roadmap](../planning/delivery-roadmap.md) and [Phase D test guide](../audit/api/phase-d-real-provider-validation.md).
+
 1. Use Node.js 22, Corepack and pnpm 10.
 2. Run local PostgreSQL **or** use a development-only Neon branch. For Neon see [neon-connection.md](neon-connection.md).
 3. Configure `apps/api/.env` from the provided example with `DATABASE_URL` (pooled runtime) and `DIRECT_URL` (direct migrations); never commit secrets.
