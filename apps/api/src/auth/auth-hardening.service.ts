@@ -127,8 +127,17 @@ export class AuthHardeningService implements OnModuleDestroy {
   async email(email: string, purpose: 'verify-email' | 'reset-password', token: string) {
     const host = process.env.SMTP_HOST, from = process.env.SMTP_FROM,
       origin = process.env.PUBLIC_WEB_URL;
-    if (!host || !from || !origin || !/^https:\/\//.test(origin) &&
-        !(process.env.NODE_ENV === 'test' && /^http:\/\/localhost/.test(origin || '')))
+    // Permit HTTP only for literal loopback hosts in local development or CI.
+    // All non-loopback URLs, including production and staging, require HTTPS.
+    let allowedOrigin = false;
+    try {
+      const address = new URL(origin || '');
+      const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(address.hostname);
+      allowedOrigin = address.protocol === 'https:' ||
+        (address.protocol === 'http:' && loopback &&
+         ['development', 'test'].includes(process.env.NODE_ENV || ''));
+    } catch { /* invalid URL: fail closed */ }
+    if (!host || !from || !allowedOrigin)
       throw new ServiceUnavailableException('Email delivery is not configured');
 
     const port = Number(process.env.SMTP_PORT || '587');
