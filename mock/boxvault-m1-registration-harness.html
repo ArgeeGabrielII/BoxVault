@@ -27,6 +27,13 @@ if (location.search || location.hash) history.replaceState(null,'',location.path
 <hr>
 <p class="fine">Login uses the password set in <strong>Password to establish on verification</strong>, not necessarily the original registration password.</p>
 <button id="login">4. Login with fresh reCAPTCHA token</button>
+<hr>
+<h2>5. Check authenticated tenant isolation</h2>
+<p class="fine">After a successful login on this tab, enter one tenant UUID assigned to this account and one unrelated test-tenant UUID. The access token stays in this page's JavaScript memory and is never shown or saved. Refreshing clears it.</p>
+<label for="ownTenant">Your test account's tenant UUID</label><input id="ownTenant" autocomplete="off" spellcheck="false" placeholder="UUID from the read-only tenant lookup">
+<label for="otherTenant">An unrelated test tenant UUID</label><input id="otherTenant" autocomplete="off" spellcheck="false" placeholder="Different tenant UUID from the read-only lookup">
+<button id="isolation">5. Run read-only tenant isolation checks</button>
+<button id="forgetSession" type="button">Forget access token in this tab</button>
 <pre id="output" class="output" role="status" aria-live="polite">Ready. Enter your public site key and fresh test account details.</pre>
 <p class="fine">No values are saved to localStorage, cookies or disk. Response bodies are restricted to statuses and non-secret summaries. A login access token is never displayed. The reCAPTCHA provider necessarily receives browser-side challenge signals.</p>
 </main>
@@ -34,7 +41,7 @@ if (location.search || location.hash) history.replaceState(null,'',location.path
 'use strict';
 const BASE='http://localhost:3000/api/v1/auth';
 const el=id=>document.getElementById(id);
-const buttons=['register','verify','replay','login'].map(el);
+const buttons=['register','verify','replay','login','isolation'].map(el);
 const output=el('output');
 for(const button of document.querySelectorAll('.toggle-password')){
   button.addEventListener('click',()=>{
@@ -47,6 +54,7 @@ for(const button of document.querySelectorAll('.toggle-password')){
   });
 }
 let loadedKey=null;
+let accessToken=null; // Volatile memory only; never logged, displayed or persisted.
 const setBusy=busy=>buttons.forEach(b=>b.disabled=busy);
 const write=s=>{output.textContent=s};
 async function captcha(action){
@@ -97,11 +105,38 @@ el('replay').onclick=()=>run('Token replay',async()=>{
   return `Replay: HTTP ${r.http}\n${r.http===401?'PASS: replay rejected as expected.':'UNEXPECTED: investigate before proceeding.'}`;
 });
 el('login').onclick=()=>run('Login',async()=>{
+  accessToken=null; // Never retain an old session if reauthentication fails.
   const email=el('email').value.trim(),password=el('verifiedPassword').value;
   if(!email||!password)throw new Error('Enter email and verified account password.');
   const captchaToken=await captcha('login');
   const r=await call('/login',{email,password,captchaToken});
-  return `Login: HTTP ${r.http}\nMFA required: ${r.body?.mfaRequired===true}\nAccess token issued: ${typeof r.body?.accessToken==='string'}\n${r.ok?'Access credentials were NOT displayed or saved.':'API error: '+JSON.stringify(r.body)}`;
+  if(r.ok && r.body?.mfaRequired===false && typeof r.body.accessToken==='string')
+    accessToken=r.body.accessToken;
+  return `Login: HTTP ${r.http}\nMFA required: ${r.body?.mfaRequired===true}\nAccess token issued: ${typeof r.body?.accessToken==='string'}\n${r.ok?'Session held only in this tab until refresh or Forget; no credential is displayed.':'API error: '+JSON.stringify(r.body)}`;
 });
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+async function getContainers(tenantId,bearer){
+  const endpoint='http://localhost:3000/api/v1/containers?tenantId='+encodeURIComponent(tenantId);
+  const headers=bearer?{Authorization:'Bearer '+bearer}:{};
+  const response=await fetch(endpoint,{headers,credentials:'omit',referrerPolicy:'no-referrer'});
+  const safeResult={status:response.status};
+  if(response.ok){
+    const payload=await response.json();
+    safeResult.count=Array.isArray(payload?.data)?payload.data.length:null;
+  }
+  return safeResult;
+}
+el('isolation').onclick=()=>run('Tenant isolation',async()=>{
+  if(!accessToken)throw new Error('First complete a successful login on this page. Tokens are cleared on refresh.');
+  const own=el('ownTenant').value.trim(),other=el('otherTenant').value.trim();
+  if(!UUID.test(own)||!UUID.test(other)||own.toLowerCase()===other.toLowerCase())
+    throw new Error('Enter two different valid tenant UUIDs (yours and an unrelated test tenant).');
+  const unauth=await getContainers(own,null);
+  const ownResult=await getContainers(own,accessToken);
+  const otherResult=await getContainers(other,accessToken);
+  const pass=unauth.status===401 && ownResult.status===200 && otherResult.status===403;
+  return `Unauthenticated access: HTTP ${unauth.status} (expect 401)\nOwn tenant: HTTP ${ownResult.status} (expect 200), visible containers: ${ownResult.count??'n/a'}\nOther tenant: HTTP ${otherResult.status} (expect 403)\nTenant isolation: ${pass?'PASS':'CHECK / INVESTIGATE'}\nNo container contents or access tokens displayed.`;
+});
+el('forgetSession').onclick=()=>{accessToken=null;write('Access token forgotten in this tab.');};
 </script>
 </body></html>
