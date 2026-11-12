@@ -6,6 +6,7 @@
 
 | File | Contents |
 |---|---|
+| [audit/README.md](audit/README.md) | Per-application, per-phase engineering audit register with M1 API, database, web, mobile, shared-asset and CI evidence; includes template and pending release gates |
 | [neon-agent-skills-mcp.md](neon-agent-skills-mcp.md) | Neon agent skills, OAuth MCP project configuration, preservation policy and verification state |
 | [neon-connection.md](neon-connection.md) | Neon dev PostgreSQL configuration, pooled/direct connection strings, ChatGPT connection, secrets, RLS test prerequisites |
 | [m1-security-gate-status.md](m1-security-gate-status.md) | Milestone 1 DB/RLS/HTTP security acceptance gates, CI evidence and explicit release blockers |
