@@ -10,12 +10,12 @@ New migration: `apps/api/prisma/migrations/202611110005_token_bound_onboarding/m
 
 - Removes the old UUID-based function and creates `security.bootstrap_verified_email_tenant(p_token_hash text, p_tenant uuid, p_membership uuid) RETURNS uuid`.
 - No externally supplied user ID or transaction-local application actor claim. The user ID comes only from a matching, unexpired, unused `VERIFY_EMAIL` proof row.
-- The definer function atomically consumes the token, locks the corresponding user, rejects an already verified or previously enrolled identity, inserts a personal tenant/owner membership, verifies the email, and consumes other outstanding verification tokens.
+- The definer function atomically consumes the token, locks the corresponding user, rejects an already verified or previously enrolled identity, inserts a personal tenant/owner membership, verifies the email, and rejects subsequent verification attempts because the user is already verified. Outstanding tokens are not bulk-updated, preventing cross-token row-lock deadlocks.
 - `SET search_path = pg_catalog`; all referenced application tables and enum types are schema-qualified.
 - Execution is revoked from `PUBLIC`. The privileged role to receive narrowly scoped EXECUTE, **only after review**, is `boxvault_auth_runtime_m1`. The inventory role must not be allowed to call this function.
 - The NestJS `verifyEmail` path computes a keyed HMAC digest and calls the function using Prisma tagged raw SQL. It writes the fresh Argon2id password hash in the **same Serializable transaction**, so any error rolls back the token claim, verified flag, and tenant/member inserts.
 - Reuse, wrong token purpose, expiry and already-verified cases raise SQLSTATE 42501 and are translated by NestJS to a uniform Unauthorized response.
-- Concurrency for the same user is serialized via user row locking; two different tokens for the same user cannot create two personal tenants. Cross-tenant membership cannot be selected by supplying a fake user ID because no such parameter exists.
+- Concurrency for the same user is serialized via user row locking; the negative suite explicitly races two different valid tokens and requires exactly one personal tenant. Cross-tenant membership cannot be selected by supplying a fake user ID because no such parameter exists.
 
 ### Residual risks and required review
 
@@ -28,7 +28,7 @@ New migration: `apps/api/prisma/migrations/202611110005_token_bound_onboarding/m
 
 ## Tests and CI
 
-- `apps/api/test/onboarding.negative.test.mjs`: runs **only** if both DB connection URLs resolve to loopback. Uses isolated PostgreSQL with fixture-created synthetic users/tokens; verifies invalid/expired/used/reset-purpose denial, verified-user denial, replay denial, cancellation of alternative tokens, no unauthorized membership creation, returned user binding, and lack of inventory runtime EXECUTE.
+- `apps/api/test/onboarding.negative.test.mjs`: runs **only** if both DB connection URLs resolve to loopback. Uses isolated PostgreSQL with fixture-created synthetic users/tokens; verifies invalid/expired/used/reset-purpose denial, verified-user denial, replay denial, rejection of alternative tokens, no unauthorized membership creation, returned user binding, and lack of inventory runtime EXECUTE.
 - `.github/workflows/m1-authorization.yml`: provisions limited inventory/auth roles, explicitly grants only the six RLS helpers to content runtime, explicitly grants the token-bound function to restricted auth runtime, and runs the new negative suite before the HTTP contract tests. The migration-history expectation is six files.
 - `.github/workflows/m1-postgres-authz.yml`: replaces `EXECUTE ON ALL FUNCTIONS` with a fixed helper allowlist so future security functions aren't accidentally executable by inventory runtime.
 - `AUTH-HTTP-08` existing API contract continues to cover real verification, one-time token use, tenant creation, password reset and login.
