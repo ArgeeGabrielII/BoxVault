@@ -47,6 +47,24 @@ if (location.search || location.hash) history.replaceState(null,'',location.path
 <label for="otherTenant">An unrelated test tenant UUID</label><input id="otherTenant" autocomplete="off" spellcheck="false" placeholder="Auto-filled from isolated test tenant">
 <button id="isolation">5. Run read-only tenant isolation checks</button>
 <button id="forgetSession" type="button">Forget access token in this tab</button>
+<hr>
+<h2>6. Container sharing / revocation (local test users only)</h2>
+<p class="fine">Use two verified test users who are already ACTIVE members of the <strong>same</strong> family tenant. A personal tenant has only one owner until the separate invitation workflow is implemented. These buttons change real data in the isolated test branch, only when clicked. Do not use on existing fixture containers.</p>
+<label for="aclTenant">Family tenant UUID (both test users must belong to it)</label>
+<input id="aclTenant" autocomplete="off" spellcheck="false" placeholder="Defaults to your own tenant UUID; can be edited for a shared family tenant">
+<label for="aclName">New disposable test container name</label>
+<input id="aclName" autocomplete="off" maxlength="200" value="M1 test shared container">
+<button id="aclCreate" type="button">6a. Create PRIVATE test container</button>
+<label for="aclContainer">Test container UUID (filled after creation)</label>
+<input id="aclContainer" autocomplete="off" spellcheck="false" placeholder="UUID from the create response">
+<label for="aclMember">Active family member's User UUID</label>
+<input id="aclMember" autocomplete="off" spellcheck="false" placeholder="A different user in the same family tenant">
+<label for="aclPermission">Selected member permission</label>
+<select id="aclPermission"><option value="VIEW">VIEW</option><option value="EDIT">EDIT</option></select>
+<div><button id="aclGrant" type="button">6b. Share with selected family member</button>
+<button id="aclRevoke" type="button">6c. Revoke selected access (PRIVATE)</button></div>
+<button id="aclCheck" type="button">6d. Check access to this container (HTTP status)</button>
+<p class="fine">For a two-account browser test, use a separate browser tab to log in as the family member and manually enter the same family tenant and container UUID there. Re-run 6d immediately after the owner revokes access. Unauthorized detail requests should return 404, with no container data shown.</p>
 <pre id="output" class="output" role="status" aria-live="polite">Ready. Enter your public site key and fresh test account details.</pre>
 <p class="fine">No values are saved to localStorage, cookies or disk. The UUIDs are non-secret identifiers and appear above for local testing; password/token text stays masked unless you choose Show. A login access token is never displayed. The reCAPTCHA provider necessarily receives browser-side challenge signals.</p>
 </main>
@@ -54,7 +72,7 @@ if (location.search || location.hash) history.replaceState(null,'',location.path
 'use strict';
 const BASE='http://localhost:3000/api/v1/auth';
 const el=id=>document.getElementById(id);
-const buttons=['register','verify','replay','login','isolation','resetRequest','resetConfirm'].map(el);
+const buttons=['register','verify','replay','login','isolation','resetRequest','resetConfirm','aclCreate','aclGrant','aclRevoke','aclCheck'].map(el);
 const output=el('output');
 for(const button of document.querySelectorAll('.toggle-password')){
   button.addEventListener('click',()=>{
@@ -85,7 +103,7 @@ function showIds(data){
     'Unrelated test tenant UUID: '+(unrelated||'Available after login'),
   ].join('\n');
   el('identifiers').style.whiteSpace='pre-wrap';
-  if(tenantId)el('ownTenant').value=tenantId;
+  if(tenantId){el('ownTenant').value=tenantId;el('aclTenant').value=tenantId;}
   if(unrelated)el('otherTenant').value=unrelated;
 }
 async function loadTestContext(){
@@ -208,6 +226,46 @@ el('isolation').onclick=()=>run('Tenant isolation',async()=>{
   const otherResult=await getContainers(other,accessToken);
   const pass=unauth.status===401 && ownResult.status===200 && otherResult.status===403;
   return `Unauthenticated access: HTTP ${unauth.status} (expect 401)\nOwn tenant: HTTP ${ownResult.status} (expect 200), visible containers: ${ownResult.count??'n/a'}\nOther tenant: HTTP ${otherResult.status} (expect 403)\nTenant isolation: ${pass?'PASS':'CHECK / INVESTIGATE'}\nNo container contents or access tokens displayed.`;
+});
+async function containerRequest(path,method,body){
+  if(!accessToken)throw new Error('Log in as the authorized test user in this tab first.');
+  const r=await fetch('http://localhost:3000/api/v1/containers'+path,{
+    method,headers:{Authorization:'Bearer '+accessToken,
+      ...(body?{'Content-Type':'application/json'}:{})},
+    body:body?JSON.stringify(body):undefined,credentials:'omit',referrerPolicy:'no-referrer',
+  });
+  let data={};try{data=await r.json()}catch{}
+  return {status:r.status,ok:r.ok,data};
+}
+el('aclCreate').onclick=()=>run('Create private test container',async()=>{
+  const tenantId=el('aclTenant').value.trim(),name=el('aclName').value.trim();
+  if(!UUID.test(tenantId)||!name||name.length>200)throw new Error('Enter valid family tenant UUID and container name.');
+  const r=await containerRequest('','POST',{tenantId,name});
+  if(r.ok && UUID.test(r.data?.data?.id))el('aclContainer').value=r.data.data.id;
+  return `Create PRIVATE: HTTP ${r.status}\nContainer UUID: ${r.ok?(r.data?.data?.id||'not returned'):'not created'}\nShare mode: ${r.data?.data?.shareMode||'n/a'}`;
+});
+el('aclGrant').onclick=()=>run('Share with selected member',async()=>{
+  const tenantId=el('aclTenant').value.trim(),containerId=el('aclContainer').value.trim(),userId=el('aclMember').value.trim();
+  if(!UUID.test(tenantId)||!UUID.test(containerId)||!UUID.test(userId))throw new Error('Enter tenant, container and active member UUIDs.');
+  const permission=el('aclPermission').value;
+  const r=await containerRequest('/'+encodeURIComponent(containerId)+'/sharing','PUT',{
+    tenantId,shareMode:'SELECTED_MEMBERS',grants:[{userId,permission}],
+  });
+  return `Share selected member: HTTP ${r.status}\nUpdated: ${r.ok}\n${r.ok?'Now log in as the selected member in another tab and check access.':'Only the container creator can share with ACTIVE same-tenant members.'}`;
+});
+el('aclRevoke').onclick=()=>run('Revoke container sharing',async()=>{
+  const tenantId=el('aclTenant').value.trim(),containerId=el('aclContainer').value.trim();
+  if(!UUID.test(tenantId)||!UUID.test(containerId))throw new Error('Enter valid tenant and container UUIDs.');
+  const r=await containerRequest('/'+encodeURIComponent(containerId)+'/sharing','PUT',{
+    tenantId,shareMode:'PRIVATE',grants:[],
+  });
+  return `Revoke sharing (PRIVATE): HTTP ${r.status}\nUpdated: ${r.ok}\n${r.ok?'Recheck the family member session immediately: its direct container GET should return HTTP 404.':'No changes applied.'}`;
+});
+el('aclCheck').onclick=()=>run('Container object access check',async()=>{
+  const tenantId=el('aclTenant').value.trim(),containerId=el('aclContainer').value.trim();
+  if(!UUID.test(tenantId)||!UUID.test(containerId))throw new Error('Enter valid tenant and container UUIDs.');
+  const r=await containerRequest('/'+encodeURIComponent(containerId)+'?tenantId='+encodeURIComponent(tenantId),'GET');
+  return `Direct container access: HTTP ${r.status}\nVisible to this logged-in user: ${r.status===200}\nContainer contents are not displayed.`;
 });
 el('forgetSession').onclick=()=>{accessToken=null;write('Access token forgotten in this tab.');};
 </script>
