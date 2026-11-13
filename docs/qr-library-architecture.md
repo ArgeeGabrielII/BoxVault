@@ -290,6 +290,67 @@ References:
 - Determine whether `holdSeconds` should allow 0–30 seconds; 10 seconds is accepted as the initial default, not a legal/ad-network clearance.
 - Obtain ad-provider format and legal/privacy review before any third-party advertising integration.
 
+## ADR-QRC-002 Addendum — Google AdSense compliance reassessment (2026-11-13)
+
+**Status:** Revised recommendation for review; documentation only. This supersedes *Google ad network usage* of the custom 10-second QR hold. The requested 10-second hold remains an **unimplemented first-party house-promotion-only concept**, NOT a valid AdSense implementation. No commercial ads are authorized by this ADR.
+
+### Verified Google rules and current products
+
+- Google AdSense Vignette ads are a Google-managed, skippable full-screen format appearing between page loads: users can dismiss them at any time, without a publisher-controlled 10-second wait. Source: https://support.google.com/adsense/answer/16531962?hl=en
+- Google AdSense vignette **frequency** sets the minimum time between eligible impressions, **not the length of time a user must watch**. Default is 10 minutes and range is 1 minute to 1 hour. Source: https://support.google.com/adsense/answer/13956167?hl=en
+- Google's publisher policies disallow Google-served ads on low-value/no-publisher-content screens, including navigation-only/behavioral screens. A standalone QR redirect-to-content ad page is therefore unsuitable. Source: https://support.google.com/publisherpolicies/answer/11112688?hl=en
+- AdSense placement policies prohibit preset forced ad display before a user can view certain content and auto-redirecting/refreshing ad placements. Do not implement AdSense on a forced-countdown interstitial. Source: https://support.google.com/adsense/answer/1346295?hl=en
+- Google Search recommends less intrusive banners and warns against obstructive interstitials. Source: https://developers.google.com/search/docs/appearance/avoid-intrusive-interstitials
+- AdSense can exclude pages/areas from Auto ads, and particular links can opt out of vignette triggering with `data-google-vignette="false"`. Sources: https://support.google.com/adsense/answer/9305577?hl=en and https://support.google.com/adsense/answer/17016693?hl=en
+- As of Feb 2026, vignette additional triggers include tab return/inactivity and are configurable, so review/disable disruptive triggers if opted in. Source: https://support.google.com/adsense/answer/16853623?hl=en
+- Personalized ads served to EEA/UK/Switzerland users require an applicable Google-certified TCF consent-management platform, and local regulations/Philippine privacy obligations must also be reviewed. Source: https://support.google.com/adsense/answer/13554116?hl=en
+
+### Revised ad architecture decision
+
+**Google Ads track — preferred for commercial monetization:**
+1. Keep `@boxvault/qr` and canonical first-party QR labels unchanged.
+2. Scan → authenticate → server-side tenant and container ACL → authorized destination, **without forced delay**.
+3. Do not load Google ad code on QR-resolution URLs, authentication/invite pages, private inventories, payment pages, other noindex/sensitive routes by default. Do not grant third-party ad crawlers private customer content.
+4. Evaluate AdSense on separately designed public, indexable, first-party, editorial pages with substantial original storage/organization guidance and approved consent/privacy disclosures. Allowed placements may include in-page/banner/anchor and Google-managed vignette formats where appropriate; nothing guarantees Google site/placement approval.
+5. Use Google's own vignette behavior and frequency controls on eligible public navigation. Do **not** add an independent countdown or customize the vignette's dismissal controls.
+6. Feature eligibility (Free vs paid) can be determined server-side on properties/screens we operate. Prefer completely separating ad-enabled public content pages and ad-free authenticated app origins/routes if practical; no third-party user plan/PII/QR token leakage.
+7. Limit page tracking to policy/consent approved minimum. Honor CMP/consent requirements by visitor geography and applicable privacy law. Google ad delivery/availability is not guaranteed.
+
+**House promotions track — separate non-Google feature:**
+- A first-party promotional screen may optionally retain the proposed 10-second timer for Free Tier users, default OFF and gated by product/legal/UX review. It cannot show Google ads or be confused with AdSense-supported vignettes. Strongly consider an immediately available Continue option even for first-party promos to avoid harming QR findability. Never show the promotion before authorization; never trap users if promo is unavailable.
+- Any other paid sponsor/provider requires the specific network's terms to be reviewed and approved separately; do not assume Google policies generalize to every network.
+
+### Config separation (illustrative, not implemented)
+
+```ts
+type AdvertisingPolicy = {
+  enabled: boolean;                 // false until compliance approval
+  commercialProvider: 'none' | 'adsense';
+  commercialSurface: 'public-editorial-only';
+  useGoogleManagedVignettes: boolean; // only on eligible public pages
+  privateQrRoutesExcluded: true;
+  housePromotion: {
+    enabled: boolean;               // false
+    eligiblePlanCodes: ['FREE'];
+    requestedHoldSeconds: number;   // 10; first-party only
+    neverAttachGoogleAds: true;
+  };
+};
+```
+
+### Review and release gates
+
+- [ ] Confirm monetizable public content surfaces and whether they are sufficiently substantial and useful.
+- [ ] Confirm registered site/domain and Google's site/application review; approval not assumed.
+- [ ] Explicitly test excluded QR, private inventory, sign-in, payment and operator pages for **zero Google ad requests**.
+- [ ] Audit redirects/referrers/tokens and CSP; no labels, account PII or container metadata sent to advertisers.
+- [ ] Audit responsive UX; ensure Google-vignette skip is immediate and never obstructed.
+- [ ] Configure frequency and additional triggers in AdSense; 10 minutes frequency is not a 10-second countdown.
+- [ ] Complete legal, tax, consent, Philippine DPA and applicable geography-specific CMP evaluation.
+- [ ] Test paid plans do not see ads on applicable authenticated routes; separate public editorial page policies if ads are also shown to anonymous visitors.
+- [ ] Preserve fast QR navigation and access even if ad SDKs are blocked, slow, or offline.
+- [ ] Record approved vendor/configuration and update ADR before coding commercial ad integrations.
+
 ## External references consulted
 
 - ISO/IEC 18004:2024: https://www.iso.org/standard/83389.html
