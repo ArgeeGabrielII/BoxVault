@@ -190,3 +190,11 @@ The mock displayed `Tenant isolation: PASS` and did not display container conten
 **Interpretation:** Live route authentication/authorization for the tested user's own tenant and one unrelated tenant now conforms to the expected deny/allow/deny matrix. The precise explanation for the prior 403 was not conclusively established, although automated UUID selection reduces manual mismatch risk.
 
 **Still pending:** additional users/tenants, container-level ACL and family sharing, revoked membership effects, session revocation, token replay at other paths, mutation denial, CI verification at current PR head, and independent production release review. Do not mark entire M1 accepted or merge PR #4 based solely on this smoke test. No database, role, migration or product code changes were made by this audit entry.
+
+## Phase E preparation — container sharing and immediate revocation (2026-11-13)
+
+**Implemented on draft feature branch (not yet live-accepted):** authenticated `POST /api/v1/containers` creates an owner-only PRIVATE container, and `PUT /api/v1/containers/:id/sharing` atomically replaces selected-member grants or removes them by restoring PRIVATE mode. Both routes go through `AccessGuard`, `TenantBoundaryService`, the existing `ContainerAccessService` and PostgreSQL RLS. Cross-tenant/other-owner accesses fail closed. The mock gained Step 6 local test buttons to create, share, revoke and read an object using statuses only.
+
+**Automated negative coverage:** `AUTH-HTTP-01b` checks unauthenticated and forged-token create/sharing requests return 401. `SEC-11` adds a disposable PostgreSQL RLS regression proving SELECTED_MEMBER grant removal immediately denies the container, child item, media and historical grant metadata to a previously authorized member without affecting the owner.
+
+**Not yet done:** CI/test execution evidence for these new changes; a live two-account HTTP 404/200/404 share→revoke sequence. Two separately registered users inhabit separate personal tenants; family invitation/activation is not yet implemented. No live Neon fixture memberships were inserted and no persistent data was changed during this phase. See [test instructions](../../mock/documents/container-sharing-revocation.md). M1 overall remains unapproved; PR #4 remains draft/unmerged.
