@@ -29,6 +29,20 @@ test('AUTH-HTTP-01: inventory access requires authenticated session (not 404)',a
     assert.equal(r.status,401,path+': missing auth MUST be rejected before inventory routing');
   }
 });
+test('AUTH-HTTP-01b: container create/share mutation requires live authentication',async()=>{
+  const tenantId='11111111-1111-4111-8111-111111111111';
+  const containerId='22222222-2222-4222-8222-222222222222';
+  const create=await req('/api/v1/containers','POST',undefined,{tenantId,name:'unauthorized'});
+  assert.equal(create.status,401,'unauthenticated container creation must fail before mutation');
+  const sharing=await req('/api/v1/containers/'+containerId+'/sharing','PUT',undefined,{
+    tenantId,shareMode:'ALL_FAMILY',grants:[],
+  });
+  assert.equal(sharing.status,401,'unauthenticated sharing change must fail before mutation');
+  const forged=await req('/api/v1/containers/'+containerId+'/sharing','PUT','forged.session.value',{
+    tenantId,shareMode:'PRIVATE',grants:[],
+  });
+  assert.equal(forged.status,401,'forged bearer must not revoke access or change sharing');
+});
 test('AUTH-HTTP-02: forged bearer cannot access container lists',async()=>{
   const r=await req('/api/v1/containers','GET','forged.session.value');
   assert.equal(r.status,401);
