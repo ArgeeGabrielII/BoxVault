@@ -152,3 +152,11 @@ Operator confirmed receipt of a second Brevo verification message and completion
 - **Threat scope:** this endpoint uses the isolated test branch migration-owner DB connection and must never be configured for production. Its guards explicitly reject non-development process settings, non-loopback clients and any unexpected database hostname/username/path. Keep it disabled in deployed environments.
 
 **Acceptance still pending:** user must pull latest branch, restart local NestJS, reload the mock, log in to the same verified account, confirm automatic tenant ID fill and rerun 401/200/403. Do not mark the former 403 resolved or merge PR #4 until observed.
+
+## TypeScript watch build fix — 2026-11-13 (operator report)
+
+**Reported:** `TS2304: Cannot find name 'personalTenantId'` at both bootstrap invocation and development verification response, after the mock UUID-visibility changes.
+
+**Remediation:** added `const personalTenantId = randomUUID();` in the `verifyEmail` function immediately after the verification token hash, before the transaction. This UUID is passed to token-bound bootstrap and returned only in development after success. No changes to database schema, live tenant data, role grants, CAPTCHA or RLS.
+
+**Status:** source correction committed as `568bab3`; operator must pull and confirm watch-mode compilation. Do not mark build or browser tenant isolation passed until observed.
