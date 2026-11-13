@@ -1,6 +1,6 @@
 # Operations, Deployment, Reliability and Cost Controls
 
-Status: proposed operational design. Production hosting has **not** been selected.
+Status: proposed operational design. Production hosting has **not** been selected. A separate [Spark-only public static website plan](firebase-spark-deployment-plan.md) is under review; it does not deploy the customer SaaS, NestJS API, private media, or SSR.
 
 ## 1. Environments
 
