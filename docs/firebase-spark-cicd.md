@@ -1,6 +1,6 @@
 # Firebase Spark CI/CD — main branch
 
-**Status:** Implemented pipeline **configuration only**. No Firebase project, credentials, deployment or Google Cloud service has been provisioned by this change.
+**Status (2026-11-13):** Firebase project `boxvault-argee-2026` is active on Spark with billing disabled, and `.firebaserc` selects it. All development branches have been consolidated into `main` at the owner’s request. Local typecheck/build, QR tests, Playground checks and public artifact audit passed. **CD activation is pending explicit authorization for a dedicated deploy service account and its GitHub environment secret.** No deploy credential was created by this integration.
 
 See [Spark architecture](firebase-spark-deployment-plan.md). This deployment is **only** for the intentionally public coming-soon static site in `apps/public-site`, not BoxVault's customer application.
 
@@ -38,11 +38,11 @@ The workflow also supports manual **Actions > Firebase Spark Static Site CI/CD >
 - `apps/public-site/scripts/assert-spark.mjs` — Google Cloud Billing API fail-closed verification
 - `firebase.json` — strictly Hosting-only config pointing to `apps/public-site/dist`
 
-The normal `apps/web` / `apps/api` builds and `apps/playground` are not deployment inputs. No frontend/backend PRs are merged.
+The normal `apps/web` / `apps/api` builds and `apps/playground` are not deployment inputs. Frontend/backend source is consolidated on `main`; neither is a deployment input.
 
 ## Before enabling continuous deployment
 
-1. Create a **new Firebase Spark project**, leave Cloud Billing **unlinked**, and explicitly create its Firebase Hosting site. Check the Firebase console shows Spark, with no billing account. Record the exact site/project ID.
+1. Use the existing **Firebase Spark project `boxvault-argee-2026`**, leave Cloud Billing **unlinked**, and verify its Firebase Hosting site. Check the Firebase console shows Spark, with no billing account. Record the exact site/project ID.
 2. Check current Firebase Hosting usage and quotas and accept that exhausted Spark quotas can disable Hosting. Monitor usage from the Firebase console.
 3. Create a **dedicated service account** with access to deploy to Firebase Hosting and read project billing info. Limit roles to what deploy tooling and read-only billing check require. Google documents `projects.getBillingInfo` as requiring `resourcemanager.projects.get` on that project (e.g. Project Viewer). Review the action's minimal IAM requirements; avoid Owner/Editor and permissions to modify billing.
 4. Create GitHub environment **`firebase-spark-public`**, restrict deployments to `main`, configure required reviewers if available to your GitHub repository plan. If plan/access does not support approvals, keep deployment disabled and use a separately approved manual release procedure.

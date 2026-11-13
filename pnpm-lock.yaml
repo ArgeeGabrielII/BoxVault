@@ -63,6 +63,37 @@ importers:
         specifier: ~5.8.3
         version: 5.8.3
 
+  apps/playground:
+    dependencies:
+      '@boxvault/assets':
+        specifier: workspace:*
+        version: link:../../packages/assets
+      '@boxvault/qr':
+        specifier: workspace:*
+        version: link:../../packages/qr
+      react:
+        specifier: ^19.0.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.3.1(react@19.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: ^4.4.0
+        version: 4.7.0(vite@6.4.6(@types/node@22.20.5)(jiti@2.7.0)(terser@5.51.2))
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.6(@types/node@22.20.5)(jiti@2.7.0)(terser@5.51.2)
+
   apps/web:
     dependencies:
       '@boxvault/assets':
@@ -95,6 +126,12 @@ importers:
         version: 6.4.6(@types/node@22.20.5)(jiti@2.7.0)(terser@5.51.2)
 
   packages/assets: {}
+
+  packages/qr:
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
 
 packages:
 

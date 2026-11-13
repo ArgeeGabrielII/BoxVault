@@ -1,9 +1,11 @@
 name: M1 Postgres Authorization Gate
 on:
+  push:
+    branches: [main]
   pull_request:
     paths:
       - 'apps/api/**'
-      - 'docs/milestone-01-security-foundation.md'
+      - 'docs/planning/milestone-01-security-foundation.md'
       - '.github/workflows/m1-authorization.yml'
   workflow_dispatch:
 
@@ -41,7 +43,7 @@ jobs:
         with:
           version: '10.18.0'
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Generate Prisma Client
         run: pnpm --filter @boxvault/api db:generate
       - name: Apply committed Prisma migrations on disposable PostgreSQL
@@ -128,7 +130,7 @@ jobs:
         with:
           version: '10.18.0'
       - name: Install
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Generate Prisma client
         run: pnpm --filter @boxvault/api db:generate
       - name: Apply committed migrations

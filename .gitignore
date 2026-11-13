@@ -14,3 +14,6 @@ apps/ios/DerivedData/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

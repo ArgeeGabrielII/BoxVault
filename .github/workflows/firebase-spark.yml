@@ -2,14 +2,18 @@ name: Firebase Spark Static Site CI/CD
 
 on:
   pull_request:
-    paths: ['apps/public-site/**', 'firebase.json', '.github/workflows/firebase-spark.yml']
+    paths: ['apps/public-site/**', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
   push:
     branches: [main]
-    paths: ['apps/public-site/**', 'firebase.json', '.github/workflows/firebase-spark.yml']
+    paths: ['apps/public-site/**', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: firebase-spark-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   validate-static:
@@ -50,7 +54,7 @@ jobs:
         env:
           FIREBASE_SPARK_PROJECT_ID: ${{ vars.FIREBASE_SPARK_PROJECT_ID }}
         run: |
-          test -n "$FIREBASE_SPARK_PROJECT_ID" || exit 1
+          test "$FIREBASE_SPARK_PROJECT_ID" = "boxvault-argee-2026" || exit 1
           [[ "$FIREBASE_SPARK_PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,29}$ ]] || exit 1
           node apps/public-site/scripts/verify.mjs
       - name: Authenticate dedicated Firebase deploy service account

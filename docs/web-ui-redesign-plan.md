@@ -1,6 +1,6 @@
 # BoxVault Web UI Redesign — isolated frontend workstream
 
-Status: Planning baseline (2026-11-13). Branch: `feature/web-ui-redesign`. No backend integration authorized in this phase.
+Current integration (2026-11-13): the owner requested consolidation into `main`. The branch-isolation steps below record the original workstream. Source is now consolidated, with no new API integration or change to prototype status. Local typecheck and build passed; browser/accessibility acceptance remains pending.
 
 ## Branch isolation and priorities
 - Branch from `main`, not `feat/m1-auth-tenant-acl-rls` (PR #4).
@@ -62,9 +62,9 @@ Status: Planning baseline (2026-11-13). Branch: `feature/web-ui-redesign`. No ba
 Only after UI review and independent security review, plan the API integration against the then-current accepted PR #4 contracts; require authenticated server-side access control, tenant-scoped authorization, RLS, and private media checks before any real inventory data is exposed.
 
 ## Alignment with existing project docs
-- [Product requirements](product-requirements.md): `WEB-01`–`WEB-05`, `INV-01`–`INV-13`, `ID-01`–`ID-05`, `ADM-01`–`ADM-08`.
-- [Web experience, SEO and compliance](web-experience-seo-compliance.md): `WEBX-01`–`WEBX-17`.
-- [Security first standard](security-first-standard.md): privacy by default, family ACL, customer/operator separation.
+- [Product requirements](product/product-requirements.md): `WEB-01`–`WEB-05`, `INV-01`–`INV-13`, `ID-01`–`ID-05`, `ADM-01`–`ADM-08`.
+- [Web experience, SEO and compliance](experience/web-experience-seo-compliance.md): `WEBX-01`–`WEBX-17`.
+- [Security first standard](security/security-first-standard.md): privacy by default, family ACL, customer/operator separation.
 
 
 ## Phase 1 implementation record — 2026-11-13

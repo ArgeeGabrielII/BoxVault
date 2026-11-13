@@ -1,6 +1,8 @@
 name: M1 PostgreSQL Authorization Gate
 
 on:
+  push:
+    branches: [main]
   pull_request:
     paths:
       - "apps/api/**"
@@ -41,7 +43,7 @@ jobs:
         with:
           version: "10.18.0"
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Generate Prisma client
         run: pnpm db:generate
       - name: Apply committed baseline + M1 migrations
