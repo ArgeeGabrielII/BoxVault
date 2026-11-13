@@ -13,6 +13,7 @@
 | [family-sharing-access-control.md](family-sharing-access-control.md) | Private-by-default container sharing with selected members or all family members; ACL-aware RLS and tests |
 | [security-first-standard.md](security-first-standard.md) | Mandatory SaaS security requirements |
 | [security-release-checklist.md](security-release-checklist.md) | Production go-live security gates and negative tests |
+| [qr-library-architecture.md](qr-library-architecture.md) | Proposed @boxvault/qr architecture, encoder selection, payload/print safeguards and pre-implementation test gates (review only) |
 | [product-requirements.md](product-requirements.md) | Users, roles, all feature requirements, workflows, MVP and acceptance criteria |
 | [solution-architecture.md](solution-architecture.md) | Monorepo, component boundaries, iOS/web/backend integration, QR/NFC and media architecture |
 | [data-model.md](data-model.md) | Entities, relations, constraints, tenancy, migration strategy and retention |
