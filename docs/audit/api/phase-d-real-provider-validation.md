@@ -160,3 +160,11 @@ Operator confirmed receipt of a second Brevo verification message and completion
 **Remediation:** added `const personalTenantId = randomUUID();` in the `verifyEmail` function immediately after the verification token hash, before the transaction. This UUID is passed to token-bound bootstrap and returned only in development after success. No changes to database schema, live tenant data, role grants, CAPTCHA or RLS.
 
 **Status:** source correction committed as `568bab3`; operator must pull and confirm watch-mode compilation. Do not mark build or browser tenant isolation passed until observed.
+
+## Tester-only password-change flow — 2026-11-13
+
+**Source change:** `mock/boxvault-m1-registration-harness.html` now includes an email-driven **Change Password** section using already-implemented, existing authentication API endpoints. `POST /api/v1/auth/password-reset/request` uses a fresh live reCAPTCHA action `reset` and Brevo; `POST /api/v1/auth/password-reset/confirm` consumes the emailed token and sets a new password. The mock provides Show/Hide for reset token, new password, and confirmation; checks matching passwords locally; retains no login token after a successful reset; and permits immediate re-login with the newly entered password.
+
+**Scope:** no changes to production UI, API controller/service, database, migrations, roles, or policies for this feature. The underlying password reset endpoints already exist for the product; only the mock harness UI is new. Existing server-side replay prevention, password rules, request rate limits and session revocation remain in force.
+
+**Status:** implementation committed to the feature branch; **live email delivery, confirmation, and new-password login not yet operator-tested**. This does not resolve the independently outstanding own-tenant HTTP 403.
