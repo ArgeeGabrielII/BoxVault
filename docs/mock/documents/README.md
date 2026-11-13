@@ -32,3 +32,16 @@ python3 -m http.server 5173 --bind 127.0.0.1
 - The tester holds entered data in the open browser tab until the tab closes; it does not intentionally write data to browser storage.
 - The harness uses the browser's Google reCAPTCHA SDK and calls the local API; browser traffic is not offline.
 - No production UI or runtime application is changed by this folder.
+
+
+## Troubleshooting: localhost page doesn't show the password reset section
+
+The HTML test application is still at root `mock/boxvault-m1-registration-harness.html`. The documentation reorganization moved guides into `docs/mock/` **but did not move or automatically update the local HTML file**.
+
+1. From the repository root run `git switch feat/m1-auth-tenant-acl-rls` and `git pull --ff-only origin feat/m1-auth-tenant-acl-rls`.
+2. Confirm the file contains the new section: `grep -n "Change test account password" mock/boxvault-m1-registration-harness.html`.
+3. Stop the existing Python server and restart it in the **repository root's mock folder**: `cd mock && python3 -m http.server 5173 --bind 127.0.0.1`.
+4. Open `http://localhost:5173/boxvault-m1-registration-harness.html` and force-refresh with Cmd+Shift+R on macOS.
+5. If still outdated, inspect `curl -s http://localhost:5173/boxvault-m1-registration-harness.html | grep "Change test account password"`. If the terminal sees the new section but the browser doesn't, diagnose browser cache/service-worker state; if the terminal doesn't, the server is serving from a different working directory.
+
+The expected interface places **Change test account password (email reset)** between Step 4 Login and Step 5 Tenant Isolation. This section only uses the existing password-reset endpoints; there are no production API changes.
