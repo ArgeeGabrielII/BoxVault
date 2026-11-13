@@ -65,3 +65,14 @@ Only after UI review and independent security review, plan the API integration a
 - [Product requirements](product-requirements.md): `WEB-01`–`WEB-05`, `INV-01`–`INV-13`, `ID-01`–`ID-05`, `ADM-01`–`ADM-08`.
 - [Web experience, SEO and compliance](web-experience-seo-compliance.md): `WEBX-01`–`WEBX-17`.
 - [Security first standard](security-first-standard.md): privacy by default, family ACL, customer/operator separation.
+
+
+## Phase 1 implementation record — 2026-11-13
+**Implemented in frontend prototype:** React dashboard shell; responsive collapsible navigation; overview metrics; demo boxes with client-side search, sort, category filters, grid/list and pagination; box detail dialog; create-box session-only mock form; inventory list; clickable locations; QR label placeholder; family permission explanation; web-only plan previews; settings; Light/Dark/System theme control and quick toggle.
+
+**Data handling:** static fictional sample fixtures, no fetch, login, payments, QR token creation, inventory persistence, API or database connections. Only theme choice persists to localStorage. All mock actions are marked as demo or preview. This frontend is **not** a replacement for PR #4's authentication, RLS, ACL, or security model.
+
+**Manual QA still required:** `pnpm --filter @boxvault/web typecheck`, `pnpm --filter @boxvault/web build`; Chrome/Firefox/Edge/Safari keyboard/modal accessibility and mobile tablet testing at 320/375/390/768/1024/1440; WCAG color contrast audit; high-contrast and zoom; theme persistence and device preference change; real browser testing of scroll and overlay.
+
+**Known prototype limitations:** no true API-backed search, backend authorization, persisted boxes, printing, scan flow, working invite, receipt submission, actual checkout, or real media. Modal focus trap/restore and additional accessibility verification should precede release. Future phases will require separately reviewed backend integration.
+
