@@ -162,6 +162,42 @@ test('SEC-10: ACTIVE family editor cannot transfer ownership or widen sharing',a
     await admin.tenantMember.update({where:key,data:{status:'REMOVED'}});
   }
 });
+test('SEC-11: revoking one selected-container grant immediately removes container and child visibility',async()=>{
+  assert.ok(seeded);
+  const grant=await admin.containerAccessGrant.findFirstOrThrow({
+    where:{tenantId:t.a,containerId:c.selected,granteeUserId:u.viewer},
+    select:{id:true},
+  });
+  // Before revocation the active VIEWER has a selected-member VIEW/EDIT grant.
+  assert.equal(await canSee(u.viewer,t.a,'Container',c.selected),true);
+  assert.equal(await canSee(u.viewer,t.a,'Item',item.selected),true);
+  assert.equal(await canSee(u.viewer,t.a,'MediaAsset',media.selected),true);
+
+  // The fixture admin models a legitimate atomic owner revocation through
+  // the privileged setup identity. Run this only in disposable PostgreSQL;
+  // no user-facing test should write grants using a migration-owner credential.
+  await admin.containerAccessGrant.delete({where:{id:grant.id}});
+  try {
+    // A fresh transaction/query is required: no cached ACL grants are accepted.
+    for(const [table,recordId] of [
+      ['Container',c.selected],['Item',item.selected],['MediaAsset',media.selected],
+      ['ContainerAccessGrant',grant.id],
+    ]){
+      assert.equal(await canSee(u.viewer,t.a,table,recordId),false,
+        table+' remained visible after selected grant revocation');
+    }
+    assert.equal(await canSee(u.owner,t.a,'Container',c.selected),true,
+      'the owner must retain access following grant revocation');
+    assert.equal(await canSee(u.other,t.a,'Container',c.selected),false,
+      'the ungranted family member must remain denied');
+  } finally {
+    // Restore the fixture grant for consistent cleanup and possible retries.
+    await admin.containerAccessGrant.create({data:{
+      id:grant.id,tenantId:t.a,containerId:c.selected,
+      granteeUserId:u.viewer,permission:'EDIT',grantedBy:u.owner,
+    }});
+  }
+});
 after(async()=>{
   try{
     const filter={tenantId:{in:Object.values(t)}};
