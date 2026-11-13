@@ -11,7 +11,15 @@ if (hosting.rewrites || hosting.redirects || hosting.frameworksBackend) throw Er
 const csp = hosting.headers?.flatMap(rule => rule.headers).find(h => h.key === 'Content-Security-Policy')?.value;
 if (!csp?.includes("connect-src 'none'") || !csp.includes("script-src 'self'")) throw Error('Preview must block backend connections and external scripts');
 const app = await read('apps/web/src/App.tsx');
-if (!app.includes('Sample data only') || /\b(fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(|\baxios\b|import\.meta\.env|\/api\/v1\//.test(app)) throw Error('Preview must retain mock-only data and its notice');
+if (!app.includes('Sample data only')) throw Error('Preview must retain its sample-data notice');
+async function verifySource(directory) {
+ for (const entry of await readdir(new URL(directory, root), { withFileTypes: true })) {
+  const path = directory + entry.name;
+  if (entry.isDirectory()) await verifySource(path + '/');
+  else if (/\.tsx?$/.test(entry.name) && /\b(fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(|\baxios\b|import\.meta\.env|\/api\/v1\//.test(await read(path))) throw Error('Backend integration is not allowed in the public mock: ' + path);
+ }
+}
+await verifySource('apps/web/src/');
 let total = 0;
 const files = [];
 async function walk(path = '') {

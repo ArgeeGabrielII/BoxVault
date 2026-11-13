@@ -50,6 +50,8 @@ Mock materials are organized under [mock documentation](mock/README.md): [tester
 
 ### Experience
 
+- [Admin console UI preview](experience/admin-preview.md) — mock account/billing operations, review flows and QA.
+
 | Document | Description |
 |---|---|
 | [web-experience-seo-compliance.md](experience/web-experience-seo-compliance.md) | SEO, accessibility, web UX and compliance |

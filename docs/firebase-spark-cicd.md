@@ -4,7 +4,7 @@
 
 ## Deployment scope
 
-`apps/web` is a React/Vite frontend using fictional fixtures. Its demo notice remains visible. Creating boxes changes in-memory state only; appearance preference is stored locally. No backend, database, live authentication, payment flow or Playground is published. Firebase serves static dashboard files with `connect-src 'none'` to block backend requests. Inline styles support React presentation; scripts are restricted to the site's own assets.
+`apps/web` is a React/Vite frontend using fictional fixtures. Its demo notice remains visible. Creating boxes changes in-memory state only; appearance preference is stored locally. The [admin UI preview](experience/admin-preview.md) is available at `/#/admin/overview` with synthetic account/billing metadata and session-only decisions. No backend, database, live authentication, payment flow or Playground is published. Firebase serves static dashboard files with `connect-src 'none'` to block backend requests. Inline styles support React presentation; scripts are restricted to the site's own assets.
 
 ## Pipeline
 
