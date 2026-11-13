@@ -1,8 +1,8 @@
 # Proposed REST API Contract
 
-**Implementation snapshot (2026-11-12; PR #4):** Routes in the tables below include both proposed and branch-implemented APIs. On the M1 branch, login/Google linking, email registration and verification, password reset, TOTP/MFA, session controls, guarded container reads and fail-closed admin top-ups have backend implementations. Positive local registration → verification → login was observed, but browser own-tenant GET returned 403 rather than expected 200. No full production endpoint acceptance, QR/media CRUD or payment-review service is claimed. See [API M1 implementation audit](../audit/api/m1-implementation.md), [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
+**Implementation snapshot (2026-11-13; PR #4):** Routes in the tables below include both proposed and branch-implemented APIs. On the M1 branch, login/Google linking, email registration and verification, password reset, TOTP/MFA, session controls, guarded container reads and fail-closed admin top-ups have backend implementations. Positive local registration → verification → login and browser 401/200/403 tenant-isolation tests were observed. Owner-only container create/sharing writes have been added to the feature branch but are awaiting independent live HTTP acceptance. No full production endpoint acceptance, QR/media CRUD or payment-review service is claimed. See [API M1 implementation audit](../audit/api/m1-implementation.md), [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
 
-Status: API design draft. On `main`, only `GET /api/v1/health` is implemented. On the **M1 feature branch**, partial auth/MFA routes plus authenticated `GET /containers` and `GET /containers/:id` and a deny-by-default admin `GET /admin/topups` route are implemented. Most routes below remain specifications; see [m1-authentication-implementation.md](../security/m1-authentication-implementation.md).
+Status: API design draft. On `main`, only `GET /api/v1/health` is implemented. On the **M1 feature branch**, partial auth/MFA routes plus authenticated container list/detail, private creation and owner-only sharing replacement and a deny-by-default admin `GET /admin/topups` route are implemented. Most routes below remain specifications; see [m1-authentication-implementation.md](../security/m1-authentication-implementation.md).
 
 ## 1. Conventions
 
@@ -91,6 +91,8 @@ Idempotency-Key: 28e0c75a-9c68-4e9a-83b8-90524b38d544
 Server must independently validate `tenantId` against a currently active membership and cannot allow client-side tenant overriding. Prefer tenant selection from an authorized server-backed session context.
 
 Example read for a container should return authorized thumbnail URLs and items, never raw storage credentials or bank data.
+
+**M1 feature-branch container mutations (not released):** `POST /containers` accepts `{tenantId,name}` and returns a private container ID; `PUT /containers/:id/sharing` accepts `{tenantId,shareMode,grants:[{userId,permission}]}`. Only the owning creator can update sharing. Revoking all selected grants uses `shareMode: "PRIVATE", grants: []`, evaluated again on every subsequent read. All requests require a live authenticated session, active tenant membership and RLS. Two-user family acceptance is pending until tenant invitation acceptance exists. See [test procedure](../mock/documents/container-sharing-revocation.md).
 
 ## 4. Web-only credits / plan endpoints
 
