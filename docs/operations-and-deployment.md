@@ -1,6 +1,6 @@
 # Operations, Deployment, Reliability and Cost Controls
 
-Status: proposed operational design. Production hosting has **not** been selected.
+Status: proposed operational design. Production hosting has **not** been selected. A separate [Firebase Spark public static CI/CD design](firebase-spark-cicd.md) is available, disabled by default and unrelated to customer SaaS deployment.
 
 ## 1. Environments
 
