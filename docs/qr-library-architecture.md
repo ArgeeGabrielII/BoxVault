@@ -1,6 +1,6 @@
 # ADR-QRC-001 — BoxVault QR generation package (design review)
 
-**Status:** Proposed, not approved or implemented  
+**Status:** Four QR-library foundational decisions approved by product owner (2026-11-13); advertisement interstitial extension remains proposed pending provider, UX and privacy review. No code implemented  
 **Date:** 2026-11-13  
 **Branch:** `docs/qr-library-architecture`  
 **Proposed package:** `@boxvault/qr` in `packages/qr`
@@ -10,6 +10,13 @@
 Own a clean, reusable, framework-independent TypeScript QR generation API for BoxVault. Use a separately isolated, established standards-based encoder (recommended candidate: Nayuki's QR Code generator) to produce a module matrix, and implement our own SVG/raster rendering and print-label composition. This document is a proposal for review, **not an implementation** and does not permit backend security bypasses.
 
 This design is aligned with existing `docs/product-requirements.md` (INV-03, INV-04, INV-06, INV-08, INV-09), `docs/solution-architecture.md` (§5), `docs/api-contract.md` (label creation/resolution), `docs/security-first-standard.md` (§5), and `docs/family-sharing-access-control.md`.
+
+## Approved foundational decisions (2026-11-13)
+
+1. Build and own `@boxvault/qr` with a separately isolated Project Nayuki TypeScript encoder adapter, after licensing/provenance verification.
+2. Separate portable matrix/SVG core from browser PNG and label-print entrypoints.
+3. Keep production token issuance, authorization, rotation and resolution in the backend. The QR package only encodes supplied payloads.
+4. MVP print-safe high-contrast square QR symbols and labels; defer custom shapes and center logos.
 
 ## Decision
 
@@ -132,6 +139,86 @@ An ergonomic `createQR(...).toSVG()` facade can be added after deciding tree-sha
 5. Whether a human-readable non-secret box reference is printed outside QR, and privacy implications of showing customer-named containers.
 6. Whether user-custom foreground color is allowed in MVP (recommend fixed print-safe palette first).
 7. Version 1 testing targets and maintenance ownership / dependency update cadence.
+
+## ADR-QRC-002 — Optional advertisement interstitial before QR destination (proposed extension)
+
+**Status:** Provision requested and accepted for architecture planning, default OFF. Ad provider and exact scope require separate approval. This is *not* implemented; this requirement does not add advertising logic to `@boxvault/qr`.
+
+### Separation of concerns
+
+The QR generator always encodes an invariant, first-party HTTPS label URL such as `https://app.example.com/c/<opaque-token>`. The advertisement feature is a separately versioned **web navigation/interstitial orchestration** module controlled by a server-side runtime feature flag; it must not modify QR symbols or require reprinting when toggled.
+
+Relevant layers:
+
+```text
+@boxvault/qr: encode supplied first-party label URL only
+  -> Web route /c/:opaqueToken
+  -> session/authentication check (required)
+  -> authorized label resolution and per-container ACL
+  -> ad eligibility decision (default false)
+       OFF -> authorized container screen
+       ON  -> optional first-party interstitial with immediate Continue / Skip
+  -> revalidate authorized navigation after continue
+  -> authorized container screen
+```
+
+Access checks MUST happen before any personalized or contextual ad decision; absent authentication enters the normal sign-in flow without revealing container existence. Recheck membership, revocation and permissions on final access. Avoid generating a free-form redirect URL or passing arbitrary `next=`/destination URL values to clients. Prefer a server-generated, short-lived, same-origin navigation state or opaque reference. Never put raw label tokens into external ad-provider requests, tracking parameters, referrers, analytics, logs, or off-domain scripts. Authenticated pages should be `noindex` and `no-store`.
+
+For generic QR payloads pointing at arbitrary third-party URLs, **do not enable arbitrary redirect interstitials** as part of this BoxVault container-label MVP. A separate URL-shortener/redirect product would require an allowlisted destination policy, anti-phishing/abuse controls, a validated host display, redirect-loop protection and open-redirect security testing; it is out of scope until explicitly approved.
+
+### Proposed backend/runtime configuration (NOT part of QR package)
+
+```ts
+type InterstitialConfig = {
+  enabled: boolean;               // default false
+  experience: 'house-promo';      // initially first-party only
+  skipAllowed: true;              // no forced viewing or click
+  maxPerSession: 1;               // provisional cap; review telemetry/privacy
+  eligibleRoute: 'container-scan';
+  adFailureBehavior: 'continue';  // bypass advertisement, NOT security checks
+};
+```
+
+The production toggle must be operator-configurable and validated server-side (e.g. remotely managed configuration with audit and kill switch). Do not trust a front-end-only toggle for enforcement, and do not let configuration change raw token URL semantics or auth. An optional per-tenant/no-ads entitlement policy requires product approval and explicit documentation before implementation. The toggle controls ad presentation only; authorization and tenant isolation always fail closed.
+
+### UX requirements
+
+- Clear `Advertisement` or `Sponsored` label; avoid deceptive navigation and ads mistaken for the Continue action.
+- Immediately accessible `Continue to box` / `Skip` control, with keyboard and screen-reader usability. No forced countdown, click-to-continue ad, pop-up, new tab or surprise autoplay.
+- Frequency-cap interruptions; proposed once per browser session, not every scan. Avoid an ad for login, password reset, invited-link handling, error/denial pages or security-critical steps.
+- Responsive light/dark design, 320–1440px; 200% zoom and reduced motion; safe accessible loading/fallback for slow or blocked ad content.
+- If the ad fails, is blocked or times out, bypass ads and continue only to already authorized content (with normal final authorization).
+- Always support Back, no redirect loops, and no hidden user state in query strings.
+- First-party promotions may avoid third-party ad-data disclosure. If third-party ads are considered later, require consent/legitimate-basis, data minimization, vendor review, provider placement policy and a documented opt-out where required.
+- Protect sensitive storage workflows: no third-party trackers on personal inventory, box or scan routes by default. Consider restricting ads to public marketing pages if these safeguards cannot be met.
+
+### Provider-policy risks and limits
+
+Google AdSense placement rules prohibit ads on pages placed solely for ads in certain contexts, redirects designed to force ad viewing before content, or automatic-redirect/refresh ad placements. **Do not assume a commercial AdSense interstitial is permissible**; obtain provider approval / choose compatible placements. Google also discourages intrusive interstitials affecting user access and search. Relevant references:
+- https://support.google.com/adsense/answer/1346295?hl=en
+- https://developers.google.com/search/docs/appearance/avoid-intrusive-interstitials
+- https://privacy.gov.ph/wp-content/uploads/2023/11/NPC-Circular-No.-2023-04_Guidelines-on-Consent_07Nov2023.pdf
+
+### Security and acceptance criteria
+
+1. With flag OFF (default), authenticated authorized QR scans navigate without interstitial; no third-party ad requests.
+2. With flag ON and eligible, one first-party promotional interstitial is shown at most once per session, with immediate Continue; subsequent visits in session bypass.
+3. Unauthenticated or unauthorized scans never reveal box labels/details through any ad decision, content, error, URL or event.
+4. Invalid/revoked/rotated/cross-tenant tokens and denied ACLs cannot be navigated through by skipping ads or changing redirect state.
+5. Tampered `next`, `returnUrl`, double-encoded URLs, protocol-relative URLs and alternate hosts do not produce an open redirect.
+6. Disabling the flag immediately prevents newly requested interstitials without changing encoded QR content.
+7. Ad network unavailable/blocked, script failure or missing creative cannot block an authorized scan; auth still runs normally.
+8. Confirm no raw tokens/box titles, tenant IDs, emails, media URLs or user data travel to external ad vendors, analytics, referrers, or logs.
+9. Test CSP, referrer policy, cache-control, consent and privacy notices, accessible dismissal, reduced motion, mobile behavior, back navigation and light/dark themes.
+10. No third-party ad SDK, ad placements or monetization launch until separate security/privacy/legal and provider policy reviews.
+
+### Open decisions specific to this feature
+
+- Are ad interstitials wanted only for first-party BoxVault QR container links, or is an unrelated external URL redirect/shortener service intended? The MVP proposal covers only first-party labels.
+- First-party house promotions versus third-party ad provider monetization (recommend house promotions initially).
+- Global-only flag or optional per-plan/per-tenant exemption, and owner controls.
+- Final session cap and whether the user must be fully signed in and authorized (recommended yes).
+- Whether native iOS deep-link navigation should bypass the web ad interstitial entirely (recommended yes; check store requirements if monetization considered).
 
 ## External references consulted
 
