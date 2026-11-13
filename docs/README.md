@@ -4,7 +4,7 @@
 
 > **Status:** Product and technical design baseline. The `main` branch is an early scaffold; PR #4 introduces preliminary authentication and RLS controls but **is not approved for production or merging into `main` until the security release gates are met**.
 
-The root [local mock README](../mock/README.md) documents the development-only tester UUID display, Show/Hide controls, local tester-only password-change workflow, and test-context endpoint; it is **not a production API contract**.
+Mock materials are organized under [mock documentation](mock/README.md): [tester guides](mock/documents/README.md) and [test-data catalog](mock/data/README.md) are separate; the [runnable HTML](../mock/boxvault-m1-registration-harness.html) stays under `/mock`. Mock helpers are **not production API contracts**.
 
 ## Start here
 
@@ -76,6 +76,14 @@ The root [local mock README](../mock/README.md) documents the development-only t
 |---|---|
 | [delivery-roadmap.md](planning/delivery-roadmap.md) | Phased roadmap and acceptance criteria |
 | [milestone-01-security-foundation.md](planning/milestone-01-security-foundation.md) | M1 security milestone scope |
+
+### Mock Testing
+
+| Document | Description |
+|---|---|
+| [docs/mock/README.md](mock/README.md) | Mock documentation index and separation policy |
+| [documents/README.md](mock/documents/README.md) | Local tester usage, password reset, UUID auto-fill and fallback lookup |
+| [data/README.md](mock/data/README.md) | Synthetic test data dictionary, fixture expectations and safety boundaries |
 
 ### Engineering Audit
 
