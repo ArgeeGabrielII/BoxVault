@@ -107,7 +107,7 @@ Operator confirmed receipt of a second Brevo verification message and completion
 
 - `mock/boxvault-m1-registration-harness.html` now retains a successful login access token in volatile page memory (never displayed or persisted) and can exercise unauthenticated/own-tenant/unrelated-tenant `GET /api/v1/containers?tenantId=...` checks.
 - Expected statuses: **401** unauthenticated, **200** own tenant, **403** unrelated tenant; no cross-tenant container payload is rendered.
-- `mock/tenant-isolation-readonly-lookup.md` provides an operator-only, parameterized, **read-only** tenant UUID lookup guarded to Neon `m1-security-test`. The application receives only the UUIDs typed by the tester; privileged owner DB credentials are never sent to it.
+- `docs/mock/documents/tenant-isolation-readonly-lookup.md` provides an operator-only, parameterized, **read-only** tenant UUID lookup guarded to Neon `m1-security-test`. The application receives only the UUIDs typed by the tester; privileged owner DB credentials are never sent to it.
 - A browser refresh clears the access token and requires a fresh reCAPTCHA-backed login. The tester also includes a **Forget access token** control.
 - No API authorization rules, database privileges, migrations, user records or default Neon `dev` branch were modified.
 
@@ -168,3 +168,7 @@ Operator confirmed receipt of a second Brevo verification message and completion
 **Scope:** no changes to production UI, API controller/service, database, migrations, roles, or policies for this feature. The underlying password reset endpoints already exist for the product; only the mock harness UI is new. Existing server-side replay prevention, password rules, request rate limits and session revocation remain in force.
 
 **Status:** implementation committed to the feature branch; **live email delivery, confirmation, and new-password login not yet operator-tested**. This does not resolve the independently outstanding own-tenant HTTP 403.
+
+## Mock documentation and data separation — 2026-11-13
+
+**Repository-only reorganization:** test guides moved to `docs/mock/documents/`, fixture and data-handling definitions placed under `docs/mock/data/`, and `docs/mock/README.md` indexes both. The executable HTML remains at `mock/boxvault-m1-registration-harness.html`; root `mock/README.md` is now a short entry point. No live database changes, production code modifications or privilege changes. UUID lookup remains read-only. The unresolved own-tenant HTTP 403 continues to be an acceptance blocker.
