@@ -103,10 +103,13 @@ Personas: **Personal owner** (single-user tenant), **Family owner** (payer, invi
 
 ## 9. Plan rules and limits
 
-| Plan | Annual price | Users per tenant | Container limit | Media storage |
-|---|---:|---:|---:|---:|
-| Personal | PHP 999 | 1 | 30 (proposed) | 1 GB (proposed) |
-| Family | PHP 1,999 | 4 **including owner** | 150 (proposed) | 5 GB (proposed) |
+| Plan | Monthly price (billed monthly) | Annual price (billed annually) | Users per tenant | Container limit | Media storage |
+|---|---:|---:|---|---|---|
+| Free User | PHP 0 | PHP 0 | Not finalized | Limited; exact cap not specified | Not finalized |
+| Single User (Personal) | PHP 119 | PHP 999 — **Best Value** | 1 | 30 (previous planning assumption) | 1 GB (proposed) |
+| Family User | PHP 219 | PHP 1,999 | 4 **including owner** | 150 (previous planning assumption) | 5 GB (proposed) |
+
+**2026-11-13 pricing preview update:** Free User is advertisement-supported. No numeric Free container cap is approved, and ad delivery is not connected. Monthly and annual prices above are reflected in the shared mock plan catalog; billing and entitlement enforcement remain future backend work.
 
 Plan prices and member cap are agreed product decisions. Container/storage limits are **planning assumptions**, not finalized quotas. Credits are purchased and redeemed on the **web only**. A renewed plan should extend from `max(now, current_expiry)` when renewing the same plan, preventing loss of unused time.
 

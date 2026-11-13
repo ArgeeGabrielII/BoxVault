@@ -110,8 +110,9 @@ Mock materials are organized under [mock documentation](mock/README.md): [tester
 
 ## Approved business decisions
 
-- Annual **Personal**: **PHP 999**; one user.
-- Annual **Family**: **PHP 1,999**; up to **4 users total including the owner**.
+- **Free User**: limited storage containers and advertisements; exact cap not yet specified.
+- **Single User (Personal)**: **PHP 119/month** billed monthly or **PHP 999/year** billed annually (**Best Value**); one user.
+- **Family User**: **PHP 219/month** billed monthly or **PHP 1,999/year** billed annually; up to **4 users total including the owner**.
 - Target fixed customer-facing prices: **2027 through 2029**, subject to later business/legal review. Model expense inflation at **10% annually**; do not silently reprice an active term.
 - Customers buy closed-loop, non-cash-redeemable software credits through the **React web app only**, via manual bank transfer to the owner's bank QR and receipt submission; authorized administrator independently verifies receipt.
 - The **native iOS** app is for inventory, QR/NFC, and account/plan-status features only. **No purchases, pricing, credit top-ups, receipt submissions or external purchasing links/calls to action** in the iOS UI.

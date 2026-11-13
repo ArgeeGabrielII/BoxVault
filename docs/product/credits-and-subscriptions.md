@@ -1,15 +1,18 @@
-# Manual Credits, Annual Subscriptions and Financial Reporting
+# Manual Credits, Subscriptions and Financial Reporting
 
 **Implementation snapshot (2026-11-12; PR #4):** Fixed-price and closed-loop credit designs remain **specifications**, not an operational billing service. M1 adds authentication and privileged-operator guard foundations, but actual payment-review processing is deliberately unavailable (guarded `GET /api/v1/admin/topups` returns 501 for authorized operators). No verified web top-up, transfer approval, ledger posting, redemption, or mobile-payment-policy acceptance is claimed. See [roadmap](../planning/delivery-roadmap.md).
 
 Status: proposed design. No payment gateway is connected or needed for MVP.
 
-## 1. Fixed annual prices
+## 1. Approved plan previews (updated 2026-11-13)
 
-| Plan | Users | Annual price | Credits to redeem |
-|---|---:|---:|---:|
-| Personal | 1 | **PHP 999** | **999** |
-| Family | Up to **4 including owner** | **PHP 1,999** | **1,999** |
+| Plan | Users | Monthly (billed monthly) | Annual (billed annually) | Notes |
+|---|---|---:|---:|---|
+| Free User | Free tier | PHP 0 | PHP 0 | Limited storage containers and advertisements; exact container cap is not specified |
+| Single User (Personal) | 1 | **PHP 119** | **PHP 999** | Annual option is labeled **Best Value** |
+| Family User | Up to **4 including owner** | **PHP 219** | **PHP 1,999** | Both billing periods available in the preview |
+
+The landing, customer, admin and published Playground previews share the catalog in `apps/web/src/shared/planCatalog.ts`. Switching the displayed billing period does not activate a subscription, deliver advertisements or alter the demo credit ledger. Monthly billing and Free-tier limits/ad delivery still require future backend implementation. The Free container cap must be explicitly decided before enforcement; the preview does not invent a number.
 
 Target customer-facing rate lock: **2027, 2028 and 2029**; review afterward rather than raising prices annually. Expenses may escalate **10% per year**, compounded, for business modeling. No implicit price changes within a paid annual term.
 
@@ -74,7 +77,7 @@ Replay of the same approval/idempotency key returns existing result, not another
 ```text
 transaction:
   lock wallet and subscription
-  verify tenant owner and active annual plan price version
+  verify tenant owner and selected plan/billing-period price version
   require wallet balance >= price in credits
   insert unique DEBIT ledger entry
   update wallet cached balance
@@ -100,7 +103,7 @@ Subscription dates should use explicit UTC instants with customer-local presenta
 
 - **Cash collected**: verified bank receipts allocated to approved top-ups by money-received/verified date. Track cash receipt timing separately from approval timestamp.
 - **Credits issued**: posted credit ledger increases, including promotional credits separately.
-- **Credits redeemed**: ledger debits to activate annual plans.
+- **Credits redeemed**: ledger debits to activate the selected subscription period.
 - **Outstanding credits**: unredeemed customer balances; not counted again as new cash.
 - **Subscription bookings**: value of redeemed plans.
 - **Earned revenue**: revenue recognized over the service term according to applicable accounting policy; do not equate this automatically with money received.
