@@ -198,3 +198,13 @@ The mock displayed `Tenant isolation: PASS` and did not display container conten
 **Automated negative coverage:** `AUTH-HTTP-01b` checks unauthenticated and forged-token create/sharing requests return 401. `SEC-11` adds a disposable PostgreSQL RLS regression proving SELECTED_MEMBER grant removal immediately denies the container, child item, media and historical grant metadata to a previously authorized member without affecting the owner.
 
 **Not yet done:** CI/test execution evidence for these new changes; a live two-account HTTP 404/200/404 share→revoke sequence. Two separately registered users inhabit separate personal tenants; family invitation/activation is not yet implemented. No live Neon fixture memberships were inserted and no persistent data was changed during this phase. See [test instructions](../../mock/documents/container-sharing-revocation.md). M1 overall remains unapproved; PR #4 remains draft/unmerged.
+
+### Phase E implementation CI evidence — 2026-11-13
+
+GitHub workflow runs on source commits **passed**:
+- `0969cc9` (new authenticated container create/sharing routes): CI, M1 Postgres Authorization Gate and M1 PostgreSQL Authorization Gate all concluded **success**.
+- `a4bd07f` (new SEC-11 selected-grant immediate revocation test): the same three workflows all concluded **success**.
+- `9e8a796` (unauthenticated/forged container mutation contract): the same three workflows all concluded **success**.
+- `05c3096` (Step 6 mock): the same three workflows all concluded **success**.
+
+**Interpretation:** committed test-suite coverage including SEC-11 has passed in GitHub Actions on these code-bearing commits. A subsequent docs-only PR head may have a separate checks lifecycle. These successes do **not** establish live browser two-account family acceptance, production readiness, media HTTP authorization or family invitation provisioning. Persistent Neon test data remains untouched by this implementation exercise.
