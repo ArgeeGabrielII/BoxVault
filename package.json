@@ -6,9 +6,11 @@
   "scripts": {
     "dev:web": "pnpm --filter @boxvault/web dev",
     "dev:api": "pnpm --filter @boxvault/api start:dev",
-    "build": "pnpm -r --filter './apps/*' build",
+    "build": "pnpm --filter @boxvault/web build && pnpm --filter @boxvault/api build",
     "typecheck": "pnpm --filter @boxvault/web typecheck && pnpm --filter @boxvault/api typecheck",
     "db:generate": "pnpm --filter @boxvault/api db:generate",
-    "db:migrate": "pnpm --filter @boxvault/api db:migrate"
+    "db:migrate": "pnpm --filter @boxvault/api db:migrate",
+    "dev:playground": "pnpm --filter @boxvault/playground dev",
+    "build:playground": "pnpm --filter @boxvault/playground build"
   }
 }
