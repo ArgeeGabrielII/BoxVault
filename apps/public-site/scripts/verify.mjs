@@ -25,6 +25,7 @@ if (total > 512 * 1024) throw new Error('Public site exceeds 512 KiB');
 const firebase = JSON.parse(await readFile(new URL('../../../firebase.json', import.meta.url), 'utf8'));
 if (Object.keys(firebase).join(',') !== 'hosting') throw new Error('Hosting is the only allowed Firebase resource');
 const hosting = firebase.hosting;
+if (hosting.site !== "boxvault-argee-2026") throw new Error("Unexpected Firebase Hosting site");
 if (Array.isArray(hosting) || hosting.public !== 'apps/public-site/dist') throw new Error('Unexpected Firebase Hosting target');
 if (hosting.rewrites || hosting.redirects || hosting.functions || hosting.frameworksBackend) throw new Error('Firebase compute/rewrites are not allowed');
 console.log('Hosting-only artifact verified; total', total, 'bytes');
