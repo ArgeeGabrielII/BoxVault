@@ -40,6 +40,10 @@ API health: http://localhost:3000/api/v1/health
 
 iOS: `cd apps/ios && xcodegen generate`, then open `BoxVault.xcodeproj` in Xcode. The iOS app expects a reachable API URL; the simulator uses localhost and physical devices need a LAN/TLS URL.
 
+## Firebase Spark public-site CI/CD
+
+The repository includes a **sanitized public coming-soon site** under `apps/public-site` and a guarded CI/CD workflow for Firebase Hosting on the **no-billing Spark plan**. Pull requests and matching pushes to `main` build and audit the static artifact. Live deployment is **disabled by default** and requires explicit GitHub variables, protected environment, a deploy identity and a successful Cloud Billing *disabled* check. This pipeline does not deploy the API, customer portal, SSR, or Developer Playground. See [Firebase Spark CI/CD setup](docs/firebase-spark-cicd.md).
+
 ## Developer Playground (mock-only)
 
 The **VaultBox Developer Playground** centralizes QR Generator and responsive web UI mockups **plus restricted real local backend verification** in `apps/playground`, completely separate from normal production app builds. The NestJS backend still runs independently; the Playground offers a read-only health test. Start it with `pnpm install --no-frozen-lockfile && pnpm dev:playground` and open http://localhost:5174/. See [playground documentation](docs/developer-playground.md). Do not deploy the Playground publicly.
