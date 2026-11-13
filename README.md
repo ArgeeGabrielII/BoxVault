@@ -40,6 +40,10 @@ API health: http://localhost:3000/api/v1/health
 
 iOS: `cd apps/ios && xcodegen generate`, then open `BoxVault.xcodeproj` in Xcode. The iOS app expects a reachable API URL; the simulator uses localhost and physical devices need a LAN/TLS URL.
 
+## Developer Playground (mock-only)
+
+The **VaultBox Developer Playground** centralizes QR Generator and responsive web UI mockups in `apps/playground`, completely separate from normal production app builds. Start it with `pnpm install --no-frozen-lockfile && pnpm dev:playground` and open http://localhost:5174/. See [playground documentation](docs/developer-playground.md). Do not deploy the Playground publicly.
+
 ## Security
 **This is an initial development scaffold, not production-ready.** Prisma models are not access controls. No private inventory or credit approval APIs are exposed until authentication, authorization, row-level security, and audit controls have been implemented. Never commit .env files, account details, user media, or payment receipts.
 
