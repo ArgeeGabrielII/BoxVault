@@ -20,6 +20,8 @@
     ]
   },
   "include": [
+    "backend/src/**/*.tsx",
+    "backend/src/**/*.ts",
     "qr/src/**/*.tsx",
     "qr/src/**/*.ts",
     "ui/src/**/*.tsx",

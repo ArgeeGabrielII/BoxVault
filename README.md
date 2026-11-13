@@ -42,7 +42,7 @@ iOS: `cd apps/ios && xcodegen generate`, then open `BoxVault.xcodeproj` in Xcode
 
 ## Developer Playground (mock-only)
 
-The **VaultBox Developer Playground** centralizes QR Generator and responsive web UI mockups in `apps/playground`, completely separate from normal production app builds. Start it with `pnpm install --no-frozen-lockfile && pnpm dev:playground` and open http://localhost:5174/. See [playground documentation](docs/developer-playground.md). Do not deploy the Playground publicly.
+The **VaultBox Developer Playground** centralizes QR Generator and responsive web UI mockups **plus restricted real local backend verification** in `apps/playground`, completely separate from normal production app builds. The NestJS backend still runs independently; the Playground offers a read-only health test. Start it with `pnpm install --no-frozen-lockfile && pnpm dev:playground` and open http://localhost:5174/. See [playground documentation](docs/developer-playground.md). Do not deploy the Playground publicly.
 
 ## Security
 **This is an initial development scaffold, not production-ready.** Prisma models are not access controls. No private inventory or credit approval APIs are exposed until authentication, authorization, row-level security, and audit controls have been implemented. Never commit .env files, account details, user media, or payment receipts.
