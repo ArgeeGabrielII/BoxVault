@@ -1,6 +1,6 @@
 # API — Phase D: Real Brevo / reCAPTCHA signup verification
 
-**Latest audit roll-up (2026-11-12):** The first-line `PENDING` below reflects the initial audit opening. Later entries document operator-reported successful real-CAPTCHA registration, Brevo email verification and login, with independently inspected Neon auth events and tenant membership. The subsequent HTTP tenant-isolation test **failed acceptance**: unauthenticated 401 (expected), other tenant 403 (expected), **own tenant 403 (unexpected)**. Restricted-role DB predicate was true for that principal/tenant, but HTTP principal-to-tenant mapping still needs investigation. No complete current-head CI, authenticated media/QR/finance authorization or production sign-off is claimed. The dated audit entries below remain historical evidence, not a single flat status.
+**Latest audit roll-up (2026-11-12):** The first-line `PENDING` below reflects the initial audit opening. Later entries document operator-reported successful real-CAPTCHA registration, Brevo email verification and login, with independently inspected Neon auth events and tenant membership. A subsequent HTTP tenant-isolation test initially returned own-tenant 403 unexpectedly, but the **2026-11-13 operator retest PASSED** (unauthenticated 401, own tenant 200 with zero containers, unrelated tenant 403). See the latest dated evidence below. No complete current-head CI, authenticated media/QR/finance authorization or production sign-off is claimed. The dated audit entries below remain historical evidence, not a single flat status.
 
 **Date opened:** 2026-11-12 (Asia/Manila)  
 **Status:** PENDING; **no live registration verified yet**  
@@ -172,3 +172,21 @@ Operator confirmed receipt of a second Brevo verification message and completion
 ## Mock documentation and data separation — 2026-11-13
 
 **Repository-only reorganization:** test guides moved to `docs/mock/documents/`, fixture and data-handling definitions placed under `docs/mock/data/`, and `docs/mock/README.md` indexes both. The executable HTML remains at `mock/boxvault-m1-registration-harness.html`; root `mock/README.md` is now a short entry point. No live database changes, production code modifications or privilege changes. UUID lookup remains read-only. The unresolved own-tenant HTTP 403 continues to be an acceptance blocker.
+
+## Phase D owner-tenant isolation success — 2026-11-13 (Asia/Manila)
+
+**Status: PASS for the three-request local HTTP browser isolation smoke test.**
+
+**Evidence class:** Operator-reported output from `http://localhost:5173/boxvault-m1-registration-harness.html` against the locally running NestJS API. This is not an independently observed HTTP trace nor a production environment test.
+
+| Test | Expected | Operator-observed | Result |
+|---|---|---|---|
+| Unauthenticated `GET /api/v1/containers?tenantId=<own>` | 401 | **401** | PASS |
+| Authenticated own-tenant list | 200 | **200**, `visible containers: 0` | PASS; a fresh personal tenant may be empty |
+| Authenticated unrelated-tenant list | 403 | **403** | PASS |
+
+The mock displayed `Tenant isolation: PASS` and did not display container contents or access tokens. This supersedes the earlier **own-tenant 403** failure **for this specific operator-observed execution**; the older record remains for traceability.
+
+**Interpretation:** Live route authentication/authorization for the tested user's own tenant and one unrelated tenant now conforms to the expected deny/allow/deny matrix. The precise explanation for the prior 403 was not conclusively established, although automated UUID selection reduces manual mismatch risk.
+
+**Still pending:** additional users/tenants, container-level ACL and family sharing, revoked membership effects, session revocation, token replay at other paths, mutation denial, CI verification at current PR head, and independent production release review. Do not mark entire M1 accepted or merge PR #4 based solely on this smoke test. No database, role, migration or product code changes were made by this audit entry.
