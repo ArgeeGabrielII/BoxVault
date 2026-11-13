@@ -47,6 +47,17 @@ Status: Planning baseline (2026-11-13). Branch: `feature/web-ui-redesign`. No ba
 - Test mobile Safari, Chrome, Firefox and Edge where available.
 - Document loading, empty, error, disabled and confirmation states.
 
+
+## Light and dark mode (required)
+- Provide **Light**, **Dark**, and **System** display preferences across all customer-facing web pages, including auth, public, dashboard, settings and error states; operator prototype should use the same tokens.
+- Default to **System** on first visit using `prefers-color-scheme`; let users override explicitly in an accessible Settings > Appearance selector and convenient header menu.
+- Persist selection locally for this backend-free frontend phase (e.g. `localStorage`) without storing sensitive account data; use instant theme switching with no page reload. Later, optionally sync preferences to authenticated user profiles after API integration.
+- Use semantic design tokens / CSS custom properties for backgrounds, surfaces, borders, text, links, primary actions, status indicators, focus rings, charts and overlays. Avoid hard-coded colors inside components.
+- Design dark mode intentionally rather than applying a filter/inversion; keep images, photos, QR labels and printable labels readable and unaltered. Printed documents always use an explicit print theme.
+- Aim for WCAG 2.2 AA contrast: normal text at least 4.5:1, large text at least 3:1, and relevant interface components/focus indicators at least 3:1. Do not convey state only by color.
+- Ensure native form controls, dropdowns, dialogs, hover/active/disabled states, loading skeletons and notifications respect the active mode, including mobile browsers. Respect `prefers-reduced-motion` and avoid theme transition flashes on initial load.
+- Test all specified responsive viewports in both themes, plus System preference changes, persistence across refresh, keyboard access, and browser high-contrast/forced-colors where supported.
+
 ## Integration gate
 Only after UI review and independent security review, plan the API integration against the then-current accepted PR #4 contracts; require authenticated server-side access control, tenant-scoped authorization, RLS, and private media checks before any real inventory data is exposed.
 
