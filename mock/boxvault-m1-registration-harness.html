@@ -20,22 +20,24 @@ if (location.search || location.hash) history.replaceState(null,'',location.path
 <label for="password">Test password (12–128 chars; upper, lower, digit)</label><div class="password-row"><input id="password" type="password" autocomplete="new-password" placeholder="Use a unique disposable test password"><button type="button" class="toggle-password" data-for="password" aria-pressed="false" aria-label="Show registration password">Show</button></div>
 <button id="register">1. Register + send Brevo email</button>
 <hr>
-<label for="token">Verification token from Brevo email link (token=...)</label><input id="token" type="password" autocomplete="off" placeholder="Paste the 43-character token only" spellcheck="false">
+<label for="token">Verification token from Brevo email link (token=...)</label><div class="password-row"><input id="token" type="password" autocomplete="off" placeholder="Paste the 43-character token only" spellcheck="false"><button type="button" class="toggle-password" data-for="token" aria-pressed="false" aria-label="Show verification token">Show</button></div>
 <label for="verifiedPassword">Password to establish on verification</label><div class="password-row"><input id="verifiedPassword" type="password" autocomplete="new-password" placeholder="Can be the same disposable test password"><button type="button" class="toggle-password" data-for="verifiedPassword" aria-pressed="false" aria-label="Show verification and login password">Show</button></div>
 <button id="verify">2. Verify email + create personal tenant</button>
 <button id="replay">3. Try token replay (expect HTTP 401)</button>
 <hr>
 <p class="fine">Login uses the password set in <strong>Password to establish on verification</strong>, not necessarily the original registration password.</p>
-<button id="login">4. Login with fresh reCAPTCHA token</button>
+<button id="login">4. Login with fresh reCAPTCHA token + load tenant UUIDs</button>
+<p class="fine">In this localhost-only tester, login automatically retrieves your user UUID, own tenant UUID, and an unrelated test tenant UUID. Registration shows a new user UUID; the personal tenant UUID appears once email verification succeeds.</p>
+<section class="notice" aria-live="polite" id="identifiers"><strong>Test IDs:</strong> Not loaded yet.</section>
 <hr>
 <h2>5. Check authenticated tenant isolation</h2>
-<p class="fine">After a successful login on this tab, enter one tenant UUID assigned to this account and one unrelated test-tenant UUID. The access token stays in this page's JavaScript memory and is never shown or saved. Refreshing clears it.</p>
-<label for="ownTenant">Your test account's tenant UUID</label><input id="ownTenant" autocomplete="off" spellcheck="false" placeholder="UUID from the read-only tenant lookup">
-<label for="otherTenant">An unrelated test tenant UUID</label><input id="otherTenant" autocomplete="off" spellcheck="false" placeholder="Different tenant UUID from the read-only lookup">
+<p class="fine">After login, both tenant UUID fields should fill automatically. Manual edits remain available for testing. The access token stays in this tab's JavaScript memory and is never shown or saved. Refreshing clears it.</p>
+<label for="ownTenant">Your test account's tenant UUID</label><input id="ownTenant" autocomplete="off" spellcheck="false" placeholder="Auto-filled after successful login">
+<label for="otherTenant">An unrelated test tenant UUID</label><input id="otherTenant" autocomplete="off" spellcheck="false" placeholder="Auto-filled from isolated test tenant">
 <button id="isolation">5. Run read-only tenant isolation checks</button>
 <button id="forgetSession" type="button">Forget access token in this tab</button>
 <pre id="output" class="output" role="status" aria-live="polite">Ready. Enter your public site key and fresh test account details.</pre>
-<p class="fine">No values are saved to localStorage, cookies or disk. Response bodies are restricted to statuses and non-secret summaries. A login access token is never displayed. The reCAPTCHA provider necessarily receives browser-side challenge signals.</p>
+<p class="fine">No values are saved to localStorage, cookies or disk. The UUIDs are non-secret identifiers and appear above for local testing; password/token text stays masked unless you choose Show. A login access token is never displayed. The reCAPTCHA provider necessarily receives browser-side challenge signals.</p>
 </main>
 <script>
 'use strict';
@@ -50,13 +52,38 @@ for(const button of document.querySelectorAll('.toggle-password')){
     field.type=reveal?'text':'password';
     button.textContent=reveal?'Hide':'Show';
     button.setAttribute('aria-pressed',String(reveal));
-    button.setAttribute('aria-label',(reveal?'Hide ':'Show ')+(field.id==='password'?'registration password':'verification and login password'));
+    button.setAttribute('aria-label',(reveal?'Hide ':'Show ')+(field.id==='password'?'registration password':field.id==='token'?'verification token':'verification and login password'));
   });
 }
 let loadedKey=null;
 let accessToken=null; // Volatile memory only; never logged, displayed or persisted.
 const setBusy=busy=>buttons.forEach(b=>b.disabled=busy);
 const write=s=>{output.textContent=s};
+function showIds(data){
+  const userId=typeof data?.userId==='string'?data.userId:null;
+  const tenantId=typeof data?.tenantId==='string'?data.tenantId:null;
+  const unrelated=typeof data?.unrelatedTenantId==='string'?data.unrelatedTenantId:null;
+  el('identifiers').textContent=[
+    'User UUID: '+(userId||'Not available yet'),
+    'Your tenant UUID: '+(tenantId||'Created after email verification'),
+    'Unrelated test tenant UUID: '+(unrelated||'Available after login'),
+  ].join('\n');
+  el('identifiers').style.whiteSpace='pre-wrap';
+  if(tenantId)el('ownTenant').value=tenantId;
+  if(unrelated)el('otherTenant').value=unrelated;
+}
+async function loadTestContext(){
+  if(!accessToken)return {error:'Login token not available'};
+  const r=await fetch(BASE+'/dev-test-context',{
+    method:'GET',headers:{Authorization:'Bearer '+accessToken},
+    credentials:'omit',referrerPolicy:'no-referrer',
+  });
+  if(!r.ok)return {error:'HTTP '+r.status};
+  const data=await r.json();
+  showIds(data);
+  return {userId:data.userId,tenantId:data.tenantId,otherId:data.unrelatedTenantId};
+}
+
 async function captcha(action){
   const key=el('siteKey').value.trim();
   if(!key) throw new Error('Enter your PUBLIC reCAPTCHA v3 site key.');
@@ -90,13 +117,15 @@ el('register').onclick=()=>run('Register',async()=>{
   if(!email||!password)throw new Error('Enter test email and password');
   const captchaToken=await captcha('register');
   const r=await call('/register',{email,password,captchaToken});
-  return `Registration: HTTP ${r.http}\nAccepted: ${r.body?.accepted===true}\n${r.ok?'Check your Brevo-delivered inbox and copy only the token value from the verification URL.':'API error: '+JSON.stringify(r.body)}`;
+  if(r.ok && r.body?.userId)showIds({userId:r.body.userId});
+  return `Registration: HTTP ${r.http}\nAccepted: ${r.body?.accepted===true}\nUser UUID (new account only): ${r.body?.userId||'Not returned'}\n${r.ok?'Next: open your Brevo email and verify. Your personal tenant is created on verification.':'API error: '+JSON.stringify(r.body)}`;
 });
 el('verify').onclick=()=>run('Verify email',async()=>{
   const token=el('token').value.trim(),password=el('verifiedPassword').value;
   if(!token||!password)throw new Error('Paste your verification token and enter the new password.');
   const r=await call('/verify-email',{token,password});
-  return `Verification: HTTP ${r.http}\nVerified: ${r.body?.verified===true}\n${r.ok?'Check Neon tenant/OWNER membership with a read-only query.':'API error: '+JSON.stringify(r.body)}`;
+  if(r.ok && r.body?.tenantId)showIds(r.body);
+  return `Verification: HTTP ${r.http}\nVerified: ${r.body?.verified===true}\nUser UUID: ${r.body?.userId||'Not returned'}\nPersonal tenant UUID: ${r.body?.tenantId||'Not returned'}\n${r.ok?'Next: log in to automatically load the unrelated test tenant UUID.':'API error: '+JSON.stringify(r.body)}`;
 });
 el('replay').onclick=()=>run('Token replay',async()=>{
   const token=el('token').value.trim(),password=el('verifiedPassword').value;
@@ -112,7 +141,8 @@ el('login').onclick=()=>run('Login',async()=>{
   const r=await call('/login',{email,password,captchaToken});
   if(r.ok && r.body?.mfaRequired===false && typeof r.body.accessToken==='string')
     accessToken=r.body.accessToken;
-  return `Login: HTTP ${r.http}\nMFA required: ${r.body?.mfaRequired===true}\nAccess token issued: ${typeof r.body?.accessToken==='string'}\n${r.ok?'Session held only in this tab until refresh or Forget; no credential is displayed.':'API error: '+JSON.stringify(r.body)}`;
+  const ctx=accessToken?await loadTestContext():null;
+  return `Login: HTTP ${r.http}\nMFA required: ${r.body?.mfaRequired===true}\nAccess token issued: ${typeof r.body?.accessToken==='string'}\nTest UUID auto-fill: ${ctx?.error||((ctx?.tenantId&&ctx?.otherId)?'READY':'No tenant context found')}\n${r.ok?'Session held in this tab only; use Step 5.':'API error: '+JSON.stringify(r.body)}`;
 });
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 async function getContainers(tenantId,bearer){
