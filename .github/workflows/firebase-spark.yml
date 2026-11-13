@@ -1,0 +1,74 @@
+name: Firebase Spark Static Site CI/CD
+
+on:
+  pull_request:
+    paths: ['apps/public-site/**', 'firebase.json', '.github/workflows/firebase-spark.yml']
+  push:
+    branches: [main]
+    paths: ['apps/public-site/**', 'firebase.json', '.github/workflows/firebase-spark.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build approved static site
+        run: node apps/public-site/scripts/build.mjs
+      - name: Audit release artifact
+        run: node apps/public-site/scripts/verify.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: approved-public-site
+          path: apps/public-site/dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy-firebase:
+    if: github.ref == 'refs/heads/main' && vars.FIREBASE_SPARK_DEPLOY_ENABLED == 'true'
+    needs: validate-static
+    runs-on: ubuntu-latest
+    environment: firebase-spark-public
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: approved-public-site
+          path: apps/public-site/dist/
+      - name: Verify exact deploy artifact and project ID
+        env:
+          FIREBASE_SPARK_PROJECT_ID: ${{ vars.FIREBASE_SPARK_PROJECT_ID }}
+        run: |
+          test -n "$FIREBASE_SPARK_PROJECT_ID" || exit 1
+          [[ "$FIREBASE_SPARK_PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,29}$ ]] || exit 1
+          node apps/public-site/scripts/verify.mjs
+      - name: Authenticate dedicated Firebase deploy service account
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SPARK_DEPLOY_SA_JSON }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-billing.readonly
+      - name: Refuse deployment if billing attached or unverifiable
+        env:
+          BILLING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          FIREBASE_SPARK_PROJECT_ID: ${{ vars.FIREBASE_SPARK_PROJECT_ID }}
+        run: node apps/public-site/scripts/assert-spark.mjs
+      - name: Deploy Hosting live only
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SPARK_DEPLOY_SA_JSON }}
+          projectId: ${{ vars.FIREBASE_SPARK_PROJECT_ID }}
+          channelId: live
+          entryPoint: .
