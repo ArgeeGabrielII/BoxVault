@@ -45,3 +45,7 @@ The HTML test application is still at root `mock/boxvault-m1-registration-harnes
 5. If still outdated, inspect `curl -s http://localhost:5173/boxvault-m1-registration-harness.html | grep "Change test account password"`. If the terminal sees the new section but the browser doesn't, diagnose browser cache/service-worker state; if the terminal doesn't, the server is serving from a different working directory.
 
 The expected interface places **Change test account password (email reset)** between Step 4 Login and Step 5 Tenant Isolation. This section only uses the existing password-reset endpoints; there are no production API changes.
+
+## Container-level access and family-sharing verification
+
+See [the Step 6 sharing / immediate revocation procedure](container-sharing-revocation.md). The local HTML now allows creating a disposable PRIVATE container, granting access to one active same-tenant member, checking GET access, and returning the container to PRIVATE. **Two accounts must already be ACTIVE in the same family tenant**; separate personal signups do not meet this prerequisite. The new SQL regression SEC-11 uses a disposable database and does not touch persistent Neon.
