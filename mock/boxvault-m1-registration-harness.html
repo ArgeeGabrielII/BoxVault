@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>BoxVault M1 — Local Registration Test</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color-scheme:light}body{max-width:760px;margin:38px auto;padding:0 20px;background:#f4f7fa;color:#1c2b38}main{background:white;padding:28px;border-radius:16px;box-shadow:0 5px 22px #12213114}h1{font-size:1.55rem;margin:0 0 9px}p,li{line-height:1.55;color:#475569}label{display:block;font-size:.9rem;font-weight:600;margin:16px 0 5px}input{box-sizing:border-box;width:100%;padding:11px 12px;border:1px solid #b7c4d0;border-radius:8px;font-size:1rem}button{padding:11px 16px;border:0;background:#1a5a8a;color:white;font-size:1rem;font-weight:600;border-radius:8px;margin-top:14px;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.password-row{display:flex;gap:8px;align-items:stretch}.password-row input{flex:1;min-width:0}.password-row .toggle-password{margin-top:0;min-width:86px;background:#4d6476;font-size:.9rem}hr{border:none;border-top:1px solid #e4e8ed;margin:25px 0}.notice{font-size:.89rem;background:#edf4f9;border-radius:8px;padding:11px 13px}.output{margin-top:20px;background:#f2f5f8;border-radius:8px;padding:14px;white-space:pre-wrap;word-break:break-word;min-height:75px;font-family:ui-monospace,monospace;font-size:.88rem}.fine{font-size:.8rem;color:#64748b}
+</style>
+<script>
+if (location.search || location.hash) history.replaceState(null,'',location.pathname);
+</script>
+</head>
+<body><main>
+<h1>BoxVault M1 · Local registration test</h1>
+<p class="notice"><strong>Local-only:</strong> Serve this file at <code>http://localhost:5173</code>. API requests go to <code>http://localhost:3000/api/v1</code>. Use a fresh test email you control. Do not use a personal/banking password.</p>
+<label for="siteKey">Google reCAPTCHA v3 PUBLIC site key</label><input id="siteKey" autocomplete="off" placeholder="Paste the site key, not the secret" spellcheck="false">
+<label for="email">Test email address</label><input id="email" type="email" autocomplete="off" placeholder="test-inbox@example.com">
+<label for="password">Test password (12–128 chars; upper, lower, digit)</label><div class="password-row"><input id="password" type="password" autocomplete="new-password" placeholder="Use a unique disposable test password"><button type="button" class="toggle-password" data-for="password" aria-pressed="false" aria-label="Show registration password">Show</button></div>
+<button id="register">1. Register + send Brevo email</button>
+<hr>
+<label for="token">Verification token from Brevo email link (token=...)</label><div class="password-row"><input id="token" type="password" autocomplete="off" placeholder="Paste the 43-character token only" spellcheck="false"><button type="button" class="toggle-password" data-for="token" aria-pressed="false" aria-label="Show verification token">Show</button></div>
+<label for="verifiedPassword">Password to establish on verification</label><div class="password-row"><input id="verifiedPassword" type="password" autocomplete="new-password" placeholder="Can be the same disposable test password"><button type="button" class="toggle-password" data-for="verifiedPassword" aria-pressed="false" aria-label="Show verification and login password">Show</button></div>
+<button id="verify">2. Verify email + create personal tenant</button>
+<button id="replay">3. Try token replay (expect HTTP 401)</button>
+<hr>
+<p class="fine">Login uses the password set in <strong>Password to establish on verification</strong>, not necessarily the original registration password.</p>
+<button id="login">4. Login with fresh reCAPTCHA token + load tenant UUIDs</button>
+<p class="fine">In this localhost-only tester, login automatically retrieves your user UUID, own tenant UUID, and an unrelated test tenant UUID. Registration shows a new user UUID; the personal tenant UUID appears once email verification succeeds.</p>
+<section class="notice" aria-live="polite" id="identifiers"><strong>Test IDs:</strong> Not loaded yet.</section>
+<hr>
+<h2>Change test account password (email reset)</h2>
+<p class="fine">Only this local tester UI is being changed. Uses the existing Brevo password-reset API; no new API or development bypass. Enter your verified account email above, request a reset link, and copy the 43-character token from the email. A successful reset revokes your login sessions.</p>
+<button type="button" id="resetRequest">Request password-reset email</button>
+<label for="resetToken">Password-reset token (from email link)</label>
+<div class="password-row"><input id="resetToken" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the token= value"><button type="button" class="toggle-password" data-for="resetToken" aria-pressed="false" aria-label="Show password-reset token">Show</button></div>
+<label for="newPassword">New password (12–128 chars; upper, lower, digit)</label>
+<div class="password-row"><input id="newPassword" type="password" autocomplete="new-password" placeholder="Choose a unique disposable test password"><button type="button" class="toggle-password" data-for="newPassword" aria-pressed="false" aria-label="Show new password">Show</button></div>
+<label for="confirmNewPassword">Confirm new password</label>
+<div class="password-row"><input id="confirmNewPassword" type="password" autocomplete="new-password" placeholder="Re-enter the new password"><button type="button" class="toggle-password" data-for="confirmNewPassword" aria-pressed="false" aria-label="Show confirmed new password">Show</button></div>
+<button type="button" id="resetConfirm">Change password using reset token</button>
+<hr>
+<h2>5. Check authenticated tenant isolation</h2>
+<p class="fine">After login, both tenant UUID fields should fill automatically. Manual edits remain available for testing. The access token stays in this tab's JavaScript memory and is never shown or saved. Refreshing clears it.</p>
+<label for="ownTenant">Your test account's tenant UUID</label><input id="ownTenant" autocomplete="off" spellcheck="false" placeholder="Auto-filled after successful login">
+<label for="otherTenant">An unrelated test tenant UUID</label><input id="otherTenant" autocomplete="off" spellcheck="false" placeholder="Auto-filled from isolated test tenant">
+<button id="isolation">5. Run read-only tenant isolation checks</button>
+<button id="forgetSession" type="button">Forget access token in this tab</button>
+<hr>
+<h2>6. Container sharing / revocation (local test users only)</h2>
+<p class="fine">Use two verified test users who are already ACTIVE members of the <strong>same</strong> family tenant. A personal tenant has only one owner until the separate invitation workflow is implemented. These buttons change real data in the isolated test branch, only when clicked. Do not use on existing fixture containers.</p>
+<label for="aclTenant">Family tenant UUID (both test users must belong to it)</label>
+<input id="aclTenant" autocomplete="off" spellcheck="false" placeholder="Defaults to your own tenant UUID; can be edited for a shared family tenant">
+<label for="aclName">New disposable test container name</label>
+<input id="aclName" autocomplete="off" maxlength="200" value="M1 test shared container">
+<button id="aclCreate" type="button">6a. Create PRIVATE test container</button>
+<label for="aclContainer">Test container UUID (filled after creation)</label>
+<input id="aclContainer" autocomplete="off" spellcheck="false" placeholder="UUID from the create response">
+<label for="aclMember">Active family member's User UUID</label>
+<input id="aclMember" autocomplete="off" spellcheck="false" placeholder="A different user in the same family tenant">
+<label for="aclPermission">Selected member permission</label>
+<select id="aclPermission"><option value="VIEW">VIEW</option><option value="EDIT">EDIT</option></select>
+<div><button id="aclGrant" type="button">6b. Share with selected family member</button>
+<button id="aclRevoke" type="button">6c. Revoke selected access (PRIVATE)</button></div>
+<button id="aclCheck" type="button">6d. Check access to this container (HTTP status)</button>
+<p class="fine">For a two-account browser test, use a separate browser tab to log in as the family member and manually enter the same family tenant and container UUID there. Re-run 6d immediately after the owner revokes access. Unauthorized detail requests should return 404, with no container data shown.</p>
+<pre id="output" class="output" role="status" aria-live="polite">Ready. Enter your public site key and fresh test account details.</pre>
+<p class="fine">No values are saved to localStorage, cookies or disk. The UUIDs are non-secret identifiers and appear above for local testing; password/token text stays masked unless you choose Show. A login access token is never displayed. The reCAPTCHA provider necessarily receives browser-side challenge signals.</p>
+</main>
+<script>
+'use strict';
+const BASE='http://localhost:3000/api/v1/auth';
+const el=id=>document.getElementById(id);
+const buttons=['register','verify','replay','login','isolation','resetRequest','resetConfirm','aclCreate','aclGrant','aclRevoke','aclCheck'].map(el);
+const output=el('output');
+for(const button of document.querySelectorAll('.toggle-password')){
+  button.addEventListener('click',()=>{
+    const field=el(button.dataset.for);
+    const reveal=field.type==='password';
+    field.type=reveal?'text':'password';
+    button.textContent=reveal?'Hide':'Show';
+    button.setAttribute('aria-pressed',String(reveal));
+    button.setAttribute('aria-label',(reveal?'Hide ':'Show ')+({
+      password:'registration password', token:'verification token',
+      verifiedPassword:'verification and login password',
+      resetToken:'password-reset token', newPassword:'new password',
+      confirmNewPassword:'confirmed new password',
+    }[field.id]||'masked value'));
+  });
+}
+let loadedKey=null;
+let accessToken=null; // Volatile memory only; never logged, displayed or persisted.
+const setBusy=busy=>buttons.forEach(b=>b.disabled=busy);
+const write=s=>{output.textContent=s};
+function showIds(data){
+  const userId=typeof data?.userId==='string'?data.userId:null;
+  const tenantId=typeof data?.tenantId==='string'?data.tenantId:null;
+  const unrelated=typeof data?.unrelatedTenantId==='string'?data.unrelatedTenantId:null;
+  el('identifiers').textContent=[
+    'User UUID: '+(userId||'Not available yet'),
+    'Your tenant UUID: '+(tenantId||'Created after email verification'),
+    'Unrelated test tenant UUID: '+(unrelated||'Available after login'),
+  ].join('\n');
+  el('identifiers').style.whiteSpace='pre-wrap';
+  if(tenantId){el('ownTenant').value=tenantId;el('aclTenant').value=tenantId;}
+  if(unrelated)el('otherTenant').value=unrelated;
+}
+async function loadTestContext(){
+  if(!accessToken)return {error:'Login token not available'};
+  const r=await fetch(BASE+'/dev-test-context',{
+    method:'GET',headers:{Authorization:'Bearer '+accessToken},
+    credentials:'omit',referrerPolicy:'no-referrer',
+  });
+  if(!r.ok)return {error:'HTTP '+r.status};
+  const data=await r.json();
+  showIds(data);
+  return {userId:data.userId,tenantId:data.tenantId,otherId:data.unrelatedTenantId};
+}
+
+async function captcha(action){
+  const key=el('siteKey').value.trim();
+  if(!key) throw new Error('Enter your PUBLIC reCAPTCHA v3 site key.');
+  if(loadedKey && key!==loadedKey) throw new Error('Site key changed: reload the page to use another key.');
+  if(!loadedKey){
+    await new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://www.google.com/recaptcha/api.js?render='+encodeURIComponent(key);
+      s.async=true;s.onload=resolve;s.onerror=()=>reject(new Error('Could not load Google reCAPTCHA'));
+      document.head.appendChild(s);
+    });
+    loadedKey=key;
+  }
+  if(!window.grecaptcha) throw new Error('reCAPTCHA is not available.');
+  await new Promise(resolve=>window.grecaptcha.ready(resolve));
+  return await window.grecaptcha.execute(key,{action});
+}
+async function call(path,body){
+  const r=await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'omit',referrerPolicy:'no-referrer'});
+  let data={};try{data=await r.json()}catch{}
+  return {http:r.status,ok:r.ok,body:data};
+}
+async function run(name,action){
+  setBusy(true);write(name+' in progress...');
+  try{const result=await action();write(result)}
+  catch(e){write('ERROR: '+(e?.message||'Unknown failure')+'\nDo not share credentials, raw tokens or passwords.')}
+  finally{setBusy(false)}
+}
+el('register').onclick=()=>run('Register',async()=>{
+  const email=el('email').value.trim(),password=el('password').value;
+  if(!email||!password)throw new Error('Enter test email and password');
+  const captchaToken=await captcha('register');
+  const r=await call('/register',{email,password,captchaToken});
+  if(r.ok && r.body?.userId)showIds({userId:r.body.userId});
+  return `Registration: HTTP ${r.http}\nAccepted: ${r.body?.accepted===true}\nUser UUID (new account only): ${r.body?.userId||'Not returned'}\n${r.ok?'Next: open your Brevo email and verify. Your personal tenant is created on verification.':'API error: '+JSON.stringify(r.body)}`;
+});
+el('verify').onclick=()=>run('Verify email',async()=>{
+  const token=el('token').value.trim(),password=el('verifiedPassword').value;
+  if(!token||!password)throw new Error('Paste your verification token and enter the new password.');
+  const r=await call('/verify-email',{token,password});
+  if(r.ok && r.body?.tenantId)showIds(r.body);
+  return `Verification: HTTP ${r.http}\nVerified: ${r.body?.verified===true}\nUser UUID: ${r.body?.userId||'Not returned'}\nPersonal tenant UUID: ${r.body?.tenantId||'Not returned'}\n${r.ok?'Next: log in to automatically load the unrelated test tenant UUID.':'API error: '+JSON.stringify(r.body)}`;
+});
+el('replay').onclick=()=>run('Token replay',async()=>{
+  const token=el('token').value.trim(),password=el('verifiedPassword').value;
+  if(!token||!password)throw new Error('Keep the same token and password from verification.');
+  const r=await call('/verify-email',{token,password});
+  return `Replay: HTTP ${r.http}\n${r.http===401?'PASS: replay rejected as expected.':'UNEXPECTED: investigate before proceeding.'}`;
+});
+el('login').onclick=()=>run('Login',async()=>{
+  accessToken=null; // Never retain an old session if reauthentication fails.
+  const email=el('email').value.trim(),password=el('verifiedPassword').value;
+  if(!email||!password)throw new Error('Enter email and verified account password.');
+  const captchaToken=await captcha('login');
+  const r=await call('/login',{email,password,captchaToken});
+  if(r.ok && r.body?.mfaRequired===false && typeof r.body.accessToken==='string')
+    accessToken=r.body.accessToken;
+  const ctx=accessToken?await loadTestContext():null;
+  return `Login: HTTP ${r.http}\nMFA required: ${r.body?.mfaRequired===true}\nAccess token issued: ${typeof r.body?.accessToken==='string'}\nTest UUID auto-fill: ${ctx?.error||((ctx?.tenantId&&ctx?.otherId)?'READY':'No tenant context found')}\n${r.ok?'Session held in this tab only; use Step 5.':'API error: '+JSON.stringify(r.body)}`;
+});
+el('resetRequest').onclick=()=>run('Request password reset',async()=>{
+  const email=el('email').value.trim();
+  if(!email)throw new Error('Enter the verified account email in the Test email address field.');
+  const captchaToken=await captcha('reset');
+  const r=await call('/password-reset/request',{email,captchaToken});
+  return `Password reset request: HTTP ${r.http}\nAccepted: ${r.body?.accepted===true}\n${r.ok?'If the account is eligible, check the Brevo inbox for the reset link.':'API error: '+JSON.stringify(r.body)}`;
+});
+el('resetConfirm').onclick=()=>run('Change password',async()=>{
+  const token=el('resetToken').value.trim();
+  const password=el('newPassword').value;
+  const confirmation=el('confirmNewPassword').value;
+  if(!/^[A-Za-z0-9_-]{43}$/.test(token))throw new Error('Enter the 43-character reset token from the email.');
+  if(password.length<12||password.length>128||!/[A-Z]/.test(password)||!/[a-z]/.test(password)||!/[0-9]/.test(password))
+    throw new Error('Use 12–128 characters with uppercase, lowercase and a digit.');
+  if(password!==confirmation)throw new Error('The new passwords do not match.');
+  const r=await call('/password-reset/confirm',{token,password});
+  if(r.ok&&r.body?.changed===true){
+    accessToken=null; // Existing server-side sessions are revoked after reset.
+    el('verifiedPassword').value=password; // Immediately ready for new login, only in this tab.
+    el('resetToken').value='';
+    el('newPassword').value='';
+    el('confirmNewPassword').value='';
+    el('identifiers').textContent='Test IDs: Log in again to reload the tenant IDs.';
+  }
+  return `Password change: HTTP ${r.http}\nChanged: ${r.body?.changed===true}\nRe-login required: ${r.body?.reloginRequired===true}\n${r.ok?'Password updated. Login field is ready with the new password; click Login to obtain a new session.':'API error: '+JSON.stringify(r.body)}`;
+});
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+async function getContainers(tenantId,bearer){
+  const endpoint='http://localhost:3000/api/v1/containers?tenantId='+encodeURIComponent(tenantId);
+  const headers=bearer?{Authorization:'Bearer '+bearer}:{};
+  const response=await fetch(endpoint,{headers,credentials:'omit',referrerPolicy:'no-referrer'});
+  const safeResult={status:response.status};
+  if(response.ok){
+    const payload=await response.json();
+    safeResult.count=Array.isArray(payload?.data)?payload.data.length:null;
+  }
+  return safeResult;
+}
+el('isolation').onclick=()=>run('Tenant isolation',async()=>{
+  if(!accessToken)throw new Error('First complete a successful login on this page. Tokens are cleared on refresh.');
+  const own=el('ownTenant').value.trim(),other=el('otherTenant').value.trim();
+  if(!UUID.test(own)||!UUID.test(other)||own.toLowerCase()===other.toLowerCase())
+    throw new Error('Enter two different valid tenant UUIDs (yours and an unrelated test tenant).');
+  const unauth=await getContainers(own,null);
+  const ownResult=await getContainers(own,accessToken);
+  const otherResult=await getContainers(other,accessToken);
+  const pass=unauth.status===401 && ownResult.status===200 && otherResult.status===403;
+  return `Unauthenticated access: HTTP ${unauth.status} (expect 401)\nOwn tenant: HTTP ${ownResult.status} (expect 200), visible containers: ${ownResult.count??'n/a'}\nOther tenant: HTTP ${otherResult.status} (expect 403)\nTenant isolation: ${pass?'PASS':'CHECK / INVESTIGATE'}\nNo container contents or access tokens displayed.`;
+});
+async function containerRequest(path,method,body){
+  if(!accessToken)throw new Error('Log in as the authorized test user in this tab first.');
+  const r=await fetch('http://localhost:3000/api/v1/containers'+path,{
+    method,headers:{Authorization:'Bearer '+accessToken,
+      ...(body?{'Content-Type':'application/json'}:{})},
+    body:body?JSON.stringify(body):undefined,credentials:'omit',referrerPolicy:'no-referrer',
+  });
+  let data={};try{data=await r.json()}catch{}
+  return {status:r.status,ok:r.ok,data};
+}
+el('aclCreate').onclick=()=>run('Create private test container',async()=>{
+  const tenantId=el('aclTenant').value.trim(),name=el('aclName').value.trim();
+  if(!UUID.test(tenantId)||!name||name.length>200)throw new Error('Enter valid family tenant UUID and container name.');
+  const r=await containerRequest('','POST',{tenantId,name});
+  if(r.ok && UUID.test(r.data?.data?.id))el('aclContainer').value=r.data.data.id;
+  return `Create PRIVATE: HTTP ${r.status}\nContainer UUID: ${r.ok?(r.data?.data?.id||'not returned'):'not created'}\nShare mode: ${r.data?.data?.shareMode||'n/a'}`;
+});
+el('aclGrant').onclick=()=>run('Share with selected member',async()=>{
+  const tenantId=el('aclTenant').value.trim(),containerId=el('aclContainer').value.trim(),userId=el('aclMember').value.trim();
+  if(!UUID.test(tenantId)||!UUID.test(containerId)||!UUID.test(userId))throw new Error('Enter tenant, container and active member UUIDs.');
+  const permission=el('aclPermission').value;
+  const r=await containerRequest('/'+encodeURIComponent(containerId)+'/sharing','PUT',{
+    tenantId,shareMode:'SELECTED_MEMBERS',grants:[{userId,permission}],
+  });
+  return `Share selected member: HTTP ${r.status}\nUpdated: ${r.ok}\n${r.ok?'Now log in as the selected member in another tab and check access.':'Only the container creator can share with ACTIVE same-tenant members.'}`;
+});
+el('aclRevoke').onclick=()=>run('Revoke container sharing',async()=>{
+  const tenantId=el('aclTenant').value.trim(),containerId=el('aclContainer').value.trim();
+  if(!UUID.test(tenantId)||!UUID.test(containerId))throw new Error('Enter valid tenant and container UUIDs.');
+  const r=await containerRequest('/'+encodeURIComponent(containerId)+'/sharing','PUT',{
+    tenantId,shareMode:'PRIVATE',grants:[],
+  });
+  return `Revoke sharing (PRIVATE): HTTP ${r.status}\nUpdated: ${r.ok}\n${r.ok?'Recheck the family member session immediately: its direct container GET should return HTTP 404.':'No changes applied.'}`;
+});
+el('aclCheck').onclick=()=>run('Container object access check',async()=>{
+  const tenantId=el('aclTenant').value.trim(),containerId=el('aclContainer').value.trim();
+  if(!UUID.test(tenantId)||!UUID.test(containerId))throw new Error('Enter valid tenant and container UUIDs.');
+  const r=await containerRequest('/'+encodeURIComponent(containerId)+'?tenantId='+encodeURIComponent(tenantId),'GET');
+  return `Direct container access: HTTP ${r.status}\nVisible to this logged-in user: ${r.status===200}\nContainer contents are not displayed.`;
+});
+el('forgetSession').onclick=()=>{accessToken=null;write('Access token forgotten in this tab.');};
+</script>
+</body></html>

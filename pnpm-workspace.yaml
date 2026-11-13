@@ -1,5 +1,12 @@
 packages:
-  - 'apps/playground'
-  - 'apps/web'
-  - 'apps/api'
-  - 'packages/*'
+  - apps/playground
+  - apps/web
+  - apps/api
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - argon2
+  - esbuild
+  - prisma

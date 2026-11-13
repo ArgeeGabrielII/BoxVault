@@ -1,33 +1,108 @@
 # BoxVault documentation
 
-> Status: **Product and technical design baseline**, 2026-11-11. Features below describe the **target application**, not deployed or completed functionality. The current scaffold contains only a health API, starter web/iOS UIs, and a preliminary Prisma schema.
+**Progress snapshot — 2026-11-13:** PR #4 includes staged NestJS authentication/MFA, token-bound verified-email onboarding, restricted database roles, Prisma migrations `000`–`005`, and per-container ACL/RLS foundations. Isolated Neon database phases A–C were verified and scoped CI passed on an earlier commit; local register → email verify → login succeeded. **Current-head full acceptance remains pending**; a local browser retest confirmed tenant isolation **401 unauthenticated / 200 own tenant (0 containers) / 403 unrelated tenant**. Other authorization and release gates remain pending. PR #4 is **not production-approved**. Start with the [roadmap](planning/delivery-roadmap.md), [audit register](audit/README.md), and [Phase D latest results](audit/api/phase-d-real-provider-validation.md).
 
-## Document map
+> **Status:** Product and technical design baseline. The `main` branch is an early scaffold; PR #4 introduces preliminary authentication and RLS controls but **is not approved for production or merging into `main` until the security release gates are met**.
 
-| File | Contents |
+Mock materials are organized under [mock documentation](mock/README.md): [tester guides](mock/documents/README.md) and [test-data catalog](mock/data/README.md) are separate; the [runnable HTML](../mock/boxvault-m1-registration-harness.html) stays under `/mock`. Mock helpers are **not production API contracts**.
+
+## Start here
+
+1. [Product requirements](product/product-requirements.md)
+2. [Solution architecture](architecture/solution-architecture.md)
+3. [Security-first standard](security/security-first-standard.md)
+4. [M1 security gate status](security/m1-security-gate-status.md)
+5. [Development workflow](development/development.md)
+6. [Delivery roadmap](planning/delivery-roadmap.md)
+
+## Documentation by category
+
+### Product & Billing
+
+| Document | Description |
 |---|---|
-| [neon-agent-skills-mcp.md](neon-agent-skills-mcp.md) | Neon agent skills, OAuth MCP project configuration, preservation policy and verification state |
-| [neon-connection.md](neon-connection.md) | Neon dev PostgreSQL configuration, pooled/direct connection strings, ChatGPT connection, secrets, RLS test prerequisites |
-| [authentication-google-mfa-captcha.md](authentication-google-mfa-captcha.md) | Google Sign-In, optional customer TOTP MFA, mandatory admin MFA, reCAPTCHA, authentication security and implementation gates |
-| [web-experience-seo-compliance.md](web-experience-seo-compliance.md) | Source checklist: 404, metadata, OG/favicon, robots/sitemap, alt text, responsive UX, loading/errors, confirmations, privacy/terms, cookies, analytics and above-fold CTA |
-| [family-sharing-access-control.md](family-sharing-access-control.md) | Private-by-default container sharing with selected members or all family members; ACL-aware RLS and tests |
-| [security-first-standard.md](security-first-standard.md) | Mandatory SaaS security requirements |
-| [security-release-checklist.md](security-release-checklist.md) | Production go-live security gates and negative tests |
-| [developer-playground.md](developer-playground.md) | Centralized VaultBox Developer Playground, QR and UI mocks, dev-only build and QA rules |
-| [qr-library-implementation.md](qr-library-implementation.md) | Implemented internal QR package, isolated mock lab, SSR boundary and pending verification gates |
-| [qr-library-architecture.md](qr-library-architecture.md) | Proposed @boxvault/qr architecture, encoder selection, payload/print safeguards and pre-implementation test gates (review only) |
-| [product-requirements.md](product-requirements.md) | Users, roles, all feature requirements, workflows, MVP and acceptance criteria |
-| [solution-architecture.md](solution-architecture.md) | Monorepo, component boundaries, iOS/web/backend integration, QR/NFC and media architecture |
-| [data-model.md](data-model.md) | Entities, relations, constraints, tenancy, migration strategy and retention |
-| [api-contract.md](api-contract.md) | Proposed REST routes, representative payloads, errors and idempotency |
-| [security-and-privacy.md](security-and-privacy.md) | Threat model, tenant isolation, admin privacy, auth, auditing and incident handling |
-| [credits-and-subscriptions.md](credits-and-subscriptions.md) | Web-only manual bank transfer, credit ledger, approvals, annual plans and accounting metrics |
-| [firebase-spark-deployment-plan.md](firebase-spark-deployment-plan.md) | Firebase Spark-only static Hosting architecture and hard no-billing safeguards |
-| [firebase-spark-cicd.md](firebase-spark-cicd.md) | Main-branch static CI/CD, artifact audit, disabled-by-default CD and Cloud Billing verification |
-| [operations-and-deployment.md](operations-and-deployment.md) | Home/hybrid deployment, backups, CI/CD, telemetry, SLOs and cost controls |
-| [delivery-roadmap.md](delivery-roadmap.md) | Phased implementation backlog, dependencies and launch gates |
-| [architecture.md](architecture.md) | Original scaffold architecture overview |
-| [development.md](development.md) | Existing local development instructions |
+| [product-requirements.md](product/product-requirements.md) | Product requirements, workflows and MVP scope |
+| [family-sharing-access-control.md](product/family-sharing-access-control.md) | Private container sharing and family member ACL |
+| [credits-and-subscriptions.md](product/credits-and-subscriptions.md) | Credits, annual plans and manual payment flow |
+
+### Architecture & API
+
+| Document | Description |
+|---|---|
+| [solution-architecture.md](architecture/solution-architecture.md) | Solution design and application boundaries |
+| [architecture.md](architecture/architecture.md) | Starter scaffold architecture |
+| [data-model.md](architecture/data-model.md) | Data model and tenant constraints |
+| [api-contract.md](architecture/api-contract.md) | Proposed and M1 REST API contracts |
+
+### Security & Privacy
+
+| Document | Description |
+|---|---|
+| [security-first-standard.md](security/security-first-standard.md) | Mandatory SaaS security engineering standard |
+| [security-and-privacy.md](security/security-and-privacy.md) | Threat model and data privacy |
+| [authentication-google-mfa-captcha.md](security/authentication-google-mfa-captcha.md) | Google sign-in, MFA and CAPTCHA requirements |
+| [security-release-checklist.md](security/security-release-checklist.md) | Production release gates |
+| [critical-authorization-e2e-tests.md](security/critical-authorization-e2e-tests.md) | Critical authorization end-to-end test scope |
+| [m1-authentication-implementation.md](security/m1-authentication-implementation.md) | Implemented M1 authentication features and limitations |
+| [m1-authentication-hardening.md](security/m1-authentication-hardening.md) | M1 hardened flows and release blockers |
+| [m1-token-bound-onboarding.md](security/m1-token-bound-onboarding.md) | Token-bound onboarding specification |
+| [m1-security-gate-status.md](security/m1-security-gate-status.md) | Current M1 security verification and blockers |
+
+### Experience
+
+| Document | Description |
+|---|---|
+| [web-experience-seo-compliance.md](experience/web-experience-seo-compliance.md) | SEO, accessibility, web UX and compliance |
+
+### QR and Developer Playground
+
+| Document | Description |
+|---|---|
+| [Developer Playground](developer-playground.md) | Local-only interactive labs |
+| [QR implementation](qr-library-implementation.md) | QR package and verification |
+| [QR architecture](qr-library-architecture.md) | Encoder architecture |
+
+### Development & Integrations
+
+| Document | Description |
+|---|---|
+| [development.md](development/development.md) | Local setup and developer workflow |
+| [neon-connection.md](development/neon-connection.md) | Neon database environment configuration |
+| [neon-agent-skills-mcp.md](development/neon-agent-skills-mcp.md) | Neon MCP and agent skill guidance |
+| [m1-neon-free-tier-validation.md](development/m1-neon-free-tier-validation.md) | Free-tier and deployment validation |
+| [m1-neon-reconciliation-audit-2026-11-12.md](development/m1-neon-reconciliation-audit-2026-11-12.md) | Neon reconciliation audit |
+
+### Operations
+
+| Document | Description |
+|---|---|
+| [operations-and-deployment.md](operations/operations-and-deployment.md) | Deployment, reliability, backup and cost controls |
+| [Firebase Spark deployment](firebase-spark-deployment-plan.md) | Static Hosting and zero billing controls |
+| [Firebase Spark CI/CD](firebase-spark-cicd.md) | Main branch deployment pipeline |
+
+### Planning
+
+| Document | Description |
+|---|---|
+| [delivery-roadmap.md](planning/delivery-roadmap.md) | Phased roadmap and acceptance criteria |
+| [milestone-01-security-foundation.md](planning/milestone-01-security-foundation.md) | M1 security milestone scope |
+
+### Mock Testing
+
+| Document | Description |
+|---|---|
+| [docs/mock/README.md](mock/README.md) | Mock documentation index and separation policy |
+| [documents/README.md](mock/documents/README.md) | Local tester usage, password reset, UUID auto-fill and fallback lookup |
+| [container-sharing-revocation.md](mock/documents/container-sharing-revocation.md) | Owner-only container creation and grant/revocation test; same-tenant prerequisite |
+| [data/README.md](mock/data/README.md) | Synthetic test data dictionary, fixture expectations and safety boundaries |
+
+### Engineering Audit
+
+| Document | Description |
+|---|---|
+| [README.md](audit/README.md) | M1 phase-by-phase engineering audit register and evidence |
+
+---
 
 ## Approved business decisions
 
@@ -36,7 +111,7 @@
 - Target fixed customer-facing prices: **2027 through 2029**, subject to later business/legal review. Model expense inflation at **10% annually**; do not silently reprice an active term.
 - Customers buy closed-loop, non-cash-redeemable software credits through the **React web app only**, via manual bank transfer to the owner's bank QR and receipt submission; authorized administrator independently verifies receipt.
 - The **native iOS** app is for inventory, QR/NFC, and account/plan-status features only. **No purchases, pricing, credit top-ups, receipt submissions or external purchasing links/calls to action** in the iOS UI.
-- Family sharing is **private by default per container**; owners explicitly grant access to selected family members or all active members. See [family-sharing-access-control.md](family-sharing-access-control.md).
+- Family sharing is **private by default per container**; owners explicitly grant access to selected family members or all active members. See [family-sharing-access-control.md](product/family-sharing-access-control.md).
 - A subscription is owned by a **tenant** (individual or family), not a device. Family members have distinct user accounts.
 - Platform administrators may access account/billing status and privacy-safe operational metadata, **not customer inventory content** through the admin application. The initial security model is role-restricted, **not cryptographic zero knowledge**.
 - Hosting direction: **home or hybrid** is under consideration, not final.
@@ -52,3 +127,4 @@ Every engineering change should link its feature ID (e.g. `INV-01`) to a test an
 3. Exact image limits, fair-use limits, credit expiry/return terms, and plan grace periods.
 4. App Store eligibility for an unpaid companion app to the paid web service; confirm before public distribution.
 5. Philippine tax, registration, consumer protection and privacy compliance before accepting public payments.
+

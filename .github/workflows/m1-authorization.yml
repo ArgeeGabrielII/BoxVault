@@ -1,0 +1,197 @@
+name: M1 Postgres Authorization Gate
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'docs/milestone-01-security-foundation.md'
+      - '.github/workflows/m1-authorization.yml'
+  workflow_dispatch:
+
+jobs:
+  authorization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: boxvault_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_ephemeral_fixture_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d boxvault_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Disposable GitHub Actions service ONLY — never Neon or customer credentials.
+      PGPASSWORD: ci_ephemeral_fixture_only
+      DATABASE_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_test?schema=public
+      DIRECT_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_test?schema=public
+      AUTHZ_ADMIN_DATABASE_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_test?schema=public
+      AUTHZ_RUNTIME_DATABASE_URL: postgresql://boxvault_runtime_m1:ci_ephemeral_runtime_only@localhost:5432/boxvault_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.18.0'
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+      - name: Generate Prisma Client
+        run: pnpm --filter @boxvault/api db:generate
+      - name: Apply committed Prisma migrations on disposable PostgreSQL
+        run: pnpm --filter @boxvault/api db:deploy
+      - name: Confirm migration history was recorded
+        run: |
+          psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$ BEGIN
+            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 6 THEN
+              RAISE EXCEPTION 'Expected exactly six applied M1 migrations';
+            END IF;
+          END $$;
+          SQL
+      - name: Verify Prisma model has no schema drift
+        run: |
+          pnpm --filter @boxvault/api exec prisma migrate diff \
+            --from-url "$DIRECT_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code
+      - name: Provision isolated non-bypass runtime role
+        run: |
+          psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE boxvault_runtime_m1 LOGIN PASSWORD 'ci_ephemeral_runtime_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+          GRANT CONNECT ON DATABASE boxvault_test TO boxvault_runtime_m1;
+          GRANT USAGE ON SCHEMA public, security TO boxvault_runtime_m1;
+          GRANT SELECT ON public."Tenant",public."TenantMember" TO boxvault_runtime_m1;
+          GRANT SELECT,INSERT,UPDATE,DELETE ON
+            public."Container",public."ContainerAccessGrant",public."Item",public."MediaAsset"
+            TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.actor_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.tenant_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.active_member(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.member_can_edit(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.container_allowed(uuid,uuid,boolean) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.grant_visible(uuid,uuid,uuid) TO boxvault_runtime_m1;
+          SQL
+      - name: Execute critical SEC-00 through SEC-10 authorization tests
+        run: pnpm --filter @boxvault/api test:authz:e2e
+
+  auth-http-contract:
+    # Separate disposable PostgreSQL service; no Neon compute or live credentials.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: boxvault_auth_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_ephemeral_fixture_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d boxvault_auth_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PORT: '4001'
+      NODE_ENV: test
+      AUTH_BOT_PROTECTION_MODE: 'off'
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: '2525'
+      SMTP_FROM: no-reply@boxvault.example.invalid
+      SMTP_ALLOW_PLAINTEXT_TEST: 'true'
+      PUBLIC_WEB_URL: http://localhost:5173
+      BOXVAULT_TEST_MAIL_FILE: /tmp/boxvault-mail-ci.txt
+      BOXVAULT_API_URL: http://127.0.0.1:4001
+      PGPASSWORD: ci_ephemeral_fixture_only
+      DIRECT_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_auth_ci?schema=public
+      AUTHZ_ADMIN_DATABASE_URL: postgresql://postgres:ci_ephemeral_fixture_only@localhost:5432/boxvault_auth_ci?schema=public
+      AUTH_DATABASE_URL: postgresql://boxvault_auth_runtime_m1:ci_ephemeral_auth_only@localhost:5432/boxvault_auth_ci?schema=public
+      DATABASE_URL: postgresql://boxvault_runtime_m1:ci_ephemeral_runtime_only@localhost:5432/boxvault_auth_ci?schema=public
+      AUTH_SESSION_PEPPER: ci-only-session-pepper-not-for-production-2026
+      AUTH_ACCESS_JWT_KEY: ci-only-jwt-key-must-never-be-used-in-prod
+      TOTP_ENCRYPTION_KEY: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
+      WEB_ORIGIN: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.18.0'
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --filter @boxvault/api db:generate
+      - name: Apply committed migrations
+        run: pnpm --filter @boxvault/api db:deploy
+      - name: Create distinct restricted inventory and auth database roles
+        run: |
+          psql -h localhost -U postgres -d boxvault_auth_ci -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE boxvault_runtime_m1 LOGIN PASSWORD 'ci_ephemeral_runtime_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+          CREATE ROLE boxvault_auth_runtime_m1 LOGIN PASSWORD 'ci_ephemeral_auth_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+          GRANT CONNECT ON DATABASE boxvault_auth_ci TO boxvault_runtime_m1,boxvault_auth_runtime_m1;
+          GRANT USAGE ON SCHEMA public,security TO boxvault_runtime_m1;
+          GRANT SELECT ON public."Tenant",public."TenantMember" TO boxvault_runtime_m1;
+          GRANT SELECT,INSERT,UPDATE,DELETE ON public."Container",public."Item",
+            public."MediaAsset",public."ContainerAccessGrant" TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.actor_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.tenant_id() TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.active_member(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.member_can_edit(uuid,uuid) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.container_allowed(uuid,uuid,boolean) TO boxvault_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.grant_visible(uuid,uuid,uuid) TO boxvault_runtime_m1;
+          GRANT USAGE ON SCHEMA public TO boxvault_auth_runtime_m1;
+          GRANT SELECT,INSERT,UPDATE,DELETE ON public."User",public."AuthIdentity",
+            public."AuthSession",public."AuthChallenge",public."TotpFactor",
+            public."MfaRecoveryCode",public."EmailActionToken",
+            public."AuthRateLimit",public."RefreshTokenReuse" TO boxvault_auth_runtime_m1;
+          GRANT SELECT,INSERT ON public."AuthAuditEvent" TO boxvault_auth_runtime_m1;
+          GRANT SELECT ON public."PlatformOperator" TO boxvault_auth_runtime_m1;
+          GRANT USAGE ON SCHEMA security TO boxvault_auth_runtime_m1;
+          GRANT EXECUTE ON FUNCTION security.bootstrap_verified_email_tenant(text,uuid,uuid) TO boxvault_auth_runtime_m1;
+          SQL
+      - name: Verify token-bound tenant onboarding negative security cases
+        run: pnpm --filter @boxvault/api exec node --test test/onboarding.negative.test.mjs
+      - name: Seed synthetic password identity
+        run: pnpm --filter @boxvault/api exec node test/seed-auth-ci.mjs
+      - name: Build API
+        run: pnpm --filter @boxvault/api build
+      - name: Verify real database CAPTCHA tokens and audit append-only permissions
+        run: |
+          pnpm --filter @boxvault/api exec node --test test/captcha.integration.test.mjs
+          psql -h localhost -U postgres -d boxvault_auth_ci -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$ BEGIN
+            IF has_table_privilege('boxvault_auth_runtime_m1','public."AuthAuditEvent"','UPDATE') OR
+               has_table_privilege('boxvault_auth_runtime_m1','public."AuthAuditEvent"','DELETE') OR
+               has_table_privilege('boxvault_runtime_m1','public."AuthAuditEvent"','SELECT') THEN
+              RAISE EXCEPTION 'Audit trail privileges are not append-only';
+            END IF;
+          END $$;
+          SQL
+      - name: Start API and enforce HTTP auth and MFA contract
+        run: |
+          pnpm --filter @boxvault/api exec node test/smtp-fixture.mjs >/tmp/boxvault-smtp-ci.log 2>&1 &
+          smtp_pid=$!
+          pnpm --filter @boxvault/api start >/tmp/boxvault-api-ci.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" "$smtp_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --silent --fail "$BOXVAULT_API_URL/api/v1/health" >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "API failed health readiness"
+            tail -100 /tmp/boxvault-api-ci.log
+            exit 1
+          fi
+          pnpm --filter @boxvault/api test:auth-http:contract

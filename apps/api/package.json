@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "test:authz:e2e": "node --test test/authorization.e2e.test.mjs",
+    "test:auth-http:contract": "node --test test/authentication.http.contract.test.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -17,7 +19,11 @@
     "@nestjs/platform-express": "^11.0.0",
     "@prisma/client": "^6.0.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "argon2": "^0.44.0",
+    "google-auth-library": "^10.0.0",
+    "jose": "^6.0.0",
+    "nodemailer": "^7.0.10"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -25,6 +31,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "prisma": "^6.0.0",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "@types/nodemailer": "^7.0.4"
   }
 }

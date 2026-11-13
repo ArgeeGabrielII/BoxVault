@@ -8,6 +8,22 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum MembershipStatus {
+  ACTIVE
+  REMOVED
+}
+
+enum ContainerShareMode {
+  PRIVATE
+  SELECTED_MEMBERS
+  ALL_FAMILY
+}
+
+enum ContainerGrantPermission {
+  VIEW
+  EDIT
+}
+
 enum AuthProvider {
   GOOGLE
 }
@@ -41,12 +57,18 @@ model User {
   id           String         @id @default(uuid()) @db.Uuid
   email        String         @unique
   passwordHash String?
+  emailVerifiedAt DateTime?
   createdAt    DateTime       @default(now())
   memberships  TenantMember[]
   authIdentities AuthIdentity[]
   totpFactor     TotpFactor?
   recoveryCodes  MfaRecoveryCode[]
   authSessions   AuthSession[]
+  authChallenges AuthChallenge[]
+  emailTokens EmailActionToken[]
+  auditEvents AuthAuditEvent[]
+  platformOperator PlatformOperator?
+  spentRefreshTokens RefreshTokenReuse[]
 }
 
 model Tenant {
@@ -65,6 +87,10 @@ model TenantMember {
   tenantId  String         @db.Uuid
   userId    String         @db.Uuid
   role      MembershipRole
+  status    MembershipStatus @default(ACTIVE)
+  ownedContainers Container[] @relation("OwnedContainerMembership")
+  accessReceived ContainerAccessGrant[] @relation("AccessGranteeMembership")
+  accessGiven ContainerAccessGrant[] @relation("AccessGrantorMembership")
   tenant    Tenant         @relation(fields: [tenantId], references: [id])
   user      User           @relation(fields: [userId], references: [id])
 
@@ -80,11 +106,34 @@ model Container {
   location    String?
   createdAt   DateTime    @default(now())
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  ownerUserId String      @db.Uuid
+  ownerMembership TenantMember @relation("OwnedContainerMembership", fields: [tenantId, ownerUserId], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction, map: "Container_owner_user_membership_fkey")
+  shareMode   ContainerShareMode @default(PRIVATE)
+  accessGrants ContainerAccessGrant[]
   items       Item[]
   media       MediaAsset[]
 
   @@unique([id, tenantId])
   @@index([tenantId])
+  @@index([tenantId, ownerUserId])
+}
+
+model ContainerAccessGrant {
+  id          String @id @default(uuid()) @db.Uuid
+  tenantId    String @db.Uuid
+  containerId String @db.Uuid
+  granteeUserId String @db.Uuid
+  permission ContainerGrantPermission
+  grantedBy   String @db.Uuid
+  granteeMembership TenantMember @relation("AccessGranteeMembership", fields: [tenantId, granteeUserId], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction, map: "ContainerAccessGrant_grantee_membership_fkey")
+  grantorMembership TenantMember @relation("AccessGrantorMembership", fields: [tenantId, grantedBy], references: [tenantId, userId], onDelete: NoAction, onUpdate: NoAction, map: "ContainerAccessGrant_grantor_membership_fkey")
+  revokedAt   DateTime? @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  container   Container @relation(fields: [containerId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([containerId, granteeUserId])
+  @@index([tenantId, granteeUserId, revokedAt])
+  @@index([containerId, revokedAt])
 }
 
 model Item {
@@ -211,8 +260,83 @@ model AuthSession {
   expiresAt          DateTime
   revokedAt          DateTime?
   mfaAuthenticatedAt DateTime?
+  privilegedStepUpAt DateTime?
   createdAt          DateTime  @default(now())
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
+}
+
+
+// Single-purpose, short-lived, durable pre-auth TOTP challenge.
+model AuthChallenge {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, consumedAt, expiresAt])
+}
+
+enum EmailActionKind {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum PlatformRole {
+  PAYMENT_REVIEWER
+  OPERATIONS_ADMIN
+  SECURITY_ADMIN
+}
+
+model EmailActionToken {
+  id         String @id @default(uuid()) @db.Uuid
+  userId     String @db.Uuid
+  kind       EmailActionKind
+  tokenHash  String @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, usedAt, expiresAt])
+}
+
+model AuthRateLimit {
+  key        String @id
+  count      Int @default(0)
+  windowEnds DateTime
+
+  @@index([windowEnds])
+}
+
+model AuthAuditEvent {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String? @db.Uuid
+  kind      String
+  occurredAt DateTime @default(now())
+  user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+}
+
+model PlatformOperator {
+  userId String @id @db.Uuid
+  role PlatformRole
+  enabled Boolean @default(false)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshTokenReuse {
+  tokenHash String @id
+  userId String @db.Uuid
+  sessionId String @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
