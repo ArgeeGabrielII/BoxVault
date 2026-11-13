@@ -1,2 +1,11 @@
 User-agent: *
-Disallow: /
+Allow: /
+Disallow: /login
+Disallow: /thank-you
+Disallow: /analytics-frame
+Disallow: /admin/
+Disallow: /app/
+Disallow: /support/
+Disallow: /__playground/
+Disallow: /api/
+Sitemap: https://boxvault-argee-2026.web.app/sitemap.xml

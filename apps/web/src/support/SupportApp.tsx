@@ -40,7 +40,6 @@ export default function SupportApp() {
  const openNavigation = useRef<HTMLButtonElement>(null);
  const { dark, setTheme } = usePreviewTheme();
  useEffect(() => { const update = () => { setPage(readPage()); setQuery(''); setSidebar(false); }; addEventListener('hashchange', update); return () => removeEventListener('hashchange', update); }, []);
- useEffect(() => { const title = document.title; document.title = 'BoxVault System Support · ' + nav.find(item => item.id === page)?.label; return () => { document.title = title; }; }, [page]);
  useEffect(() => { if (!sidebar) return; closeNavigation.current?.focus(); const previous = document.body.style.overflow; document.body.style.overflow = 'hidden'; const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setSidebar(false); }; addEventListener('keydown', escape); return () => { removeEventListener('keydown', escape); document.body.style.overflow = previous; openNavigation.current?.focus(); }; }, [sidebar]);
  const go = (next: SupportPage) => { location.hash = '/support/' + next; setPage(next); setQuery(''); setSidebar(false); };
  const open = cases.filter(item => item.status !== 'Resolved');

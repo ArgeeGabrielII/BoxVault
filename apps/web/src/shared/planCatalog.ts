@@ -5,3 +5,5 @@ export const planCatalog = [
   { id: 'family', name: 'Family User', monthly: 219, annually: 1999, description: 'A little more order for your household.', features: ['Up to 4 users, including the owner', 'Shared family workspace', 'Permission-based sharing design'] },
 ] as const;
 export const planPrice = (amount: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(amount);
+
+export const annualSavings = (plan: { monthly: number; annually: number }) => { const monthlyYear = plan.monthly * 12; const amount = monthlyYear - plan.annually; return { amount, percent: monthlyYear ? Math.round(amount / monthlyYear * 100) : 0 }; };

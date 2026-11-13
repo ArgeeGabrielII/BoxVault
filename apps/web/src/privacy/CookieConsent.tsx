@@ -1,0 +1,25 @@
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { siteConfig, metadataFor } from '../seo/metadata';
+import './consent.css';
+type Preferences = { version: 1; analytics: boolean; savedAt: number };
+const storageKey = 'boxvault-consent-v1';
+const ConsentContext = createContext({ openSettings: () => {} });
+export function CookieSettingsButton({ className = '' }: { className?: string }) { const { openSettings } = useContext(ConsentContext); return <button className={className} type="button" onClick={openSettings}>Cookie settings</button>; }
+function readPreferences(): Preferences | null { try { const value = JSON.parse(localStorage.getItem(storageKey) ?? 'null'); return value?.version === 1 && typeof value.analytics === 'boolean' && typeof value.savedAt === 'number' && Date.now() - value.savedAt < 180 * 86400000 ? value : null; } catch { return null; } }
+export function publicAnalyticsEvent(name: 'landing_cta_click' | 'demo_form_complete') { window.dispatchEvent(new CustomEvent('boxvault-public-event', { detail: { name } })); }
+export default function CookieConsent({ route, children }: { route: string; children: ReactNode }) {
+ const [preferences, setPreferences] = useState<Preferences | null>(readPreferences);
+ const [open, setOpen] = useState(false);
+ const [details, setDetails] = useState(false);
+ const [analytics, setAnalytics] = useState(false);
+ const frame = useRef<HTMLIFrameElement>(null);
+ const measurementReady = siteConfig.analytics.enabled && /^G-[A-Z0-9]+$/.test(siteConfig.analytics.measurementId);
+ const meta = metadataFor(route);
+ const trackingAllowed = !!preferences?.analytics && measurementReady && meta.analytics;
+ const show = open || preferences === null;
+ function save(allow: boolean) { const next: Preferences = { version: 1, analytics: allow, savedAt: Date.now() }; try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* Choice remains active for this page. */ } setPreferences(next); setAnalytics(allow); setOpen(false); setDetails(false); if (!allow) { for (const entry of document.cookie.split(';')) { const name = entry.split('=')[0].trim(); if (/^_ga(?:_|$)/.test(name)) { for (const domain of ['', location.hostname, '.' + location.hostname]) document.cookie = name + '=; Max-Age=0; path=/; SameSite=Lax' + (domain ? '; domain=' + domain : ''); } } } }
+ const sendPage = () => frame.current?.contentWindow?.postMessage({ type: 'boxvault-analytics', name: 'page_view', path: meta.canonical }, location.origin);
+ useEffect(() => { if (trackingAllowed) sendPage(); }, [trackingAllowed, meta.canonical]);
+ useEffect(() => { const event = (input: Event) => { const name = (input as CustomEvent).detail?.name; if (trackingAllowed && meta.canonical === '/' && ['landing_cta_click', 'demo_form_complete'].includes(name)) frame.current?.contentWindow?.postMessage({ type: 'boxvault-analytics', name, path: '/' }, location.origin); }; addEventListener('boxvault-public-event', event); return () => removeEventListener('boxvault-public-event', event); }, [trackingAllowed, meta.canonical]);
+ return <ConsentContext.Provider value={{ openSettings: () => { setAnalytics(preferences?.analytics ?? false); setOpen(true); setDetails(true); } }}>{children}{trackingAllowed && <iframe ref={frame} src="/analytics-frame.html" title="Optional public-page analytics" referrerPolicy="no-referrer" aria-hidden="true" tabIndex={-1} className="consent-analytics-frame" onLoad={sendPage}/>}<div className="cookie-reopen"><CookieSettingsButton/></div>{show && <aside className="cookie-banner" aria-label="Cookie preferences"><div className="cookie-banner-copy"><strong>Your preferences. Your choice.</strong><p>We remember appearance and consent choices. Optional public-page analytics requires your permission. <a href="/privacy">Privacy notice</a></p>{details && <div className="cookie-options"><div><span><strong>Essential preferences</strong><small>Appearance, consent choice and basic site behavior.</small></span><span className="cookie-required">Always available</span></div><label><span><strong>Audience analytics</strong><small>{measurementReady ? 'Optional Google Analytics measurement of public pages. No form values or private preview activity.' : 'Optional analytics is not active in this demo until a measurement property is connected.'}</small></span><input type="checkbox" checked={analytics} disabled={!measurementReady} onChange={event => setAnalytics(event.target.checked)} aria-label="Allow optional audience analytics"/></label></div>}</div><div className="cookie-actions"><button type="button" onClick={() => save(false)}>Reject optional</button>{details ? <button type="button" onClick={() => save(analytics && measurementReady)}>Save preferences</button> : <button type="button" onClick={() => { setDetails(true); setAnalytics(preferences?.analytics ?? false); }}>Preferences</button>}<button type="button" className="cookie-accept" onClick={() => save(measurementReady)}>Accept optional</button></div></aside>}</ConsentContext.Provider>;
+}

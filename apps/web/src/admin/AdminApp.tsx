@@ -80,7 +80,6 @@ export default function AdminApp() {
   useEffect(() => { const handle = () => { setPage(currentPage()); setSidebar(false); setQuery(''); }; addEventListener('hashchange', handle); return () => removeEventListener('hashchange', handle); }, []);
   useEffect(() => { const media = matchMedia('(prefers-color-scheme: dark)'); const handle = (event: MediaQueryListEvent) => setSystemDark(event.matches); media.addEventListener('change', handle); return () => media.removeEventListener('change', handle); }, []);
   useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; try { localStorage.setItem('boxvault-theme', theme); } catch { /* Theme storage is optional. */ } }, [dark, theme]);
-  useEffect(() => { const title = document.title; document.title = 'BoxVault Admin · ' + navigation.find(item => item.id === page)?.label; return () => { document.title = title; }; }, [page]);
   useEffect(() => {
     if (!sidebar) return;
     closeNavigation.current?.focus();

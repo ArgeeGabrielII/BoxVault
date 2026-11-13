@@ -26,3 +26,10 @@ gha-creds-*.json
 
 # Public mock Playground build
 dist-public/
+
+# Generated public exports and prerender bundle
+apps/web/.prerender/
+apps/web/public/icons/
+apps/web/public/social/
+apps/web/public/brand/
+apps/web/public/favicon.ico

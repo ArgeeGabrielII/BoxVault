@@ -1,0 +1,7 @@
+{
+  "name": "BoxVault",
+  "origin": "https://boxvault-argee-2026.web.app",
+  "updatedAt": "2026-11-13",
+  "legal": { "operator": "", "privacyEmail": "", "reviewed": false },
+  "analytics": { "provider": "ga4", "measurementId": "", "enabled": false }
+}

@@ -1,33 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles.css';
-import App from './App';
-import AdminApp from './admin/AdminApp';
-import RoleSitemap from './roles/RoleSitemap';
-import SupportApp from './support/SupportApp';
 import LandingPage from './public/LandingPage';
 import LoginPage from './public/LoginPage';
-
+import { PrivacyPage, TermsPage, ThankYouPage, NotFoundPage, RouteLoading } from './public/PublicPages';
+import RouteErrorBoundary from './public/RouteErrorBoundary';
+import CookieConsent from './privacy/CookieConsent';
+import { resolveRoute, routeExists, metadataFor, applyMetadata } from './seo/metadata';
+const App = lazy(() => import('./App'));
+const AdminApp = lazy(() => import('./admin/AdminApp'));
+const RoleSitemap = lazy(() => import('./roles/RoleSitemap'));
+const SupportApp = lazy(() => import('./support/SupportApp'));
 function PreviewRouter() {
-  const [hash, setHash] = useState(() => location.hash);
-  useEffect(() => {
-    const update = () => setHash(location.hash);
-    addEventListener('hashchange', update);
-    return () => removeEventListener('hashchange', update);
-  }, []);
-  const path = hash.split('?')[0];
-  useEffect(() => { if (path.startsWith('#/')) window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }, [path]);
-  if (path === '#/login') return <LoginPage />;
-  if (path === '#/sitemap') return <RoleSitemap />;
-  if (hash === '#/support' || hash.startsWith('#/support/')) return <SupportApp />;
-  if (path === '#/admin' || path.startsWith('#/admin/')) return <AdminApp />;
-  if (path.startsWith('#/app/')) return <App />;
-  return <LandingPage />;
+ const [hash, setHash] = useState(() => location.hash);
+ useEffect(() => { const update = () => setHash(location.hash); addEventListener('hashchange', update); addEventListener('popstate', update); return () => { removeEventListener('hashchange', update); removeEventListener('popstate', update); }; }, []);
+ const route = resolveRoute(location.pathname, hash);
+ useEffect(() => { applyMetadata(metadataFor(route)); if (hash.startsWith('#/')) window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }, [route]);
+ let content: React.ReactNode;
+ if (!routeExists(route) || route === '/404') content = <NotFoundPage/>;
+ else if (route === '/login') content = <LoginPage/>;
+ else if (route === '/privacy') content = <PrivacyPage/>;
+ else if (route === '/terms') content = <TermsPage/>;
+ else if (route === '/thank-you') content = <ThankYouPage/>;
+ else if (route === '/sitemap') content = <RoleSitemap/>;
+ else if (route === '/support' || route.startsWith('/support/')) content = <SupportApp/>;
+ else if (route === '/admin' || route.startsWith('/admin/')) content = <AdminApp/>;
+ else if (route === '/app' || route.startsWith('/app/')) content = <App/>;
+ else content = <LandingPage/>;
+ return <CookieConsent route={route}><a href="#main-content" className="site-skip-link" onClick={event => { event.preventDefault(); const main = document.querySelector('main'); main?.setAttribute('tabindex', '-1'); main?.focus(); }}>Skip to main content</a><RouteErrorBoundary route={route}><Suspense fallback={<RouteLoading/>}>{content}</Suspense></RouteErrorBoundary></CookieConsent>;
 }
-
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <PreviewRouter />
-  </React.StrictMode>,
-);
+createRoot(document.getElementById('root')!).render(<React.StrictMode><PreviewRouter/></React.StrictMode>);

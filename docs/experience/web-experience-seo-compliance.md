@@ -1,8 +1,16 @@
 # Web Experience, SEO, Accessibility & Compliance Requirements
 
-**Implementation snapshot (2026-11-12; PR #4):** This remains a **target web UX/SEO/compliance checklist**, not a completed front end. The NestJS backend now has staged registration, login, verification, CAPTCHA and MFA infrastructure, but the React app still lacks complete production-ready signup, email-link, login, session, MFA and accessible CAPTCHA interfaces. Public metadata, legal pages, consent, analytics and responsive/error-state controls are not marked accepted. See [web audit](../audit/web/m1-registration-ui.md), [roadmap](../planning/delivery-roadmap.md) and [Phase D](../audit/api/phase-d-real-provider-validation.md).
+**UI preview implementation snapshot (2026-11-13):** The public Firebase mock now includes branded 404, per-route metadata, a 1200×630 Open Graph image, SVG/ICO/PNG/apple/manifest icons, robots and generated sitemap, image alternatives, responsive breakpoints, route/submission loading states, inline validation, a demonstration thank-you flow, dated privacy/terms drafts, consent controls and an above-the-fold CTA. Six public/error pages are prerendered at build time; Hosting remains static on Spark. Existing backend infrastructure is not connected to this public mock.
 
-Version 0.1 • Source: 17-item project source checklist (2026-11-11) • Status: proposed requirements, **not implemented**
+**Remaining launch inputs:** Analytics is implemented behind consent but deliberately disabled until a real GA4 measurement ID is supplied in `apps/web/src/seo/siteConfig.json`. Operator identity, privacy contact and legal approval remain unset; policy drafts are visibly labeled and excluded from the sitemap. This is not a claim of production legal compliance or completed production authentication.
+
+**Analytics boundaries:** No Google tag is loaded before consent. With a configured property, the tag runs inside an empty same-origin frame only on approved public paths (`/`, `/privacy`, `/terms`). Events are limited to `page_view`, `landing_cta_click`, and `demo_form_complete`, without form values or arbitrary URLs. Private role previews, login, confirmation and errors never load the frame. Consent is revocable and expires after 180 days. Set provider retention and review GA enhanced-measurement settings when connecting the property.
+
+**Pricing:** Monthly is the default comparison. Single User costs ₱119/month or ₱999/year (annual savings ₱429, about 30%); Family costs ₱219/month or ₱1,999/year (annual savings ₱629, about 24%). Savings compare one annual payment with 12 monthly payments. Free is ad-supported with limited containers; no ad SDK is installed.
+
+**Release checks:** Production builds and artifact audits verify six unique prerendered titles/descriptions, canonical and OG tags, icon assets, alt attributes, nonindexable demo/draft pages, public-only sitemap entries, static artifact limits and no backend integrations. Browser QA covers consent, form errors, submission loading and confirmation, blank-password role redirect, mobile CTA and layout. Public custom 404 must return HTTP 404 on Firebase.
+
+Version 0.2 • Source: 17-item project checklist • Status: UI implemented; analytics activation and final policy review pending.
 
 ## Purpose and applicability
 
