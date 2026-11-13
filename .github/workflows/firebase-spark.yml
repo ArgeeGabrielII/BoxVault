@@ -1,11 +1,11 @@
-name: Firebase Spark Static Site CI/CD
+name: Firebase Spark Mock Dashboard CI/CD
 
 on:
   pull_request:
-    paths: ['apps/public-site/**', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
+    paths: ['apps/web/**', 'packages/assets/**', 'infrastructure/firebase/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
   push:
     branches: [main]
-    paths: ['apps/public-site/**', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
+    paths: ['apps/web/**', 'packages/assets/**', 'infrastructure/firebase/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,14 +23,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Build approved static site
-        run: node apps/public-site/scripts/build.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.18.0'
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck mock dashboard
+        run: pnpm --filter @boxvault/web typecheck
+      - name: Build mock dashboard
+        run: pnpm --filter @boxvault/web build
       - name: Audit release artifact
-        run: node apps/public-site/scripts/verify.mjs
+        run: node infrastructure/firebase/verify-preview.mjs
       - uses: actions/upload-artifact@v4
         with:
-          name: approved-public-site
-          path: apps/public-site/dist/
+          name: approved-mock-dashboard
+          path: apps/web/dist/
           if-no-files-found: error
           retention-days: 1
 
@@ -48,15 +55,15 @@ jobs:
           node-version: '22'
       - uses: actions/download-artifact@v4
         with:
-          name: approved-public-site
-          path: apps/public-site/dist/
+          name: approved-mock-dashboard
+          path: apps/web/dist/
       - name: Verify exact deploy artifact and project ID
         env:
           FIREBASE_SPARK_PROJECT_ID: ${{ vars.FIREBASE_SPARK_PROJECT_ID }}
         run: |
           test "$FIREBASE_SPARK_PROJECT_ID" = "boxvault-argee-2026" || exit 1
           [[ "$FIREBASE_SPARK_PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,29}$ ]] || exit 1
-          node apps/public-site/scripts/verify.mjs
+          node infrastructure/firebase/verify-preview.mjs
       - name: Authenticate dedicated Firebase deploy service account
         id: auth
         uses: google-github-actions/auth@v2

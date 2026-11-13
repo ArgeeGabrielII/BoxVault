@@ -2,7 +2,7 @@
 
 QR/NFC-powered storage organization. One monorepo for the customer web portal, native iOS app, API, shared assets, and API contracts.
 
-Current integration (2026-11-13): development branches are consolidated into `main` at the owner’s request. The Firebase Spark target is `boxvault-argee-2026`; only `apps/public-site` is published by its workflow. CI/CD activation awaits deploy-identity authorization. Customer UI remains a mock prototype and API production acceptance is pending. See [deployment setup](docs/firebase-spark-cicd.md).
+Current integration (2026-11-13): development branches are consolidated into `main` at the owner’s request. The Firebase Spark target is `boxvault-argee-2026`; the owner approved publishing the fictional-data dashboard from `apps/web` with automatic Hosting deployment from `main`. Customer UI remains a mock prototype and API production acceptance is pending. See [deployment setup](docs/firebase-spark-cicd.md).
 
 ## Stack
 - Web: React 19, Vite, TypeScript, Bootstrap 5

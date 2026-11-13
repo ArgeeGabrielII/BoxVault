@@ -2,7 +2,7 @@
 
 **Progress snapshot — 2026-11-13:** PR #4 includes staged NestJS authentication/MFA, token-bound verified-email onboarding, restricted database roles, Prisma migrations `000`–`005`, and per-container ACL/RLS foundations. Isolated Neon database phases A–C were verified and scoped CI passed on an earlier commit; local register → email verify → login succeeded. **Current-head full acceptance remains pending**; a local browser retest confirmed tenant isolation **401 unauthenticated / 200 own tenant (0 containers) / 403 unrelated tenant**. Other authorization and release gates remain pending. PR #4 is **not production-approved**. Start with the [roadmap](planning/delivery-roadmap.md), [audit register](audit/README.md), and [Phase D latest results](audit/api/phase-d-real-provider-validation.md).
 
-> **Source consolidation — 2026-11-13:** The owner authorized consolidating the development branches into `main`. Earlier branch-isolation and merge-hold notes are historical. Production security acceptance remains pending; only the separate public informational site is a Firebase deployment input.
+> **Source consolidation — 2026-11-13:** The owner authorized consolidating the development branches into `main`. Earlier branch-isolation and merge-hold notes are historical. Production security acceptance remains pending; the owner approved the mock `apps/web` dashboard as the Firebase Hosting input; backend services remain outside this deployment.
 
 Mock materials are organized under [mock documentation](mock/README.md): [tester guides](mock/documents/README.md) and [test-data catalog](mock/data/README.md) are separate; the [runnable HTML](../mock/boxvault-m1-registration-harness.html) stays under `/mock`. Mock helpers are **not production API contracts**.
 

@@ -17,3 +17,9 @@ apps/ios/DerivedData/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Ephemeral Google GitHub authentication files
+gha-creds-*.json
+
+# Firebase local deployment cache
+.firebase/

@@ -1,5 +1,7 @@
 # ADR-CLD-001 — Firebase Spark-only static deployment for BoxVault
 
+> **2026-11-13 decision update:** The owner explicitly authorized publishing the interactive mock dashboard and its CI/CD deploy identity. The earlier coming-soon-only scope and per-release manual approval below describe the original plan. The current static deployment uses `apps/web` with fictional fixtures, no backend connections, and Spark billing safeguards. See [current CI/CD](firebase-spark-cicd.md).
+
 **Status:** Proposed for approval; **no Firebase project, credentials, site, deployment workflow, or running service has been created**  
 **Date:** 2026-11-13  
 **Scope:** Google Cloud / Firebase **Spark-only** deployment of public static content; Google Cloud spending target PHP 0 and no billing-account link  
