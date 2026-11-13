@@ -74,3 +74,7 @@ Manual QA still required: both mock screens on Safari/Chrome/Firefox/Edge and ph
 - [QR library architecture](qr-library-architecture.md)
 - [QR library implementation](qr-library-implementation.md)
 - [Web experience and compliance](web-experience-seo-compliance.md)
+
+## Merge integration note
+
+The QR architecture PR was merged before this Playground workstream; the mock implementation has been reconciled on the current `main` baseline. This does not change the independently reviewed frontend PR #6 or backend PR #4.
