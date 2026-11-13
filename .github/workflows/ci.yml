@@ -22,3 +22,9 @@ jobs:
         run: pnpm typecheck
       - name: Build
         run: pnpm build
+      - name: QR package regression tests
+        run: pnpm --filter @boxvault/qr test
+      - name: Developer Playground typecheck (mock-only)
+        run: pnpm --filter @boxvault/playground typecheck
+      - name: Developer Playground standalone build
+        run: pnpm --filter @boxvault/playground build
