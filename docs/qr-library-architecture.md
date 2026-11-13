@@ -220,6 +220,76 @@ Google AdSense placement rules prohibit ads on pages placed solely for ads in ce
 - Final session cap and whether the user must be fully signed in and authorized (recommended yes).
 - Whether native iOS deep-link navigation should bypass the web ad interstitial entirely (recommended yes; check store requirements if monetization considered).
 
+## ADR-QRC-002 Addendum — Free Tier timed advertisement gate (2026-11-13)
+
+**Status:** Product-requested design requirement, not implemented. The four QR-library foundational decisions are unchanged. The previous *immediate* Skip behavior remains the default for any third-party ad-network mode until an explicitly compatible provider and placement policy are approved.
+
+### Product requirement and plan eligibility
+
+- Add a **Free Tier** as a distinct provisional entitlement for interstitial eligibility. The existence of the Free Tier is accepted for this architecture, but its storage quotas, subscription economics, registration conditions and lifecycle are **not yet defined**. Do not silently change paid annual plans.
+- Personal (PHP 999/year) and Family (PHP 1,999/year) should not encounter this interstitial by default.
+- Determine eligibility server-side from the **authenticated viewer's effective tenant plan and entitlement**. Do not trust a public URL query string, client-set `isFree` flag or QR code to decide eligibility.
+- If the entitlement or feature configuration cannot be verified, bypass ads while still enforcing the full authentication, tenancy and per-container ACL flow (never skip security checks).
+
+### Requested timed first-party experience
+
+1. The first-party BoxVault container URL remains unchanged and the user signs in / passes the existing authorization checks before any ad or promo content can appear.
+2. Check the global flag `ads.interstitial.enabled` (default **false**), the plan entitlement, route policy and the per-session frequency cap.
+3. If eligible, display an accessible, branded interstitial with a countdown initially set to **10 seconds** (administrator-editable). The `Skip Ad / Continue` control is disabled until the configured hold elapses.
+4. After the countdown reaches zero, the button becomes enabled. Navigate only on user action, through a same-origin authorized continuation; revalidate current authorization immediately before rendering private destination content.
+5. If the promotion cannot load, the app is offline, the server flags are unavailable, or the timer fails, bypass the gate to the standard authorization path rather than trap the user. A user must never be required to click an ad.
+6. For this design, enforce a maximum of one interstitial per signed-in browser session initially, independent of how many boxes are scanned. Do not expose customer names, identifiers, raw QR tokens or inventory metadata to the promotion.
+7. Native iOS handling remains direct authorized navigation unless a separate platform-compliant experience is explicitly approved.
+
+### Proposed runtime configuration (design only)
+
+```ts
+type AdExperienceMode = 'house-promo-timed' | 'provider-compliant';
+interface ScanInterstitialPolicy {
+  enabled: boolean;                   // global kill switch, default false
+  eligiblePlanCodes: ['FREE'];        // effective viewer entitlement, server-authoritative
+  mode: AdExperienceMode;             // 'house-promo-timed' for requested hold
+  holdSeconds: number;                // default 10; validated range proposed 0..30
+  maxDisplaysPerSession: number;      // default 1
+  bypassOnAdFailure: true;
+  requireExplicitContinue: true;      // never auto-redirect when timer ends
+}
+```
+
+**The timer is UX-level pacing, not a security control.** Compute remaining time from a monotonic deadline (e.g. `performance.now()`) rather than decrementing an interval counter, handle hidden tabs and device sleep without prolonging the hold indefinitely, and do not trust an elapsed client-side timer to grant access. If analytics or paid ad billing ever depend on genuine impressions, that requires separately specified verified events and fraud controls. Avoid storing per-user ad exposure data beyond the privacy-approved minimum.
+
+For an initial settings screen, allow the administrator to toggle enablement and edit validated duration with explicit Save, audit and kill-switch behavior. A frontend-only appearance toggle is not sufficient to activate ads in production. As with all policy changes, keep rollout behind review, avoid third-party scripts on inventory pages, and preserve `noindex`, `no-store`, safe referrer policy, and same-origin navigation.
+
+### Critical provider compatibility gate
+
+**Do not use the timed forced-hold mode for AdSense or presume it is acceptable to paid ad networks.** Google AdSense disallows displaying Google-served ads for a preset time before content can be viewed, and Google publisher policies prohibit Google-served ads on low-value/navigation-only screens. The Better Ads Standards identify prestitial/poststitial ads with mandatory countdowns as disruptive experiences. If a commercial provider is later chosen, use a reviewed **provider-compliant mode** (usually immediately dismissible for these web placements, or that provider's specifically permitted format) rather than forcing 10 seconds.
+
+References:
+- https://support.google.com/adsense/answer/1346295?hl=en
+- https://support.google.com/publisherpolicies/answer/11112688?hl=en
+- https://support.google.com/webtools/answer/7073774?hl=en
+- https://www.betterads.org/standards/
+
+### Additional acceptance tests
+
+- OFF: zero ad gates, including Free Tier.
+- ON + Free Tier + authorized label: countdown starts at configured 10 seconds; disabled Skip becomes enabled at expiration; navigation occurs only after user action and reauthorization.
+- ON + paid plan or ineligible route: navigate directly; no countdown or ad request.
+- The timer stays correct through tab backgrounding/throttling, refresh, slow loading, device sleep and mobile orientation changes; no negative counters or indefinite wait.
+- Zero-second configuration bypasses the hold (and may expose an immediately available Continue action).
+- Unauthenticated, invalid, revoked, cross-tenant or unauthorized label resolutions never reveal user/box information or display targeted ads.
+- Failed/blocked ad, disabled flag mid-session or missing creative falls back to normal authorized routing, not a dead-end.
+- Test disabled-button semantics, screen reader countdown announcements (without noisy every-second announcements), focus visibility, 200% zoom, keyboard access and reduced motion.
+- Provider-compliant mode never inherits a forced hold from the first-party mode.
+- Distinguish viewers from label owners when defining Free Tier entitlement; draft assumes **viewer effective tenant** but product team must confirm before implementation.
+
+### Remaining product decisions
+
+- Confirm that Free Tier entitlements and quotas will be defined in a separate product/monetization ADR.
+- Confirm which party's tier is authoritative when the scanner belongs to a different family/tenant than the box owner (the current design assumes viewer's effective tenant).
+- Determine whether `holdSeconds` should allow 0–30 seconds; 10 seconds is accepted as the initial default, not a legal/ad-network clearance.
+- Obtain ad-provider format and legal/privacy review before any third-party advertising integration.
+
 ## External references consulted
 
 - ISO/IEC 18004:2024: https://www.iso.org/standard/83389.html
