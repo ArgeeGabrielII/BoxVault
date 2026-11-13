@@ -83,6 +83,7 @@ Mock materials are organized under [mock documentation](mock/README.md): [tester
 |---|---|
 | [docs/mock/README.md](mock/README.md) | Mock documentation index and separation policy |
 | [documents/README.md](mock/documents/README.md) | Local tester usage, password reset, UUID auto-fill and fallback lookup |
+| [container-sharing-revocation.md](mock/documents/container-sharing-revocation.md) | Owner-only container creation and grant/revocation test; same-tenant prerequisite |
 | [data/README.md](mock/data/README.md) | Synthetic test data dictionary, fixture expectations and safety boundaries |
 
 ### Engineering Audit
