@@ -59,17 +59,35 @@ function localBackendHealth(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), localBackendHealth()],
+export default defineConfig(({ mode }) => {
+  const publicPreview = mode === 'public-preview';
+  const publicCatalog: Plugin = {
+    name: 'boxvault-public-playground-catalog',
+    transformIndexHtml(html) {
+      if (!publicPreview) return html;
+      return html
+        .replace(/<a class="card" href="\/backend\/">[\s\S]*?<\/a>/, '')
+        .replace('LOCAL DEVELOPMENT ONLY', 'PUBLIC MOCK PLAYGROUND')
+        .replace('VaultBox Developer Playground', 'BoxVault Developer Playground')
+        .replace('Vault<b>Box</b>', 'Box<b>Vault</b>')
+        .replace('A dedicated local development environment for BoxVault mockups and safe real-backend checks. No production credentials, private customer records or payment flows. The core web and API applications remain unchanged.', 'A browser-based collection of BoxVault mockups and developer tools. Explore fictional UI, generate test QR codes, and browse the role sitemap. No live backend, credentials or private customer records.')
+        .replace('VaultBox Developer Playground · Mock UI + local-only backend verification · Never deploy publicly', 'BoxVault Developer Playground · Public mock tools only · Local backend tester is excluded')
+        .replace('</section>', '<a class="card" href="https://boxvault-argee-2026.web.app/#/sitemap"><span class="mark">⌘</span><h2>All Role Sitemaps</h2><p>Explore customer, platform, System Support and developer screen maps, with mock and planned states clearly marked.</p><strong>Explore the role map →</strong></a><a class="card" href="https://boxvault-argee-2026.web.app/#/login"><span class="mark">↗</span><h2>Role-based UI Previews</h2><p>Use a demo username and a blank password to open the customer, admin or support console.</p><strong>Open demo login →</strong></a></section>');
+    },
+  };
+  return {
+  plugins: [react(), localBackendHealth(), publicCatalog],
   server: { port: 5174, host: '127.0.0.1', strictPort: true },
   build: {
+    outDir: publicPreview ? 'dist-public' : 'dist',
     rollupOptions: {
       input: {
         playground: fileURLToPath(new URL('./index.html', import.meta.url)),
         qr: fileURLToPath(new URL('./qr/index.html', import.meta.url)),
         ui: fileURLToPath(new URL('./ui/index.html', import.meta.url)),
-        backend: fileURLToPath(new URL('./backend/index.html', import.meta.url)),
+        ...(publicPreview ? {} : { backend: fileURLToPath(new URL('./backend/index.html', import.meta.url)) }),
       },
     },
   },
+  };
 });

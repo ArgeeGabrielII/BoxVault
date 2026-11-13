@@ -23,3 +23,6 @@ gha-creds-*.json
 
 # Firebase local deployment cache
 .firebase/
+
+# Public mock Playground build
+dist-public/

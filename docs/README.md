@@ -50,6 +50,8 @@ Mock materials are organized under [mock documentation](mock/README.md): [tester
 
 ### Experience
 
+- [All-role sitemap, System Support and demo login routing](experience/role-sitemap.md).
+
 - [Admin console UI preview](experience/admin-preview.md) — mock account/billing operations, review flows and QA.
 
 | Document | Description |

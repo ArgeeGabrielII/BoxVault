@@ -84,7 +84,7 @@ export default function App() {
           <div className="card guidance"><h2>What this lab does not do</h2><p>It does not create secure QR tokens, resolve private boxes, send URLs to a backend, serve Google ads, or grant access. Mock labels are not production artifacts.</p><div className="sample-palette"><span>Preview colors</span><span style={{background:symbolColor.light,color:symbolColor.dark,border:'1px solid #cbd5e1',padding:'6px 10px',borderRadius:6}}>▦ □ ■</span></div></div>
         </section>
       </div>
-      <footer>BoxVault QR Lab · Local-only developer tool · QR algorithm © Project Nayuki (MIT)</footer>
+      <footer>BoxVault QR Lab · Browser-only developer tool · QR algorithm © Project Nayuki (MIT) · <a href="/licenses.txt">Open-source notices</a></footer>
     </main>
   </div>;
 }

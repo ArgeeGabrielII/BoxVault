@@ -32,7 +32,7 @@ async function walk(path = '') {
    if (relative !== 'assets') throw Error('Unexpected deployment directory: ' + relative);
    await walk(relative + '/'); continue;
   }
-  if (!info.isFile() || !(/^(index\.html|robots\.txt|404\.html)$/.test(relative) || /^assets\/[a-zA-Z0-9_-]+\.(js|css|svg|png|webp)$/.test(relative))) throw Error('Unexpected deployment file: ' + relative);
+  if (!info.isFile() || !(/^(index\.html|robots\.txt|licenses\.txt|404\.html)$/.test(relative) || /^assets\/[a-zA-Z0-9_-]+\.(js|css|svg|png|webp)$/.test(relative))) throw Error('Unexpected deployment file: ' + relative);
   if (info.size > 1024 * 1024) throw Error('Oversized deployment file');
   const bytes = await readFile(url);
   if (/PRIVATE KEY|postgres(?:ql)?:\/\/|DATABASE_URL\s*=|localhost:3000|\/api\/v1\//i.test(bytes.toString())) throw Error('Private service reference in ' + relative);

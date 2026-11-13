@@ -1,5 +1,8 @@
 # VaultBox Developer Playground
 
+> **2026-11-13 publication update:** The owner explicitly requested a separate public Playground URL. `pnpm --filter @boxvault/playground build:public` now produces a distinct mock-only artifact with the local backend tester excluded. The older local-only publication restriction below is superseded for this public mock build only. The local bridge and real backend tester remain local. Public site: https://boxvault-playground-argee-2026.web.app
+
+
 **Status:** Local development workspace: fictional UI mocks plus restricted real-local-backend checks. Not a production application.  
 **Baseline:** QR architecture and VaultBox Developer Playground merged into `main`. Local backend tester developed independently; PR #4 and PR #6 remain unmerged.  
 **Product repository and package namespace:** BoxVault (`@boxvault/*`)  

@@ -14,7 +14,7 @@ const navigation: { id: Page; label: string; icon: string; group: string }[] = [
   { id: 'settings', label: 'Settings', icon: 'settings', group: 'OPERATIONS' },
 ];
 const currentPage = (): Page => navigation.find(item => item.id === location.hash.split('/')[2])?.id ?? 'overview';
-function Icon({ name, size = 20 }: { name: string; size?: number }) {
+export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, ReactNode> = {
     grid: <><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></>,
     users: <><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m2-16a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5"/></>,
@@ -36,11 +36,11 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] ?? paths.grid}</svg>;
 }
-function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: string }) { return <span className={'admin-badge ' + tone}><span/>{children}</span>; }
+export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: string }) { return <span className={'admin-badge ' + tone}><span/>{children}</span>; }
 function Status({ value }: { value: string }) { return <Badge tone={value === 'Active' || value === 'Approved' ? 'green' : value === 'Pending' ? 'amber' : 'neutral'}>{value}</Badge>; }
 function Heading({ title, description, action }: { title: string; description: string; action?: ReactNode }) { return <div className="section-heading admin-heading"><div><div className="eyebrow">ADMIN WORKSPACE</div><h1>{title}</h1><p>{description}</p></div>{action}</div>; }
 function Empty({ title = 'No matching records', description = 'Try another search or filter.' }: { title?: string; description?: string }) { return <div className="admin-empty"><Icon name="search" size={28}/><h3>{title}</h3><p>{description}</p></div>; }
-function Modal({ title, children, close }: { title: string; children: ReactNode; close: () => void }) {
+export function Modal({ title, children, close }: { title: string; children: ReactNode; close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
@@ -120,7 +120,7 @@ export default function AdminApp() {
       <a className="brand admin-brand" href="#/admin/overview"><img src={logo} alt=""/><span>box<span className="brand-blue">vault</span></span></a>
       <div className="admin-workspace"><span className="admin-workspace-icon"><Icon name="shield"/></span><div><strong>Admin console</strong><small>Platform operations</small></div><span className="admin-demo-tag">DEMO</span></div>
       <nav aria-label="Admin pages">{navigation.map((item, index) => <div key={item.id}>{(index === 0 || item.group !== navigation[index - 1].group) && <div className="nav-caption">{item.group}</div>}<a className={'nav-link admin-nav-link ' + (page === item.id ? 'active' : '')} href={'#/admin/' + item.id} aria-current={page === item.id ? 'page' : undefined}><Icon name={item.icon} size={18}/>{item.label}{item.id === 'payments' && pending.length > 0 && <span className="admin-nav-count">{pending.length}</span>}</a></div>)}</nav>
-      <div className="sidebar-bottom"><div className="admin-privacy"><Icon name="shield" size={20}/><strong>Privacy is built in</strong><p>Account and billing metadata only. Customer inventory stays private.</p></div><a className="admin-back" href="#/"><Icon name="arrow" size={17}/><span>Back to customer demo</span></a><div className="user-card"><span className="user-avatar">DR</span><span><strong>Demo reviewer</strong><small>Operator preview</small></span><span className="online-dot"/></div></div>
+      <div className="sidebar-bottom"><div className="admin-privacy"><Icon name="shield" size={20}/><strong>Privacy is built in</strong><p>Account and billing metadata only. Customer inventory stays private.</p></div><a className="admin-back" href="#/sitemap"><Icon name="grid" size={17}/><span>Role sitemap & Support</span></a><a className="admin-back" href="#/app/overview"><Icon name="arrow" size={17}/><span>Back to customer demo</span></a><div className="user-card"><span className="user-avatar">DR</span><span><strong>Demo reviewer</strong><small>Operator preview</small></span><span className="online-dot"/></div></div>
     </aside>
     <div className="main-shell" inert={sidebar || undefined}>
       <header className="topbar admin-topbar"><div className="top-left"><button ref={openNavigation} className="icon-button menu-toggle" aria-label="Open admin navigation" aria-expanded={sidebar} onClick={() => setSidebar(true)}><Icon name="menu"/></button><span className="breadcrumbs">Admin <Icon name="chevron" size={13}/><strong>{navigation.find(item => item.id === page)?.label}</strong></span></div><div className="top-actions"><span className="admin-environment"><span/>Demo environment</span><button className="icon-button" aria-label="Toggle admin appearance" onClick={() => setTheme(dark ? 'light' : 'dark')}><Icon name={dark ? 'moon' : 'sun'}/></button><span className="profile-avatar" aria-label="Demo reviewer">DR</span></div></header>

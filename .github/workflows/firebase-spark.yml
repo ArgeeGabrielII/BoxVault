@@ -1,11 +1,11 @@
-name: Firebase Spark Mock Dashboard CI/CD
+name: Firebase Spark UI and Playground CI/CD
 
 on:
   pull_request:
-    paths: ['apps/web/**', 'packages/assets/**', 'infrastructure/firebase/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
+    paths: ['apps/web/**', 'apps/playground/**', 'packages/qr/**', 'packages/assets/**', 'infrastructure/firebase/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
   push:
     branches: [main]
-    paths: ['apps/web/**', 'packages/assets/**', 'infrastructure/firebase/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
+    paths: ['apps/web/**', 'apps/playground/**', 'packages/qr/**', 'packages/assets/**', 'infrastructure/firebase/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'firebase.json', '.firebaserc', '.github/workflows/firebase-spark.yml']
   workflow_dispatch:
 
 permissions:
@@ -32,12 +32,24 @@ jobs:
         run: pnpm --filter @boxvault/web typecheck
       - name: Build mock dashboard
         run: pnpm --filter @boxvault/web build
+      - name: Typecheck Playground
+        run: pnpm --filter @boxvault/playground typecheck
+      - name: Build public mock Playground
+        run: pnpm --filter @boxvault/playground build:public
+      - name: Audit public Playground
+        run: node infrastructure/firebase/verify-playground.mjs
       - name: Audit release artifact
         run: node infrastructure/firebase/verify-preview.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: approved-mock-dashboard
           path: apps/web/dist/
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: approved-public-playground
+          path: apps/playground/dist-public/
           if-no-files-found: error
           retention-days: 1
 
@@ -57,6 +69,10 @@ jobs:
         with:
           name: approved-mock-dashboard
           path: apps/web/dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: approved-public-playground
+          path: apps/playground/dist-public/
       - name: Verify exact deploy artifact and project ID
         env:
           FIREBASE_SPARK_PROJECT_ID: ${{ vars.FIREBASE_SPARK_PROJECT_ID }}
@@ -64,6 +80,7 @@ jobs:
           test "$FIREBASE_SPARK_PROJECT_ID" = "boxvault-argee-2026" || exit 1
           [[ "$FIREBASE_SPARK_PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,29}$ ]] || exit 1
           node infrastructure/firebase/verify-preview.mjs
+          node infrastructure/firebase/verify-playground.mjs
       - name: Authenticate dedicated Firebase deploy service account
         id: auth
         uses: google-github-actions/auth@v2
@@ -81,3 +98,10 @@ jobs:
           projectId: ${{ vars.FIREBASE_SPARK_PROJECT_ID }}
           channelId: live
           entryPoint: .
+      - name: Deploy separate Playground live site
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SPARK_DEPLOY_SA_JSON }}
+          projectId: ${{ vars.FIREBASE_SPARK_PROJECT_ID }}
+          channelId: live
+          entryPoint: apps/playground

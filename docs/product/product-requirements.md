@@ -8,7 +8,7 @@ Version 0.1 • Owner: Product/Engineering • Status: proposed
 
 **BoxVault** lets people identify a storage box by a printed QR label or NFC tag and securely view photographic contents without opening a stacked container. The system includes a React customer website, a native SwiftUI iPhone app, a NestJS API, and an operator-only web admin portal.
 
-Personas: **Personal owner** (single-user tenant), **Family owner** (payer, invitation and access control), **Family editor** (maintains shared boxes), **Family viewer** (read-only), **Platform operator** (payments, support and business analytics), and **Security/operations engineer** (limited technical observability). A member can belong to multiple tenants in the future; tenant switching must be explicit and independently authorized.
+Personas: **Personal owner** (single-user tenant), **Family owner** (payer, invitation and access control), **Family editor** (maintains shared boxes), **Family viewer** (read-only), **Payment reviewer** (financial decisions), **Operations admin** (business/operational metadata), **System Support** (support cases, account-status lookup and redacted diagnostics), and **Security admin** (operator identity/security governance). A member can belong to multiple tenants in the future; tenant switching must be explicit and independently authorized.
 
 ## 2. Release labels
 
@@ -87,6 +87,8 @@ Personas: **Personal owner** (single-user tenant), **Family owner** (payer, invi
 **App Store caveat:** Web-only sales do not by themselves make digital subscriptions exempt from Apple's payment rules. Confirm suitability for an applicable free companion-app exception and review current guidelines prior to App Store submission.
 
 ## 8. Web admin/operator portal
+
+**2026-11-13 role update:** System Support is a separate `SYSTEM_SUPPORT` role design with its own mock workspace. It may triage/escalate cases and inspect safe status/correlation metadata; it cannot read inventory, approve payments, edit credits/plans, impersonate users or assign roles. See the [all-role sitemap](../experience/role-sitemap.md). Live backend role enablement remains future work.
 
 | ID | Priority | Requirement | Guardrail |
 |---|---|---|---|

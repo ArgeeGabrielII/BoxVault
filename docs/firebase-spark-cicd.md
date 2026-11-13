@@ -4,7 +4,7 @@
 
 ## Deployment scope
 
-`apps/web` is a React/Vite frontend using fictional fixtures. Its demo notice remains visible. Creating boxes changes in-memory state only; appearance preference is stored locally. The [admin UI preview](experience/admin-preview.md) is available at `/#/admin/overview` with synthetic account/billing metadata and session-only decisions. No backend, database, live authentication, payment flow or Playground is published. Firebase serves static dashboard files with `connect-src 'none'` to block backend requests. Inline styles support React presentation; scripts are restricted to the site's own assets.
+`apps/web` is a React/Vite frontend using fictional fixtures. Its demo notice remains visible. Creating boxes changes in-memory state only; appearance preference is stored locally. The [admin UI preview](experience/admin-preview.md) is available at `/#/admin/overview` with synthetic account/billing metadata and session-only decisions. The root now serves a single-page landing site; `/#/login` routes demo usernames with a blank password. The [role sitemap](experience/role-sitemap.md) includes the new System Support preview. No backend, database, live authentication or real payment flow is published. A separate public mock Playground is deployed at https://boxvault-playground-argee-2026.web.app; its local-backend tester is excluded. Firebase serves static dashboard files with `connect-src 'none'` to block backend requests. Inline styles support React presentation; scripts are restricted to the site's own assets.
 
 ## Pipeline
 
@@ -48,3 +48,7 @@ To stop automatic deployments, set `FIREBASE_SPARK_DEPLOY_ENABLED=false`. Roll b
 - [Firebase GitHub integration](https://firebase.google.com/docs/hosting/github-integration)
 - [Firebase pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans)
 - [Firebase Hosting configuration](https://firebase.google.com/docs/hosting/full-config)
+
+## Separate Playground deployment
+
+The same guarded main workflow also builds `@boxvault/playground` in `public-preview` mode, validates it with `infrastructure/firebase/verify-playground.mjs`, and deploys its reviewed artifact using `apps/playground/firebase.json`. Its site is `boxvault-playground-argee-2026`, with `connect-src` disabled and no backend rewrites. Both sites share the existing Spark project and project-level Hosting quotas. The local build still includes the dev-only backend tester; the public build does not.
