@@ -285,6 +285,7 @@ export class AuthService implements OnModuleDestroy {
       data: { attempts: { increment: 1 } },
     });
     if (attempt.count !== 1) throw FAIL();
+    const personalTenantId = randomUUID();
     let userId: string;
     try {
       userId = await this.db.$transaction(async tx => {
@@ -434,6 +435,7 @@ export class AuthService implements OnModuleDestroy {
     });
     if (existing?.emailVerifiedAt) return { accepted: true };
     let userId: string;
+    let newlyCreated = false;
     if (existing) userId = existing.id;
     else {
       // Never log or return raw user email on errors.
@@ -441,6 +443,7 @@ export class AuthService implements OnModuleDestroy {
       try {
         const created = await this.db.user.create({ data: { email, passwordHash } });
         userId = created.id;
+        newlyCreated = true;
       } catch { return { accepted: true }; }
     }
     const token = randomBytes(32).toString('base64url');
@@ -452,7 +455,10 @@ export class AuthService implements OnModuleDestroy {
     try { await this.hardening.email(email, 'verify-email', token); }
     catch { await this.hardening.audit('EMAIL_DELIVERY_FAILED', userId); }
     await this.hardening.audit('REGISTERED', userId);
-    return { accepted: true };
+    // Only show a freshly created user ID in local development.
+    // Existing-account registration stays indistinguishable (anti-enumeration).
+    return process.env.NODE_ENV === 'development' && newlyCreated
+      ? { accepted: true, userId } : { accepted: true };
   }
 
   async verifyEmail(token: unknown, password: unknown) {
@@ -473,7 +479,7 @@ export class AuthService implements OnModuleDestroy {
         // No caller-supplied user ID or mutable session claim is trusted.
         const verified = await tx.$queryRaw<Array<{ userId: string }>>`
           SELECT security.bootstrap_verified_email_tenant(
-            ${digest}::text, ${randomUUID()}::uuid, ${randomUUID()}::uuid
+            ${digest}::text, ${personalTenantId}::uuid, ${randomUUID()}::uuid
           ) AS "userId"
         `;
         const verifiedId = verified[0]?.userId;
@@ -491,7 +497,9 @@ export class AuthService implements OnModuleDestroy {
       throw error;
     }
     await this.hardening.audit('EMAIL_VERIFIED', userId);
-    return { verified: true };
+    return process.env.NODE_ENV === 'development'
+      ? { verified: true, userId, tenantId: personalTenantId }
+      : { verified: true };
   }
 
   async requestPasswordReset(emailInput: unknown, ip: string) {
