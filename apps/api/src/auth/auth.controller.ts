@@ -1,8 +1,9 @@
 import {
   Body, Controller, Get, Post, Delete, Param, Req, Res, UseGuards, Headers,
-  UnauthorizedException, BadRequestException,
+  UnauthorizedException, BadRequestException, NotFoundException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
 import { AuthService, AccessPrincipal, IssuedSession } from './auth.service';
 import { AccessGuard } from './access.guard';
 import { AuthHardeningService } from './auth-hardening.service';
@@ -51,6 +52,54 @@ export class AuthController {
     await this.hardening.limit('verify-email', req.ip ?? 'unknown');
     res.setHeader('Cache-Control', 'no-store');
     return this.auth.verifyEmail(body?.token, body?.password);
+  }
+
+  /**
+   * Explicitly local M1 mock helper. Not a public account endpoint:
+   * production/test environments return 404 and only loopback clients can call.
+   * Always derive the user from a verified, live bearer session, never input.
+   * Only the known isolated Neon test branch is allowed for owner-role lookup.
+   */
+  @Get('dev-test-context')
+  @UseGuards(AccessGuard)
+  async devTestContext(@Req() req: AuthedRequest,
+                       @Res({ passthrough: true }) res: Response) {
+    const remote = req.socket.remoteAddress || '';
+    if (process.env.NODE_ENV !== 'development' ||
+        !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote))
+      throw new NotFoundException();
+
+    let url: URL;
+    try { url = new URL(process.env.DIRECT_URL || ''); }
+    catch { throw new NotFoundException(); }
+    if (url.hostname !== 'ep-purple-butterfly-b3r5xmh2.c-4.ap-southeast-1.aws.neon.tech' ||
+        decodeURIComponent(url.username) !== 'neondb_owner' ||
+        url.pathname !== '/neondb')
+      throw new NotFoundException();
+
+    const db = new PrismaClient({ datasources: { db: { url: url.toString() } } });
+    try {
+      const own = await db.tenantMember.findMany({
+        where: { userId: req.principal.userId, status: 'ACTIVE' },
+        select: { tenantId: true },
+        orderBy: { tenantId: 'asc' }, take: 5,
+      });
+      const primaryTenant = own.length === 1 ? own[0].tenantId : null;
+      const unrelated = primaryTenant ? await db.tenant.findFirst({
+        where: { id: { not: primaryTenant },
+          members: { none: { userId: req.principal.userId } } },
+        select: { id: true }, orderBy: { createdAt: 'desc' },
+      }) : null;
+      res.setHeader('Cache-Control', 'no-store');
+      return {
+        userId: req.principal.userId,
+        tenantId: primaryTenant,
+        unrelatedTenantId: unrelated?.id || null,
+        source: 'isolated-local-mock',
+      };
+    } finally {
+      await db.$disconnect();
+    }
   }
 
   @Post('password-reset/request')
