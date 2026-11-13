@@ -471,6 +471,9 @@ export class AuthService implements OnModuleDestroy {
     // password can never be used for account takeover.
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
     const digest = this.hardening.tokenHash(token);
+    // The same new tenant UUID is used by the token-bound DB bootstrap
+    // and the development-only verification response.
+    const personalTenantId = randomUUID();
     let userId: string;
     try {
       userId = await this.db.$transaction(async tx => {
