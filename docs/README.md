@@ -4,7 +4,7 @@
 
 > **Status:** Product and technical design baseline. The `main` branch is an early scaffold; PR #4 introduces preliminary authentication and RLS controls but **is not approved for production or merging into `main` until the security release gates are met**.
 
-The root [local mock README](../mock/README.md) documents the development-only tester UUID display, Show/Hide controls, and test-context endpoint; it is **not a production API contract**.
+The root [local mock README](../mock/README.md) documents the development-only tester UUID display, Show/Hide controls, local tester-only password-change workflow, and test-context endpoint; it is **not a production API contract**.
 
 ## Start here
 
