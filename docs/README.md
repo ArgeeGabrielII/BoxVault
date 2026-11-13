@@ -22,6 +22,7 @@
 | [api-contract.md](api-contract.md) | Proposed REST routes, representative payloads, errors and idempotency |
 | [security-and-privacy.md](security-and-privacy.md) | Threat model, tenant isolation, admin privacy, auth, auditing and incident handling |
 | [credits-and-subscriptions.md](credits-and-subscriptions.md) | Web-only manual bank transfer, credit ledger, approvals, annual plans and accounting metrics |
+| [firebase-spark-deployment-plan.md](firebase-spark-deployment-plan.md) | Proposed Google Cloud Firebase Spark-only public static site architecture; strict no-billing safeguards and release gates |
 | [operations-and-deployment.md](operations-and-deployment.md) | Home/hybrid deployment, backups, CI/CD, telemetry, SLOs and cost controls |
 | [delivery-roadmap.md](delivery-roadmap.md) | Phased implementation backlog, dependencies and launch gates |
 | [architecture.md](architecture.md) | Original scaffold architecture overview |
