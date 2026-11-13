@@ -138,3 +138,17 @@ Operator confirmed receipt of a second Brevo verification message and completion
 **Next action:** Re-run the read-only UUID lookup for the *same email address currently logged in* (prefer latest verified account) and retry the exact owner-tenant UUID without refreshing the browser/session. Reproduce the result and investigate principal/session binding only if 403 persists.
 
 **Preservation:** no role, schema, user or inventory writes performed for this investigation.
+
+## Local tester UUID usability improvements — 2026-11-13 (implementation, not live-validated)
+
+**Motivation:** operator's earlier owner-tenant browser request returned 403 (expected 200), and copying UUIDs from separate SQL lookup created friction and possible mismatches.
+
+**Feature branch implementation only:**
+- The tester now has Show/Hide on every masked input, including the emailed verification token.
+- Register emits `userId` **only for newly created accounts and only in NODE_ENV=development**. Existing or duplicate email behavior continues to return generic `accepted: true` without identifiers.
+- Successful one-time email verification returns the generated `userId` and personal `tenantId` in development, with production payload still `{verified:true}`. Bootstrap remains token-bound and atomic.
+- A guarded, loopback-only, development-only `GET /auth/dev-test-context` retrieves UUIDs scoped to the current verified JWT session from the **known isolated Neon test branch**. It returns the authenticated user's ID, sole active tenant and an unrelated existing test tenant ID without emailing or printing credentials. No DB data writes; no new migration, privilege grant, CAPTCHA bypass or RLS policy modification.
+- After successful login the mock automatically requests the IDs and fills the owner and unrelated tenant fields. Any failure is shown in the mock output so manual lookup remains available.
+- **Threat scope:** this endpoint uses the isolated test branch migration-owner DB connection and must never be configured for production. Its guards explicitly reject non-development process settings, non-loopback clients and any unexpected database hostname/username/path. Keep it disabled in deployed environments.
+
+**Acceptance still pending:** user must pull latest branch, restart local NestJS, reload the mock, log in to the same verified account, confirm automatic tenant ID fill and rerun 401/200/403. Do not mark the former 403 resolved or merge PR #4 until observed.
