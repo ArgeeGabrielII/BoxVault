@@ -33,3 +33,7 @@ apps/web/public/icons/
 apps/web/public/social/
 apps/web/public/brand/
 apps/web/public/favicon.ico
+
+# Persistent private local sandbox and connected-only build
+.boxvault-local/
+apps/web/dist-connected/

@@ -2,7 +2,7 @@
 import net from 'node:net';
 import fs from 'node:fs';
 const path=process.env.BOXVAULT_TEST_MAIL_FILE || '/tmp/boxvault-mail-ci.txt';
-fs.writeFileSync(path, '');
+fs.writeFileSync(path, '', { flag: process.env.BOXVAULT_PRESERVE_LOCAL_MAIL === '1' ? 'a' : 'w', mode: 0o600 });
 net.createServer(socket => {
   let pending='', body='', dataMode=false;
   socket.write('220 boxvault-ci ESMTP\r\n');

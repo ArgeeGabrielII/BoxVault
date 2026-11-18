@@ -103,6 +103,9 @@ importers:
       '@boxvault/assets':
         specifier: workspace:*
         version: link:../../packages/assets
+      '@boxvault/qr':
+        specifier: workspace:*
+        version: link:../../packages/qr
       bootstrap:
         specifier: ^5.3.3
         version: 5.3.8(@popperjs/core@2.11.8)

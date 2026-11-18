@@ -39,6 +39,13 @@ export class AuthController {
     return { mfaRequired: false, ...this.publish(res, result.session) };
   }
 
+  @Get('me')
+  @UseGuards(AccessGuard)
+  async profile(@Req() req: AuthedRequest, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.auth.profile(req.principal);
+  }
+
   @Post('register')
   async register(@Body() body: { email?: unknown; password?: unknown; captchaToken?: unknown },
                  @Req() req: Request, @Res({ passthrough: true }) res: Response) {

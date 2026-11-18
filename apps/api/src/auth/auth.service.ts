@@ -110,6 +110,11 @@ export class AuthService implements OnModuleDestroy {
       datasources: { db: { url: url || 'postgresql://unconfigured:unconfigured@localhost:5432/unconfigured' } },
     });
   }
+  async profile(principal: AccessPrincipal) {
+    const user = await this.db.user.findUnique({ where: { id: principal.userId }, select: { id: true, email: true, emailVerifiedAt: true, totpFactor: { select: { enabledAt: true } } } });
+    if (!user) throw FAIL();
+    return { id: user.id, email: user.email, verified: !!user.emailVerifiedAt, mfaEnabled: !!user.totpFactor?.enabledAt };
+  }
   async onModuleDestroy(): Promise<void> { await this.db.$disconnect(); }
   private config() {
     const pepper = process.env.AUTH_SESSION_PEPPER;
@@ -661,7 +666,7 @@ export class AuthService implements OnModuleDestroy {
         mfaAuthenticatedAt: true },
       orderBy: { createdAt: 'desc' }, take: 50,
     });
-    return { sessions };
+    return { sessions: sessions.map(session => ({ ...session, current: session.id === principal.sessionId })) };
   }
 
   async revokeSession(principal: AccessPrincipal, sessionId: string) {

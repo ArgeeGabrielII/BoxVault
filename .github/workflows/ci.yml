@@ -32,6 +32,10 @@ jobs:
         run: pnpm typecheck
       - name: Build
         run: pnpm build
+      - name: Connected client session regression checks
+        run: pnpm --filter @boxvault/web test:connected-session
+      - name: Build connected local frontend
+        run: pnpm --filter @boxvault/web build:connected
       - name: Mailer TLS and CLI dependency regression checks
         run: pnpm --filter @boxvault/api test:dependency-security
       - name: QR package regression tests

@@ -12,6 +12,7 @@ export class ContainerAccessService {
     userId: string,
     name: string,
     publicToken: string,
+    location?: string,
   ) {
     if (!name.trim() || name.length > 200) throw new Error('Invalid name');
     const editor = await tx.tenantMember.findFirst({
@@ -24,19 +25,20 @@ export class ContainerAccessService {
     // helper against a row not visible in its statement-start snapshot. The
     // unchanged INSERT RLS policy still validates actor, tenant and PRIVATE mode.
     await tx.container.createMany({
-      data: [{ id, tenantId, ownerUserId: userId, shareMode: 'PRIVATE', name: name.trim(), publicToken }],
+      data: [{ id, tenantId, ownerUserId: userId, shareMode: 'PRIVATE', name: name.trim(), publicToken, location: location?.trim() || null }],
     });
     return { id, shareMode: 'PRIVATE' as const };
   }
 
-  async readVisible(tx: Prisma.TransactionClient, tenantId: string) {
-    // The DB policy performs the final object authorization, including the
-    // owner/private/selected/all-family distinction.
-    return tx.container.findMany({
-      where: { tenantId },
-      select: { id: true, name: true, location: true, shareMode: true },
-      orderBy: { createdAt: 'desc' },
-    });
+  async readVisible(tx: Prisma.TransactionClient, tenantId: string, containerId?: string) {
+    return tx.$queryRaw<Array<{ id: string; name: string; location: string | null; shareMode: string; canManage: boolean; canEdit: boolean; itemCount: number }>>`
+      SELECT c.id,c.name,c.location,c."shareMode",
+       (c."ownerUserId"=security.actor_id() AND security.member_can_edit(c."tenantId",security.actor_id())) AS "canManage",
+       security.container_allowed(c.id,c."tenantId",true) AS "canEdit",
+       (SELECT count(*)::int FROM public."Item" i WHERE i."containerId"=c.id AND i."tenantId"=c."tenantId") AS "itemCount"
+      FROM public."Container" c WHERE c."tenantId"=${tenantId}::uuid AND (${containerId ?? null}::uuid IS NULL OR c.id=${containerId ?? null}::uuid)
+      ORDER BY c."createdAt" DESC,c.id LIMIT 200
+    `;
   }
 
   async replaceSharing(

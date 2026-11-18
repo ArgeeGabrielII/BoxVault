@@ -38,9 +38,10 @@ export class ContainerController {
   /** Creates a private container in the caller's active tenant. */
   @Post()
   async create(@Req() req: AuthenticatedRequest,
-               @Body() body: { tenantId?: unknown; name?: unknown }) {
+               @Body() body: { tenantId?: unknown; name?: unknown; location?: unknown }) {
     if (typeof body?.tenantId !== 'string' || !UUID.test(body.tenantId) ||
-        typeof body?.name !== 'string' || !body.name.trim() || body.name.length > 200)
+        typeof body?.name !== 'string' || !body.name.trim() || body.name.length > 200 ||
+        (body.location !== undefined && (typeof body.location !== 'string' || body.location.length > 200)))
       throw new BadRequestException('Invalid container details');
     try {
       const result = await this.boundary.withAuthorizedTenant(
@@ -48,6 +49,7 @@ export class ContainerController {
         async (tx, userId) => this.containers.createPrivate(
           tx, body.tenantId as string, userId, body.name as string,
           randomBytes(32).toString('base64url'),
+          body.location as string | undefined,
         ),
         'write',
       );
@@ -114,10 +116,7 @@ export class ContainerController {
     if (!UUID.test(id) || !tenantId || !UUID.test(tenantId)) throw new BadRequestException();
     try {
       const item = await this.boundary.withAuthorizedTenant(req.principal, tenantId,
-        async tx => tx.container.findFirst({
-          where: { id, tenantId },
-          select: { id: true, name: true, location: true, shareMode: true },
-        }));
+        async tx => (await this.containers.readVisible(tx, tenantId, id))[0]);
       if (!item) throw new NotFoundException('Resource unavailable');
       return { data: item };
     } catch (err) {

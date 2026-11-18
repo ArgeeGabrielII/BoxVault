@@ -11,6 +11,7 @@
     "db:generate": "pnpm --filter @boxvault/api db:generate",
     "db:migrate": "pnpm --filter @boxvault/api db:migrate",
     "dev:playground": "pnpm --filter @boxvault/playground dev",
-    "build:playground": "pnpm --filter @boxvault/playground build"
+    "build:playground": "pnpm --filter @boxvault/playground build",
+    "dev:local": "node scripts/local-app.mjs"
   }
 }
