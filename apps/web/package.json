@@ -5,15 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/prepare-assets.mjs && vite",
-    "build": "tsc -b && node scripts/prepare-assets.mjs && vite build && vite build --ssr src/seo/prerender.tsx --mode prerender --outDir .prerender && node scripts/prerender.mjs",
-    "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "build": "pnpm --filter @boxvault/qr build && tsc -b && node scripts/prepare-assets.mjs && vite build && vite build --ssr src/seo/prerender.tsx --mode prerender --outDir .prerender && node scripts/prerender.mjs",
+    "typecheck": "pnpm --filter @boxvault/qr build && tsc --noEmit",
+    "preview": "vite preview",
+    "dev:connected": "vite --config vite.connected.config.ts",
+    "build:connected": "pnpm --filter @boxvault/qr build && tsc --noEmit && vite build --config vite.connected.config.ts",
+    "test:connected-session": "node --experimental-strip-types --test connected/api.test.mjs"
   },
   "dependencies": {
     "@boxvault/assets": "workspace:*",
     "bootstrap": "^5.3.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@boxvault/qr": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

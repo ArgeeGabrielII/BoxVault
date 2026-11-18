@@ -56,8 +56,8 @@ test('mailer upgrade delivers verification and reset mail to the explicit loopba
   await service.email('demo@example.invalid', 'verify-email', 'synthetic-verification');
   await service.email('demo@example.invalid', 'reset-password', 'synthetic-reset');
   assert.equal(smtp.messages.length, 2);
-  assert.match(smtp.messages[0], /https:\/\/example\.invalid\/verify-email\?token=synthetic-verification/);
-  assert.match(smtp.messages[1], /https:\/\/example\.invalid\/reset-password\?token=synthetic-reset/);
+  assert.match(smtp.messages[0], /https:\/\/example\.invalid\/verify-email#token=synthetic-verification/);
+  assert.match(smtp.messages[1], /https:\/\/example\.invalid\/reset-password#token=synthetic-reset/);
 });
 
 test('production mail rejects SMTP without STARTTLS even with the test flag set', { timeout: 10000 }, async t => {

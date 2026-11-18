@@ -112,7 +112,7 @@ jobs:
       SMTP_PORT: '2525'
       SMTP_FROM: no-reply@boxvault.example.invalid
       SMTP_ALLOW_PLAINTEXT_TEST: 'true'
-      PUBLIC_WEB_URL: http://localhost:5173
+      PUBLIC_WEB_URL: http://127.0.0.1:5180
       BOXVAULT_TEST_MAIL_FILE: /tmp/boxvault-mail-ci.txt
       BOXVAULT_API_URL: http://127.0.0.1:4001
       PGPASSWORD: ci_ephemeral_fixture_only
@@ -123,7 +123,7 @@ jobs:
       AUTH_SESSION_PEPPER: ci-only-session-pepper-not-for-production-2026
       AUTH_ACCESS_JWT_KEY: ci-only-jwt-key-must-never-be-used-in-prod
       TOTP_ENCRYPTION_KEY: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
-      WEB_ORIGIN: http://localhost:5173
+      WEB_ORIGIN: http://localhost:5173,http://127.0.0.1:5180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -184,6 +184,10 @@ jobs:
             END IF;
           END $$;
           SQL
+      - name: Prepare connected local web dependencies
+        run: |
+          pnpm --filter @boxvault/qr build
+          node apps/web/scripts/prepare-assets.mjs
       - name: Start API and enforce HTTP auth and MFA contract
         run: |
           pnpm --filter @boxvault/api exec node test/smtp-fixture.mjs >/tmp/boxvault-smtp-ci.log 2>&1 &
@@ -203,3 +207,13 @@ jobs:
           fi
           pnpm --filter @boxvault/api test:auth-http:contract
           pnpm --filter @boxvault/api test:family:http
+          BOXVAULT_LOCAL_PROFILE=1 BOXVAULT_LOCAL_API_ORIGIN=http://127.0.0.1:4001 BOXVAULT_LOCAL_WEB_PORT=5180 pnpm --filter @boxvault/web dev:connected >/tmp/boxvault-web-ci.log 2>&1 &
+          web_pid=$!
+          trap 'kill "$api_pid" "$smtp_pid" "$web_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:5180/ >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1 || exit 1
+          node scripts/test-connected.mjs

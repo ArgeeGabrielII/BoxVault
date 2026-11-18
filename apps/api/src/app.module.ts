@@ -1,5 +1,6 @@
 import { FamilyController } from './family/family.controller';
 import { FamilyService } from './family/family.service';
+import { ConnectedInventoryController } from './inventory/connected.controller';
 import { Module } from '@nestjs/common';
 import { HealthController } from './health/health.controller';
 import { AuthController } from './auth/auth.controller';
@@ -13,7 +14,7 @@ import { TenantBoundaryService } from './security/tenant-boundary.service';
 import { ContainerAccessService } from './security/container-access.service';
 
 @Module({
-  controllers: [HealthController, AuthController, ContainerController, AdminController, FamilyController],
+  controllers: [HealthController, AuthController, ContainerController, AdminController, FamilyController, ConnectedInventoryController],
   providers: [AuthHardeningService, AuthService, AccessGuard, PlatformAdminGuard, TenantBoundaryService, ContainerAccessService, FamilyService],
 })
 export class AppModule {}

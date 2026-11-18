@@ -6,6 +6,10 @@
 
 Mock materials are organized under [mock documentation](mock/README.md): [tester guides](mock/documents/README.md) and [test-data catalog](mock/data/README.md) are separate; the [runnable HTML](../mock/boxvault-m1-registration-harness.html) stays under `/mock`. Mock helpers are **not production API contracts**.
 
+## Use the connected local app
+
+Run `pnpm install --frozen-lockfile`, then `pnpm dev:local`, and open **http://127.0.0.1:5180**. Create an account, verify it in Local inbox, create boxes/items and download/test a real access-checked QR label. [Setup, connected features and limits](development/connected-local-app.md). Local data persists in `.boxvault-local`; the Firebase site remains a separate mock UI. Production acceptance is still pending.
+
 ## Start here
 
 1. [Product requirements](product/product-requirements.md)

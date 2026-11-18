@@ -168,9 +168,8 @@ export class AuthHardeningService implements OnModuleDestroy {
       throw new ServiceUnavailableException('SMTP credentials required');
     const paths = { 'verify-email': '/verify-email', 'reset-password': '/reset-password', 'family-invitation': '/accept-invitation' };
     const link = new URL(paths[purpose], origin);
-    // New invitation proofs stay out of HTTP access logs and referrer URLs.
-    if (purpose === 'family-invitation') link.hash = 'token=' + encodeURIComponent(token);
-    else link.searchParams.set('token', token);
+    // Verification, reset and invitation proofs stay out of HTTP logs/referrers.
+    link.hash = 'token=' + encodeURIComponent(token);
     const transport = nodemailer.createTransport({
       host, port, secure: port === 465, requireTLS: !insecureTest && port !== 465,
       auth: insecureTest ? undefined : { user: process.env.SMTP_USER!, pass: process.env.SMTP_PASSWORD! },
@@ -190,7 +189,7 @@ export class AuthHardeningService implements OnModuleDestroy {
       'GOOGLE_LOGIN', 'GOOGLE_FAILED', 'MFA_CHALLENGE_FAILED',
       'MFA_CHALLENGE_PASSED', 'MFA_ENROLLED', 'MFA_RECOVERY_USED',
       'MFA_DISABLED', 'MFA_RECOVERY_ROTATED', 'PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET_COMPLETED',
-      'SESSIONS_REVOKED', 'REFRESH_REPLAY_DETECTED', 'EMAIL_DELIVERY_FAILED', 'ADMIN_ACCESS_DENIED', 'ADMIN_ACCESS_GRANTED',
+      'SESSIONS_REVOKED', 'LABEL_ROTATED', 'REFRESH_REPLAY_DETECTED', 'EMAIL_DELIVERY_FAILED', 'ADMIN_ACCESS_DENIED', 'ADMIN_ACCESS_GRANTED',
       'ADMIN_STEP_UP',
     ]);
     if (!kinds.has(kind)) throw new Error('Invalid audit event');

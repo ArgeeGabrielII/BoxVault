@@ -166,4 +166,29 @@ Generate negative tests for unauthenticated access, wrong tenant, revoked member
 
 ## M1 feature-branch route implementation (2026-11-11)
 
-**Current branch supplement (2026-11-12):** M1 implements the earlier login/Google/TOTP/refresh/logout/container-read routes **and** server-side registration, recipient-controlled email verification, password-reset, session management and privileged MFA/step-up controls. The `GET /admin/topups` route remains deliberately non-operational for payment review. A positive local register → verify → login was reported, but browser authorization is not accepted (own-tenant GET returned 403). Implementation is branch-only and has not been released to production. See [API audit](../audit/api/m1-implementation.md) and [Phase D](../audit/api/phase-d-real-provider-validation.md).
+**Historical branch supplement (2026-11-12; superseded by the reconciliation below):** M1 implements the earlier login/Google/TOTP/refresh/logout/container-read routes **and** server-side registration, recipient-controlled email verification, password-reset, session management and privileged MFA/step-up controls. The `GET /admin/topups` route remains deliberately non-operational for payment review. A positive local register → verify → login was reported, but browser authorization is not accepted (own-tenant GET returned 403). Implementation is branch-only and has not been released to production. See [API audit](../audit/api/m1-implementation.md) and [Phase D](../audit/api/phase-d-real-provider-validation.md).
+
+
+## Connected local implementation (2026-11-18)
+
+M1 and ID-03 source are consolidated on main. The earlier own-tenant 403 blocker was resolved and retested; it is not a current blocker. The connected local frontend now exercises real account, tenant, inventory, invitation and session APIs. This is local engineering evidence, not production acceptance. See [local setup and scope](../development/connected-local-app.md) and [ID-03 audit](../audit/api/id03-family-membership.md).
+
+All paths below use `/api/v1`. Inventory requests require an access session and explicit `tenantId` in the body, or query for GET/DELETE. Same-transaction tenant context, active membership and PostgreSQL object policies remain authoritative.
+
+| Method | Route | Connected behavior |
+| --- | --- | --- |
+| GET | `/auth/me` | Own verified profile and MFA status |
+| GET | `/auth/sessions` | Own sessions, including current-session marker |
+| POST | `/containers` | Create private box with name and optional location atomically |
+| GET | `/containers`, `/containers/:id` | Visible boxes with item counts and effective edit/manage capabilities |
+| PATCH | `/containers/:id` | Creator with editing membership updates name/location |
+| GET/POST | `/containers/:id/items` | Visible item list / authorized item creation |
+| PATCH/DELETE | `/items/:id` | Authorized item update/removal; integer quantity 0–1,000,000 |
+| POST | `/containers/:id/labels` | Creator with editing membership issues/replaces label, revoking the earlier locator |
+| POST | `/labels/resolve` | Resolve hashed locator only within the caller's authorized tenant and object scope |
+
+Label creation returns a one-time `/scan#token=…` URL; only its SHA-256 hash is stored. Possession grants no access. Invalid, rotated, cross-tenant and private locators return neutral 404. Verification, reset and invitation email links also carry proofs in URL fragments. Responses use `Cache-Control: no-store`.
+
+`/__local/mail` and `/__local/family` belong to the Vite development sandbox, not the NestJS or public hosting contract. They require the explicit loopback/test profile; Family activation additionally checks actual owner membership and an allowlisted local database. There is no payment, credit grant, external email or hosted database migration in this flow.
+
+Automated evidence includes the proxy-level register → verify → login → box/items → QR rotation → invitation acceptance → selected sharing → revocation → reset/refresh/logout flow. Browser/device interaction and production release acceptance remain separate.

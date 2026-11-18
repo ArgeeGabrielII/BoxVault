@@ -4,6 +4,15 @@ QR/NFC-powered storage organization. One monorepo for the customer web portal, n
 
 Current integration (2026-11-13): development branches are consolidated into `main` at the owner’s request. The Firebase Spark target is `boxvault-argee-2026`; the owner approved publishing the fictional-data dashboard from `apps/web` with automatic Hosting deployment from `main`. Customer UI remains a mock prototype and API production acceptance is pending. See [deployment setup](docs/firebase-spark-cicd.md).
 
+## Connected local BoxVault
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev:local
+```
+
+Open **http://127.0.0.1:5180**. Create and verify an account through Local inbox, sign in, save boxes/items, and create/download/test QR labels. PostgreSQL 18 is required; local data persists across restarts. [Full setup and supported flows](docs/development/connected-local-app.md). This local sandbox does not send external mail or enable payments; the Firebase site remains the separate mock preview.
+
 ## Stack
 - Web: React 19, Vite, TypeScript, Bootstrap 5
 - API: NestJS, TypeScript, Prisma 6, PostgreSQL
