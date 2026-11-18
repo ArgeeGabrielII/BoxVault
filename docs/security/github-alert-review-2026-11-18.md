@@ -22,6 +22,8 @@ This is the opaque lookup-key design recommended as an alternative to storing se
 
 ## Separate dependency audit
 
+The findings below are the baseline before dependency remediation. See the [dependency follow-up](dependency-remediation-2026-11-18.md) for patched versions and the remaining unpatched issue.
+
 `pnpm audit --json` against the committed lockfile returned **25 findings: 7 high, 17 moderate, 1 low, 0 critical**. These are dependency findings, not additional open GitHub CodeQL alerts or proof that all vulnerable options are reachable.
 
 | Dependency | Locked versions | Location / exposure |

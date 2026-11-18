@@ -10,3 +10,9 @@ onlyBuiltDependencies:
   - argon2
   - esbuild
   - prisma
+
+# Security fixes for existing CLI/config dependencies. Remove each override when
+# its parent adopts a patched version; validate Prisma and Nest CLI compatibility.
+overrides:
+  '@prisma/config>deepmerge-ts': 8.0.2
+  '@nestjs/cli>glob': 14.0.6

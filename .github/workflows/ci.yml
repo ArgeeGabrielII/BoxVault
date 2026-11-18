@@ -21,6 +21,8 @@ jobs:
           version: '10.18.0'
       - name: Install
         run: pnpm install --frozen-lockfile
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level=low
       - name: Generate Prisma client
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/boxvault
@@ -30,6 +32,8 @@ jobs:
         run: pnpm typecheck
       - name: Build
         run: pnpm build
+      - name: Mailer TLS and CLI dependency regression checks
+        run: pnpm --filter @boxvault/api test:dependency-security
       - name: QR package regression tests
         run: pnpm --filter @boxvault/qr test
       - name: Developer Playground typecheck (mock-only)

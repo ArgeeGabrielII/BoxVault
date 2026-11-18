@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "test:authz:e2e": "node --test test/authorization.e2e.test.mjs",
-    "test:auth-http:contract": "node --test test/authentication.http.contract.test.mjs"
+    "test:auth-http:contract": "node --test test/authentication.http.contract.test.mjs",
+    "test:dependency-security": "node --test test/dependency-security.test.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -23,7 +24,7 @@
     "argon2": "^0.44.0",
     "google-auth-library": "^10.0.0",
     "jose": "^6.0.0",
-    "nodemailer": "^7.0.10"
+    "nodemailer": "^10.6.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -32,6 +33,6 @@
     "@types/node": "^22.0.0",
     "prisma": "^6.0.0",
     "typescript": "~5.8.3",
-    "@types/nodemailer": "^7.0.4"
+    "@types/nodemailer": "^8.0.2"
   }
 }
