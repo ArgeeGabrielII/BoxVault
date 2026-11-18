@@ -17,7 +17,9 @@ export class AuthController {
               private readonly hardening: AuthHardeningService) {}
 
   private publish(response: Response, session: IssuedSession) {
-    // Refresh credentials must not be available to JavaScript or in JSON.
+    // Opaque 48-byte random session handle, not a password or user record.
+    // The database stores only its keyed hash (AuthService.issue).
+    // Keep it HttpOnly, HTTPS-only in production, and out of JSON.
     response.cookie('boxvault_refresh', session.refreshToken, {
       httpOnly: true, secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict', path: '/api/v1/auth',

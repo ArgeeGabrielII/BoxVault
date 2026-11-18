@@ -9,6 +9,9 @@ on:
       - "apps/api/prisma/schema.prisma"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   generate:
     runs-on: ubuntu-latest

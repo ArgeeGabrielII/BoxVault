@@ -75,6 +75,14 @@ test('AUTH-HTTP-07: password session, MFA setup, one-time recovery and refresh r
   assert.equal(first.tokenType,'Bearer');
   const firstCookie=start.headers.get('set-cookie')?.split(';')[0];
   assert.ok(firstCookie?.startsWith('boxvault_refresh='));
+  assert.match(firstCookie,/^boxvault_refresh=[A-Za-z0-9_-]{64}$/,
+    'Refresh cookie must contain only an opaque 48-byte session handle');
+  assert.equal(Object.hasOwn(first,'refreshToken'),false,'Refresh credentials must not enter JSON');
+  assert.equal(Object.hasOwn(first,'password'),false,'Passwords must not enter JSON');
+  assert.equal(Object.hasOwn(first,'passwordHash'),false,'Password hashes must not enter JSON');
+  assert.ok(!firstCookie.includes(loginPayload.password),'Cookie must not contain a password');
+  assert.equal(start.headers.get('cache-control'),'no-store');
+
   assert.match(start.headers.get('set-cookie')??'',/httponly/i);
   assert.match(start.headers.get('set-cookie')??'',/samesite=strict/i);
 

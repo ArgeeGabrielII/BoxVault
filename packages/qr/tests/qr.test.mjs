@@ -42,10 +42,19 @@ test('guards against unsafe or nonsensical parameters', () => {
   assert.throws(()=>renderQrSvg(matrix,{dark:'#ffffff',light:'#ffffff'}));
   assert.throws(()=>renderQrSvg(matrix,{scale:1000}));
 });
-test('escapes attacker-controlled label titles; QR remains independent of labels', () => {
+test('escapes attacker-controlled label fields; QR remains independent of labels', () => {
   const matrix=encodeQr({value:'demo'});
-  const label=renderLabelSvg({matrix,title:'<script>alert("x")</script>',subtitle:'a & b'});
-  assert.doesNotMatch(label,/<script>/);
-  assert.match(label,/&lt;script&gt;/);
+  for (const tag of ['script', 'SCRIPT', 'ScRiPt']) {
+    const payload='<'+tag+'>alert("x")</'+tag+'>';
+    const label=renderLabelSvg({matrix,title:payload,subtitle:payload,reference:payload});
+    // This checks generated output; it is never used as an HTML sanitizer.
+    assert.doesNotMatch(label,/<script\b/i);
+    assert.equal(label.split('&lt;'+tag+'&gt;').length-1,3,
+      'Every user-controlled text field must escape tag delimiters');
+  }
+  const label=renderLabelSvg({matrix,title:'<img src=x onerror="x">',subtitle:'a & b',reference:'"quoted"'});
+  assert.doesNotMatch(label,/<img\b/i);
+  assert.match(label,/&lt;img src=x onerror=&quot;x&quot;&gt;/);
   assert.match(label,/a &amp; b/);
+  assert.match(label,/&quot;quoted&quot;/);
 });

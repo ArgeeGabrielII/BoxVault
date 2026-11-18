@@ -9,6 +9,9 @@ on:
       - '.github/workflows/m1-authorization.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   authorization:
     runs-on: ubuntu-latest
