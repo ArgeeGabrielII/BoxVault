@@ -49,6 +49,7 @@ export class ContainerController {
           tx, body.tenantId as string, userId, body.name as string,
           randomBytes(32).toString('base64url'),
         ),
+        'write',
       );
       return { data: result };
     } catch (err) {
@@ -96,6 +97,7 @@ export class ContainerController {
           tx, body.tenantId as string, userId, id,
           body.shareMode as ContainerShareMode, grants,
         ),
+        'write',
       );
       return { data };
     } catch (err) {

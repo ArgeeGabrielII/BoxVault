@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ContainerGrantPermission, ContainerShareMode, Prisma } from '@prisma/client';
 
@@ -13,12 +14,19 @@ export class ContainerAccessService {
     publicToken: string,
   ) {
     if (!name.trim() || name.length > 200) throw new Error('Invalid name');
-    // The current DB policy insists that a new container be private and owned
-    // by the authenticated actor. Token issuance must use a CSPRNG.
-    return tx.container.create({
-      data: { tenantId, ownerUserId: userId, shareMode: 'PRIVATE', name: name.trim(), publicToken },
-      select: { id: true, shareMode: true },
+    const editor = await tx.tenantMember.findFirst({
+      where: { tenantId, userId, status: 'ACTIVE', role: { in: ['OWNER', 'EDITOR'] } },
+      select: { id: true },
     });
+    if (!editor) throw new Error('Access denied');
+    const id = randomUUID();
+    // A single INSERT without RETURNING avoids evaluating the stable read-policy
+    // helper against a row not visible in its statement-start snapshot. The
+    // unchanged INSERT RLS policy still validates actor, tenant and PRIVATE mode.
+    await tx.container.createMany({
+      data: [{ id, tenantId, ownerUserId: userId, shareMode: 'PRIVATE', name: name.trim(), publicToken }],
+    });
+    return { id, shareMode: 'PRIVATE' as const };
   }
 
   async readVisible(tx: Prisma.TransactionClient, tenantId: string) {

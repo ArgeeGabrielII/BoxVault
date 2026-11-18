@@ -1,6 +1,6 @@
 # M1 — Container sharing and immediate revocation test
 
-**State:** implementation exists on draft PR #4; **live two-account HTTP acceptance not yet demonstrated**. This procedure is for the local tester, not production release.
+**Current state — 2026-11-18:** Container sharing and ID-03 invitations are implemented in consolidated source. The disposable HTTP suite registers/verifies separate users, accepts a same-tenant invitation and proves 404 → 200 → 404 selected sharing with the same session. See the [ID-03 audit](../../audit/api/id03-family-membership.md). Browser/client integration and production approval remain pending; this guide retains the manual browser procedure.
 
 ## What changed
 
@@ -15,7 +15,7 @@ Only the scoped runtime identity and existing RLS checks authorize tenant and ob
 
 ## Prerequisite: two active accounts in one tenant
 
-**Crucial:** two independent new registrations create **two independent personal tenants**, not a family. To test selected-member sharing, the creator (Account A) and recipient (Account B) must already hold active memberships in the *same* family tenant. The feature branch **does not yet implement** accepting family invitations/seat management. Do not add a member with raw SQL to the persistent Neon branch or use the migration owner as a consumer-facing workaround. Complete family invitation acceptance in a later reviewed phase, or use the disposable PostgreSQL fixture suite described below.
+**Crucial:** Independent registrations create separate personal tenants. Use ID-03 with an active Family entitlement and verified-email invitation acceptance to add the second membership. This preserves each personal workspace. The backend needs migration `006` and reviewed function execution grants; the public Firebase mock does not perform this flow. Use the disposable HTTP/SMTP fixture suite for automated acceptance. Do not insert memberships or entitlements with raw SQL into persistent Neon to bypass the real workflow.
 
 ## Browser verification once that prerequisite is met
 
@@ -29,7 +29,7 @@ Only the scoped runtime identity and existing RLS checks authorize tenant and ob
 8. Without refreshing or re-logging in, B checks again. Expected **HTTP 404**. A's access stays HTTP 200. A separate same-family member with no selected grant remains HTTP 404.
 9. Save **statuses only** in the [Phase D audit](../../audit/api/phase-d-real-provider-validation.md); never paste JWTs, passwords, QR tokens, customer container data, or verification links.
 
-The mock does not implement an invitation flow or automated creation of family memberships. **Don't infer a two-account PASS from the single-account 401/200/403 tenant test.**
+The legacy mock harness still does not implement the new invitation UI; use the ID-03 HTTP suite until client integration is complete. **Don't infer a two-account PASS from the single-account 401/200/403 tenant test.**
 
 ## Disposable PostgreSQL acceptance (no Neon writes)
 
@@ -48,4 +48,4 @@ Required environment variables: `AUTHZ_ADMIN_DATABASE_URL` and `AUTHZ_RUNTIME_DA
 - SEC-06: removing an active member blocks container/item/media and grant visibility.
 - **SEC-11 (new):** delete one recipient's SELECTED_MEMBERS grant; assert immediate denial to that container, item, media and grant metadata in fresh transactions; owner's access remains intact; ungranted family members remain denied.
 
-**Acceptance status:** SEC-11 source assertion added; CI outcome and browser two-account status must be inspected before declaring it passed. Container and item/media RLS do not replace future media HTTP, search, QR and cache invalidation tests.
+**Acceptance status:** SEC-11 and the ID-03 HTTP suite have scoped automated evidence in the current audit; browser and production acceptance remain distinct. Container and item/media RLS do not replace future media HTTP, search, QR and cache invalidation tests.

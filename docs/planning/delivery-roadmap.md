@@ -1,8 +1,8 @@
 # Implementation Roadmap and Definition of Done
 
-**Snapshot:** 2026-11-12 (Asia/Manila) · **Change:** [PR #4](https://github.com/ArgeeGabrielII/BoxVault/pull/4) · **Branch:** `feat/m1-auth-tenant-acl-rls`
+**Current snapshot:** 2026-11-18 (Asia/Manila). Auth/MFA, onboarding and container ACL foundations have been consolidated into `main`; earlier PR #4 branch-only and merge-hold notes are historical. See the [ID-03 audit](../audit/api/id03-family-membership.md) for the next backend feature's current scope and evidence.
 
-> **M1 is not accepted for production, and PR #4 must remain unmerged until all applicable security release gates have independently verified evidence and explicit approval.** The repository is a developing scaffold, not an end-to-end customer-ready SaaS. A feature existing in code, a passing *earlier* CI run, or a successful isolated-database test is not proof of production readiness.
+**Production acceptance remains separate:** automated tests and source merges do not approve M1, a hosted backend migration, or customer/financial release. Current-head CI, real client/provider integration, independent review and explicit release sign-off remain applicable gates.
 
 ## Progress tracking rules
 
@@ -22,7 +22,7 @@ Use these statuses consistently. They track **delivery and evidence**, not a sub
 | Milestone | Delivery state | Verified progress / evidence | Acceptance state | Next decision or unblock |
 |---|---|---|---|---|
 | **M0 — Foundation** | **In Progress** | Monorepo, starter clients/API, Prisma baseline; CI and local tooling exist, but complete build/device/hosting gates remain | **Not accepted** | Verify full workspace, iOS on device, deployment choices |
-| **M1 — Identity, MFA & tenant isolation** | **Blocked** for release; substantial **Implemented** backend work | Isolated Neon database phases **A/B/C verified**; scoped GitHub Actions passed at `deed36b8`; local real-provider register/verify/login was observed; full current-head/e2e acceptance outstanding | **0 production release approvals**; **not accepted** | Fix/diagnose own-tenant HTTP 403, rerun full matrix, review legacy privileged role, complete client integration and independent security approval |
+| **M1 — Identity, MFA & tenant isolation** | **Blocked** for release; substantial **Implemented** backend work | Isolated Neon phases **A/B/C verified**; consolidated auth/container code and ID-03 have scoped automated evidence in the current feature audit; production integration/acceptance remains outstanding | **0 production release approvals**; **not accepted** | Complete ID-03 client/live-provider integration, hosted privilege review and broader M1 production acceptance |
 | **M2 — Inventory, private media & QR/NFC** | **In Progress** (limited scaffold) | Initial native scanner and authenticated container-read foundation; full write/media/label flows not evidenced | **Not accepted** | Secure end-to-end inventory and label workflows with negative tests |
 | **M3 — Web-only credits & subscriptions** | **Blocked** for financial release | Pricing/ledger model specified; payment-review endpoint intentionally not available for use | **Not accepted** | Implement double-entry/ledger integrity, bank verification, web-only entitlements and reconciliation |
 | **M4 — Operations, compliance & pilot** | **Blocked** for launch | Isolated CI/test-branch evidence; no launch authorization or complete recovery/compliance evidence | **Not accepted** | Recovery drills, live operations controls, external review and legal/App Store sign-off |
@@ -59,15 +59,15 @@ Use these statuses consistently. They track **delivery and evidence**, not a sub
 | Argon2id login, Google token verification/linking, password reset, recipient-controlled verified-email onboarding | **Implemented** | NestJS auth services and migrations exist; retest negative cases/current PR head and real-provider edge cases |
 | TOTP, one-time recovery, mandatory operator MFA/step-up, session refresh/reuse revocation, account audit | **Implemented** | Scoped backend implementation; verify fresh/current-head CI, race cases, key rotation, privileged-user controls |
 | Tenant memberships, restricted database roles, private-by-default per-container ACL + RLS | **Implemented** | Verified scoped DB policy/grant results; full authenticated HTTP read/write/media/QR authorization still pending |
-| **Browser tenant isolation: unauthenticated 401; unrelated tenant 403; own tenant 200** | **Blocked** | Reported 401/403/**403**; own-tenant access unexpectedly denied. The restricted-role DB test returned active membership and zero visible containers; **do not relax RLS**. Recheck logged-in principal and exact tenant UUID, then diagnose route binding and rerun |
-| Existing family membership, invite acceptance/removal, four-person seat cap, ACL grant/revoke concurrency | **In Progress** | Schema/policy baseline exists; complete user-facing flows and transactional/HTTP race tests |
+| **Browser tenant isolation: unauthenticated 401; unrelated tenant 403; own tenant 200** | **Verified for the recorded smoke test** | 2026-11-13 operator retest passed 401/200/403, superseding the prior own-tenant 403. This is scoped evidence, not full release acceptance. |
+| Family invitations, membership controls, four-seat cap and share/revoke flow (ID-03) | **Implemented; production integration pending** | Real disposable-PostgreSQL HTTP and race tests are documented in the ID-03 audit. Client invitation UI, live-provider/hosted privilege review and release sign-off remain. |
 | Native/web signup, verification, Google login, MFA/recovery and logout UI | **Blocked** | Web is still a starter UI; iOS auth/security integration has no demonstrated end-to-end acceptance. [Web audit](../audit/web/m1-registration-ui.md) · [Mobile audit](../audit/mobile/m1-integration.md) |
 | Complete real-provider validation (CAPTCHA freshness/replay, SMTP delivery/outbox, account recovery, safely handled verification links) | **Pending Verification** | Positive local flow reported; additional negative cases, delivery monitoring and token-log leakage controls remain |
 | Full cross-tenant read/write/count/search/ACL/label/media HTTP matrix and latest-head CI | **Pending Verification** | Earlier scoped CI is evidence only for its recorded commit; exercise latest branch and capture run URLs |
 | Retire/restrict legacy privileged auth role after dependency audit | **Blocked** | `boxvault_auth_m1` remains overprivileged on isolated test; separately authorize changes |
-| Independent security review, branch protection, production OAuth/SMTP/CAPTCHA, edge/WAF, audit retention, backup/restore, rollback approval | **Blocked** | Required before merge/public launch; neither test-branch DB changes nor scoped CI waive these gates |
+| Independent security review, branch protection, production OAuth/SMTP/CAPTCHA, edge/WAF, audit retention, backup/restore, rollback approval | **Blocked** | Required before production launch; neither test-branch DB changes nor scoped CI waive these gates |
 
-**M1 exit gate:** The authenticated principal and tenant are consistent at the real API boundary; permitted own/private/selected/all-family access succeeds, all unauthorized and revoked-member cases fail, and media/QR/finance boundaries are protected. Current-head full tests, live-provider and operations evidence, independent security sign-off and explicit approval are mandatory. **Do not merge PR #4 until the independently reviewed gate is satisfied.** See [M1 gate status](../security/m1-security-gate-status.md) and [engineering audit register](../audit/README.md).
+**M1 exit gate:** The authenticated principal and tenant are consistent at the real API boundary; permitted own/private/selected/all-family access succeeds, all unauthorized and revoked-member cases fail, and media/QR/finance boundaries are protected. Current-head full tests, live-provider and operations evidence, independent security sign-off and explicit approval are mandatory. **Do not approve production release until the independently reviewed gate is satisfied.** See [M1 gate status](../security/m1-security-gate-status.md) and [engineering audit register](../audit/README.md).
 
 ## Phase 2 — Inventory, labels, private media and native scan (M2 — MVP)
 
@@ -135,7 +135,7 @@ AI-assisted item suggestions, barcode scanning, Android, advanced zero-knowledge
 
 ## Release blockers — never automatically waived
 
-- **Current M1 defect:** own-tenant browser request returned 403 instead of expected 200; tenant-binding diagnosis and retest pending.
+- **Historical M1 defect resolved for the recorded smoke test:** the 2026-11-13 own-tenant retest returned 200; do not re-list the older 403 as a current blocker. Full client/provider and production acceptance remains outstanding.
 - Insufficient current-head HTTP/DB/CI and independent security review, with incomplete media/QR/finance negative authorization coverage.
 - Remaining overprivileged legacy test auth role; unverified operator provisioning, WAF, audit integrity, key rotation, and real-provider reliability.
 - Cross-tenant leakage, private photo/object exposure, improper QR bearer-label access, unauthorized family sharing, removal/session-revocation weakness.

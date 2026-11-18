@@ -1,8 +1,8 @@
 # Proposed REST API Contract
 
-**Implementation snapshot (2026-11-13; PR #4):** Routes in the tables below include both proposed and branch-implemented APIs. On the M1 branch, login/Google linking, email registration and verification, password reset, TOTP/MFA, session controls, guarded container reads and fail-closed admin top-ups have backend implementations. Positive local registration → verification → login and browser 401/200/403 tenant-isolation tests were observed. Owner-only container create/sharing writes have been added to the feature branch but are awaiting independent live HTTP acceptance. No full production endpoint acceptance, QR/media CRUD or payment-review service is claimed. See [API M1 implementation audit](../audit/api/m1-implementation.md), [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
+**Implementation snapshot — 2026-11-18:** Auth/MFA, registration/verification/reset, session controls, guarded container list/detail/private creation/sharing and the deny-by-default admin top-up route are implemented in consolidated source. ID-03 adds the eight tenant/invitation/member routes documented in the [current audit](../audit/api/id03-family-membership.md). Their scoped automated evidence does not establish complete client integration or production acceptance. QR/media CRUD, financial services and most remaining table entries are still proposals.
 
-Status: API design draft. On `main`, only `GET /api/v1/health` is implemented. On the **M1 feature branch**, partial auth/MFA routes plus authenticated container list/detail, private creation and owner-only sharing replacement and a deny-by-default admin `GET /admin/topups` route are implemented. Most routes below remain specifications; see [m1-authentication-implementation.md](../security/m1-authentication-implementation.md).
+**Contract status:** a mixture of implemented and proposed routes. The old statement that main contains only `/health` is superseded. The hosted Firebase release still has no connected application backend.
 
 ## 1. Conventions
 
@@ -48,7 +48,8 @@ Recommended error codes: `VALIDATION_ERROR` (400), `UNAUTHENTICATED` (401), `FOR
 | POST | `/tenants` | User | Create tenant |
 | GET | `/tenants` | User | List user's authorized tenant memberships |
 | GET | `/tenants/{tenantId}/members` | Owner | Members |
-| POST | `/tenants/{tenantId}/invitations` | Owner | Invite member, enforce four seats |
+| GET/POST | `/tenants/{tenantId}/invitations` | Owner | ID-03: list/invite; active Family plan for creation, four reserved/active seats |
+| DELETE | `/tenants/{tenantId}/invitations/{invitationId}` | Owner | ID-03: cancel a pending invitation |
 | POST | `/invitations/accept` | User | Accept invite |
 | PATCH/DELETE | `/tenants/{tenantId}/members/{memberId}` | Owner | Role change/removal |
 
@@ -92,7 +93,7 @@ Server must independently validate `tenantId` against a currently active members
 
 Example read for a container should return authorized thumbnail URLs and items, never raw storage credentials or bank data.
 
-**M1 feature-branch container mutations (not released):** `POST /containers` accepts `{tenantId,name}` and returns a private container ID; `PUT /containers/:id/sharing` accepts `{tenantId,shareMode,grants:[{userId,permission}]}`. Only the owning creator can update sharing. Revoking all selected grants uses `shareMode: "PRIVATE", grants: []`, evaluated again on every subsequent read. All requests require a live authenticated session, active tenant membership and RLS. Two-user family acceptance is pending until tenant invitation acceptance exists. See [test procedure](../mock/documents/container-sharing-revocation.md).
+**M1 feature-branch container mutations (not released):** `POST /containers` accepts `{tenantId,name}` and returns a private container ID; `PUT /containers/:id/sharing` accepts `{tenantId,shareMode,grants:[{userId,permission}]}`. Only the owning creator can update sharing. Revoking all selected grants uses `shareMode: "PRIVATE", grants: []`, evaluated again on every subsequent read. All requests require a live authenticated session, active tenant membership and RLS. The ID-03 disposable HTTP suite now exercises two independently registered users joining one tenant and the 404/200/404 sharing sequence. Browser/client and production acceptance remain separate. See [test procedure](../mock/documents/container-sharing-revocation.md).
 
 ## 4. Web-only credits / plan endpoints
 

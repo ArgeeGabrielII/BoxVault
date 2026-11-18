@@ -1,5 +1,7 @@
 # BoxVault engineering audit register
 
+**Current reconciliation — 2026-11-18:** The chronological records below preserve their original dates. Their branch-only/PR merge holds and unresolved own-tenant 403 statements are superseded: source was consolidated with owner authorization, and the 401/200/403 smoke retest passed. ID-03 now has a backend implementation and scoped automated verification; see the [current audit](api/id03-family-membership.md). This does not approve M1 or production release.
+
 **Current roll-up (2026-11-13):** The isolated Neon A/B/C migration and least-privilege-grant work is **verified**; GitHub Actions CI has **scoped passes at commit `deed36b8`**; Phase D progressed from pending to an operator-observed successful local Brevo/reCAPTCHA register → verify → login sequence, corroborated in part by read-only Neon audit queries. **Local browser tenant isolation smoke test PASSED on 2026-11-13**: operator-reported unauthenticated 401, own-tenant 200 with 0 containers, unrelated-tenant 403, superseding an earlier own-tenant 403 failure. Latest-head CI, full HTTP authorization matrix, real client flows and release sign-off remain pending. See the chronological [Phase D audit](api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
 
 **Audit snapshot:** 2026-11-12 (Asia/Manila)  

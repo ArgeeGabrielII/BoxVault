@@ -1,5 +1,7 @@
 # M1 — Authentication, Tenant Membership, Container ACL, PostgreSQL RLS
 
+**Current reconciliation — 2026-11-18:** The chronological records below preserve their original dates. Their branch-only/PR merge holds and unresolved own-tenant 403 statements are superseded: source was consolidated with owner authorization, and the 401/200/403 smoke retest passed. ID-03 now has a backend implementation and scoped automated verification; see the [current audit](../audit/api/id03-family-membership.md). This does not approve M1 or production release.
+
 **Milestone status — 2026-11-12:** M1 is **Blocked for release**, despite substantial implemented branch work. Auth/MFA and token-bound onboarding are staged; database migration history (A), schema `002`–`005` (B), and restricted-role grants (C) were verified on the isolated Neon test branch; scoped CI passed at recorded commit `deed36b8`; real-provider local registration/verification/login succeeded. Browser isolation remains **unaccepted** after own-tenant HTTP 403 (expected 200), with latest-head full tests, UI/mobile integration, protected QR/media/finance flows and independent security approval outstanding. The older unexecuted-test passages below describe earlier checkpoints. See [roadmap](delivery-roadmap.md), [audit register](../audit/README.md), [Phase D](../audit/api/phase-d-real-provider-validation.md).
 
 **Status:** implementation in progress; **not approved for production**. Branch: `feat/m1-auth-tenant-acl-rls`.

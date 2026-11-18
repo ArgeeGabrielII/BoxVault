@@ -1,6 +1,6 @@
 # BoxVault documentation
 
-**Progress snapshot — 2026-11-13:** PR #4 includes staged NestJS authentication/MFA, token-bound verified-email onboarding, restricted database roles, Prisma migrations `000`–`005`, and per-container ACL/RLS foundations. Isolated Neon database phases A–C were verified and scoped CI passed on an earlier commit; local register → email verify → login succeeded. **Current-head full acceptance remains pending**; a local browser retest confirmed tenant isolation **401 unauthenticated / 200 own tenant (0 containers) / 403 unrelated tenant**. Other authorization and release gates remain pending. PR #4 is **not production-approved**. Start with the [roadmap](planning/delivery-roadmap.md), [audit register](audit/README.md), and [Phase D latest results](audit/api/phase-d-real-provider-validation.md).
+**Progress snapshot — 2026-11-18:** Authentication/MFA, verified-email onboarding, private container reads/create/sharing and their scoped CI suites are consolidated into `main`. The 2026-11-13 local tenant-isolation retest passed 401/200/403. ID-03 now implements Family invitation acceptance, four-seat concurrency and membership management; see the [current ID-03 audit](audit/api/id03-family-membership.md) for source scope, test evidence and remaining integration work. The public Firebase site is still a disconnected mock. **M1 and paid production remain unapproved**; passing CI is engineering evidence, not production acceptance.
 
 > **Source consolidation — 2026-11-13:** The owner authorized consolidating the development branches into `main`. Earlier branch-isolation and merge-hold notes are historical. Production security acceptance remains pending; the owner approved the mock `apps/web` dashboard as the Firebase Hosting input; backend services remain outside this deployment.
 
@@ -104,6 +104,7 @@ Mock materials are organized under [mock documentation](mock/README.md): [tester
 
 | Document | Description |
 |---|---|
+| [ID-03 audit](audit/api/id03-family-membership.md) | Current family backend implementation, verification and release boundaries |
 | [README.md](audit/README.md) | M1 phase-by-phase engineering audit register and evidence |
 
 ---

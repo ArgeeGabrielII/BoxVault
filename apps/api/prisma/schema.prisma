@@ -8,6 +8,20 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum FamilyInvitationStatus {
+  PENDING
+  ACCEPTED
+  CANCELED
+}
+
+enum FamilyAuditKind {
+  INVITATION_CREATED
+  INVITATION_ACCEPTED
+  INVITATION_CANCELED
+  MEMBER_ROLE_CHANGED
+  MEMBER_REMOVED
+}
+
 enum MembershipStatus {
   ACTIVE
   REMOVED
@@ -69,6 +83,7 @@ model User {
   auditEvents AuthAuditEvent[]
   platformOperator PlatformOperator?
   spentRefreshTokens RefreshTokenReuse[]
+  familyInvitations FamilyInvitation[]
 }
 
 model Tenant {
@@ -80,6 +95,8 @@ model Tenant {
   subscriptions Subscription[]
   wallet        CreditWallet?
   topups        TopupRequest[]
+  invitations   FamilyInvitation[]
+  familyEvents  FamilyAuditEvent[]
 }
 
 model TenantMember {
@@ -215,7 +232,7 @@ model TopupRequest {
   @@index([tenantId, status])
 }
 
- // Authentication schema foundation only. No production authentication service is implemented.
+ // Authentication implementation exists; production deployment/acceptance remains pending.
  // All secret ciphertext must use application-level authenticated encryption and managed keys.
 model AuthIdentity {
   id              String       @id @default(uuid()) @db.Uuid
@@ -339,4 +356,36 @@ model RefreshTokenReuse {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+}
+
+// ID-03: only narrowly scoped security-definer functions can access these tables.
+model FamilyInvitation {
+  id          String @id @default(uuid()) @db.Uuid
+  tenantId    String @db.Uuid
+  invitedBy   String @db.Uuid
+  email       String @db.VarChar(254)
+  role        MembershipRole
+  tokenHash   String @unique
+  status      FamilyInvitationStatus @default(PENDING)
+  expiresAt   DateTime @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  acceptedAt  DateTime? @db.Timestamptz(6)
+  canceledAt  DateTime? @db.Timestamptz(6)
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inviter     User @relation(fields: [invitedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([tenantId, status, expiresAt])
+}
+
+model FamilyAuditEvent {
+  id           String @id @default(uuid()) @db.Uuid
+  tenantId     String @db.Uuid
+  actorUserId  String @db.Uuid
+  targetUserId String? @db.Uuid
+  invitationId String? @db.Uuid
+  kind         FamilyAuditKind
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([tenantId, createdAt])
 }
