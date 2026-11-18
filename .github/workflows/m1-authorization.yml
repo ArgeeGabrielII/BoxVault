@@ -5,6 +5,9 @@ on:
   pull_request:
     paths:
       - 'apps/api/**'
+      - 'apps/web/connected/**'
+      - 'apps/web/vite.connected.config.ts'
+      - 'scripts/**'
       - 'docs/planning/milestone-01-security-foundation.md'
       - '.github/workflows/m1-authorization.yml'
   workflow_dispatch:

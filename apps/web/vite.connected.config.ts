@@ -9,6 +9,6 @@ export default defineConfig({
  root:fileURLToPath(new URL('./connected',import.meta.url)),
  plugins:[react(),localServices()],
  publicDir:fileURLToPath(new URL('./public',import.meta.url)),
- server:{host:'127.0.0.1',port:Number(process.env.BOXVAULT_LOCAL_WEB_PORT || 5180),strictPort:true,fs:{deny:['.env','.env.*','**/*.{crt,pem}','**/.git/**','**/.boxvault-local/**',...(process.env.BOXVAULT_LOCAL_STATE?[process.env.BOXVAULT_LOCAL_STATE+'/**']:[])]},allowedHosts:['localhost','127.0.0.1'],proxy:{'/api':{target:apiOrigin,changeOrigin:false}}},
+ server:{host:'127.0.0.1',port:Number(process.env.BOXVAULT_LOCAL_WEB_PORT || 5180),strictPort:true,fs:{deny:['.env','.env.*','**/*.{crt,pem}','**/.git/**','**/.boxvault-local/**',...(process.env.BOXVAULT_LOCAL_STATE?[process.env.BOXVAULT_LOCAL_STATE+'/**']:[])]},allowedHosts:['localhost','127.0.0.1'],proxy:{'^/api/':{target:apiOrigin,changeOrigin:false}}},
  build:{outDir:fileURLToPath(new URL('./dist-connected',import.meta.url)),emptyOutDir:true},
 });
