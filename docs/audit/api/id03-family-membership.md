@@ -1,6 +1,6 @@
 # ID-03 — Family invitations and membership management
 
-**Updated:** 2026-11-18 (Asia/Manila). **Engineering state:** implemented; local disposable-PostgreSQL verification recorded below. **Production acceptance:** NOT APPROVED. CI evidence is recorded for specific commits and does not authorize runtime deployment, hosted database migrations, or accepting customers.
+**Updated:** 2026-11-18 (Asia/Manila). **Engineering state:** implemented; local and commit-scoped GitHub automated verification recorded below. **Production acceptance:** NOT APPROVED. CI evidence is recorded for specific commits and does not authorize runtime deployment, hosted database migrations, or accepting customers.
 
 This is the current feature/status reference. Older PR #4 branch-only and merge-hold passages are historical: the owner authorized source consolidation into `main`. The earlier own-tenant 403 was superseded by the 2026-11-13 operator-observed 401/200/403 retest. Neither that smoke test nor later CI constitutes full M1 production approval.
 
@@ -61,3 +61,16 @@ Commands executed against those fixtures:
 ID-03 cases cover own-only tenant selection, owner-only management, recipient binding, expired/replayed/canceled proof, body/role tampering, cross-tenant IDs, duplicate invites, four-seat reservation/acceptance, simultaneous different acceptances, same-proof races, role downgrade, ownership-removal block, concurrent create/remove, session and grant revocation, rejoin without grant resurrection, child-item/media RLS, failed SMTP delivery, audit privilege separation and throttling.
 
 **Still not accepted for production:** real invitation UI/client integration, live provider verification, hosted migration/least-privilege ownership review, production entitlement provisioning, private-media/QR/cache authorization, broader M1 controls, independent security review and explicit release sign-off. Keep automated evidence and release approval separate.
+
+## GitHub engineering evidence — feature commit d119dc0
+
+All checks passed for source commit `d119dc028d82ac0ef6dc2b9cbeeda3f6dd97a6c6` in [PR #12](https://github.com/ArgeeGabrielII/BoxVault/pull/12):
+
+- [CI](https://github.com/ArgeeGabrielII/BoxVault/actions/runs/44219376987): build/typecheck, production dependency audit, mailer TLS/CLI regression checks, QR and Playground builds.
+- [M1 Postgres Authorization Gate](https://github.com/ArgeeGabrielII/BoxVault/actions/runs/44219377010): all seven migrations, Prisma no-drift check, restricted roles, onboarding/CAPTCHA, authentication HTTP and ID-03 HTTP/concurrency suites.
+- [M1 PostgreSQL Authorization Gate](https://github.com/ArgeeGabrielII/BoxVault/actions/runs/44219377250): independent disposable-database RLS suite.
+- [CodeQL](https://github.com/ArgeeGabrielII/BoxVault/actions/runs/44219373470): Actions and JavaScript/TypeScript analysis passed. No new open feature-branch code-scanning findings were returned.
+
+This is automated engineering verification for that exact code-bearing commit. Subsequent documentation/merge heads have their own CI lifecycle. **No production approval, hosted migration, live SMTP/client invitation flow or security sign-off is inferred.**
+
+Rollback preparation for a future hosted release: disable the family routes and revoke their explicit entrypoint grants if necessary; retain invitation/audit records and use a reviewed forward migration. Do not automatically drop tables or rewrite membership history as a rollback mechanism.
