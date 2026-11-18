@@ -1,5 +1,7 @@
 # API — M1 authentication and tenant-onboarding implementation
 
+**Current reconciliation — 2026-11-18:** The chronological records below preserve their original dates. Their branch-only/PR merge holds and unresolved own-tenant 403 statements are superseded: source was consolidated with owner authorization, and the 401/200/403 smoke retest passed. ID-03 now has a backend implementation and scoped automated verification; see the [current audit](id03-family-membership.md). This does not approve M1 or production release.
+
 **Date:** 2026-11-12 (Asia/Manila)  
 **Application:** `apps/api` (NestJS + Prisma)  
 **Status:** Implemented and CI-tested for scoped flows; real Brevo/reCAPTCHA end-to-end pending.  

@@ -1,6 +1,6 @@
 # BoxVault Security-First Engineering Standard
 
-**Implementation snapshot (2026-11-12; PR #4):** These standards remain **mandatory release requirements**, not a claim of production compliance. Some M1 controls are coded (auth/MFA, session replay protections, tenant/ACL RLS, restricted DB roles), and test-only PostgreSQL evidence exists. The real browser tenant-isolation exercise found an unresolved own-tenant HTTP 403; latest-head/complete negative tests, private media/QR/payment controls, recovery/monitoring and independent sign-off are outstanding. **Do not merge PR #4 or deploy for paying customers** on existing evidence. See [roadmap](../planning/delivery-roadmap.md).
+**Current status — 2026-11-18:** This is the mandatory release baseline, not a production-compliance claim. Auth/MFA, tenant/ACL RLS and ID-03 membership controls exist in consolidated source with scoped automated verification. The earlier own-tenant 403 was superseded by the 2026-11-13 401/200/403 retest. See the [ID-03 evidence](../audit/api/id03-family-membership.md). Source merges and green CI do not approve a hosted backend migration or paying-customer release; independent review, client/provider integration and all applicable production gates remain required.
 
 **Status:** Mandatory design baseline; **partially implemented in draft M1**, not production approved. **Scope:** React customer/admin web, SwiftUI iOS, NestJS API, PostgreSQL/Prisma, QR/NFC labels, private media, manual payments and home/hybrid hosting.
 

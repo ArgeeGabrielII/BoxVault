@@ -12,7 +12,8 @@
     "db:deploy": "prisma migrate deploy",
     "test:authz:e2e": "node --test test/authorization.e2e.test.mjs",
     "test:auth-http:contract": "node --test test/authentication.http.contract.test.mjs",
-    "test:dependency-security": "node --test test/dependency-security.test.mjs"
+    "test:dependency-security": "node --test test/dependency-security.test.mjs",
+    "test:family:http": "node --test test/family-membership.http.test.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

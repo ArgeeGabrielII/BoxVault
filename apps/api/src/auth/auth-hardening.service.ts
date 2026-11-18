@@ -35,7 +35,7 @@ export class AuthHardeningService implements OnModuleDestroy {
   async limit(category: string, ip: string, account?: string) {
     const sensitive = category === 'mfa-confirm' || category === 'mfa-disable' ||
       category === 'admin-step-up' || category === 'mfa-rotate';
-    const hourly = category === 'reset' || category === 'register';
+    const hourly = category === 'reset' || category === 'register' || category === 'family-invite';
     // Probabilistic cleanup amortizes DB work across multiple API instances.
     // Independent scheduled maintenance remains recommended for idle periods.
     if (randomInt(512) === 0) {
@@ -143,7 +143,7 @@ export class AuthHardeningService implements OnModuleDestroy {
       throw new ServiceUnavailableException('Email delivery is not configured');
   }
 
-  async email(email: string, purpose: 'verify-email' | 'reset-password', token: string) {
+  async email(email: string, purpose: 'verify-email' | 'reset-password' | 'family-invitation', token: string) {
     const host = process.env.SMTP_HOST, from = process.env.SMTP_FROM,
       origin = process.env.PUBLIC_WEB_URL;
     // Permit HTTP only for literal loopback hosts in local development or CI.
@@ -166,18 +166,21 @@ export class AuthHardeningService implements OnModuleDestroy {
       process.env.SMTP_ALLOW_PLAINTEXT_TEST === 'true' && host === '127.0.0.1';
     if (!insecureTest && (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD))
       throw new ServiceUnavailableException('SMTP credentials required');
-    const link = new URL(purpose === 'verify-email' ? '/verify-email' : '/reset-password', origin);
-    link.searchParams.set('token', token);
+    const paths = { 'verify-email': '/verify-email', 'reset-password': '/reset-password', 'family-invitation': '/accept-invitation' };
+    const link = new URL(paths[purpose], origin);
+    // New invitation proofs stay out of HTTP access logs and referrer URLs.
+    if (purpose === 'family-invitation') link.hash = 'token=' + encodeURIComponent(token);
+    else link.searchParams.set('token', token);
     const transport = nodemailer.createTransport({
       host, port, secure: port === 465, requireTLS: !insecureTest && port !== 465,
       auth: insecureTest ? undefined : { user: process.env.SMTP_USER!, pass: process.env.SMTP_PASSWORD! },
+      connectionTimeout: 5000, greetingTimeout: 5000, socketTimeout: 10000,
     });
-    await transport.sendMail({
+    try { await transport.sendMail({
       from, to: email,
-      subject: purpose === 'verify-email' ? 'Verify your BoxVault email' : 'Reset your BoxVault password',
-      text: `Open this single-use link to ${purpose === 'verify-email' ? 'verify your email' : 'reset your password'}:\n${link.toString()}\n\nIf you did not request this, ignore this message.`,
-    });
-    transport.close();
+      subject: purpose === 'family-invitation' ? 'Your BoxVault family invitation' : purpose === 'verify-email' ? 'Verify your BoxVault email' : 'Reset your BoxVault password',
+      text: `Open this single-use link to ${purpose === 'family-invitation' ? 'accept your family invitation' : purpose === 'verify-email' ? 'verify your email' : 'reset your password'}:\n${link.toString()}\n\nIf you did not request this, ignore this message.`,
+    }); } finally { transport.close(); }
   }
 
   async audit(kind: string, userId?: string) {

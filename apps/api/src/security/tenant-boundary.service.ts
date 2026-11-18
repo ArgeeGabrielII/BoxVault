@@ -7,7 +7,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
  * using a separate least-privileged authentication service/database identity.
  *
  * Never accept VerifiedPrincipal from request JSON, headers, or query params.
- * No real issuer/guard exists yet; do NOT expose inventory controllers.
+ * AccessGuard creates this context only after verifying JWT and live session state.
  */
 export interface VerifiedPrincipal {
   readonly userId: string;
@@ -31,6 +31,7 @@ export class TenantBoundaryService implements OnModuleDestroy {
     principal: VerifiedPrincipal,
     tenantId: string,
     operation: (tx: Prisma.TransactionClient, userId: string) => Promise<T>,
+    mode: 'read' | 'write' = 'read',
   ): Promise<T> {
     if (!principal || !uuidPattern.test(principal.userId) ||
         !uuidPattern.test(principal.sessionId) ||
@@ -51,6 +52,10 @@ export class TenantBoundaryService implements OnModuleDestroy {
       // user's context after commit or rollback.
       await tx.$queryRaw`SELECT set_config('app.user_id', ${principal.userId}, true)`;
       await tx.$queryRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+      // Match ID-03 membership locks so role/removal changes cannot race
+      // container creation or sharing. Read locks allow concurrent reads.
+      if (mode === 'write') await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId.toLowerCase()}::text, 0))::text`;
+      else await tx.$queryRaw`SELECT pg_advisory_xact_lock_shared(hashtextextended(${tenantId.toLowerCase()}::text, 0))::text`;
       const rows = await tx.$queryRaw<Array<{ allowed: boolean }>>`
         SELECT security.active_member(${tenantId}::uuid, ${principal.userId}::uuid) AS allowed
       `;

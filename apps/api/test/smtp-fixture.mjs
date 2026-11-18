@@ -20,6 +20,7 @@ net.createServer(socket => {
       } else {
         const cmd=line.toUpperCase();
         if(cmd.startsWith('EHLO')) socket.write('250-boxvault-ci\r\n250 SIZE 1000000\r\n');
+        else if(cmd==='RCPT TO:<REJECT-FAMILY@EXAMPLE.INVALID>') socket.write('550 synthetic delivery rejection\r\n');
         else if(cmd.startsWith('HELO')||cmd.startsWith('MAIL FROM')||
                 cmd.startsWith('RCPT TO')||cmd.startsWith('RSET')) socket.write('250 ok\r\n');
         else if(cmd==='DATA'){dataMode=true;socket.write('354 send message\r\n');}
@@ -28,4 +29,4 @@ net.createServer(socket => {
       }
     }
   });
-}).listen(2525,'127.0.0.1');
+}).listen(Number(process.env.SMTP_PORT || '2525'),'127.0.0.1');

@@ -1,6 +1,6 @@
 # Family Container Sharing and Access Control
 
-**Implementation snapshot (2026-11-12; PR #4):** PRIVATE / SELECTED_MEMBERS / ALL_FAMILY ACL and tenant-scoped RLS policies are implemented in the M1 database/API foundation, with scoped PostgreSQL and isolated-Neon verification of important negative cases (including revoked grants). This is **not** complete family-sharing acceptance: invitations, four-seat concurrency, full ACL mutation/read HTTP coverage, media access, and real client UX still require implementation and verification. The own-tenant browser read case remains unresolved. See [M1 security gates](../security/m1-security-gate-status.md) and [roadmap](../planning/delivery-roadmap.md).
+**Implementation snapshot — 2026-11-18:** PRIVATE / SELECTED_MEMBERS / ALL_FAMILY ACL/RLS and container create/sharing exist in consolidated source. ID-03 adds owner-managed invitations, verified-recipient single-use acceptance, four-seat concurrency, role changes and membership removal. See the [current audit](../audit/api/id03-family-membership.md) for automated evidence and explicit product decisions. The earlier own-tenant 403 was superseded by the recorded 401/200/403 smoke retest. **Full client/private-media and production acceptance remain pending.**
 
 **Status:** Approved product requirement; M1 database/API authorization foundation implemented, full client and release acceptance pending. **Security classification:** P0 — no inventory access without explicit authorization.
 

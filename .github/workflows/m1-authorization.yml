@@ -55,8 +55,8 @@ jobs:
         run: |
           psql -h localhost -U postgres -d boxvault_test -v ON_ERROR_STOP=1 <<'SQL'
           DO $$ BEGIN
-            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 6 THEN
-              RAISE EXCEPTION 'Expected exactly six applied M1 migrations';
+            IF (SELECT count(*) FROM public."_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 7 THEN
+              RAISE EXCEPTION 'Expected exactly seven applied migrations';
             END IF;
           END $$;
           SQL
@@ -164,6 +164,8 @@ jobs:
           GRANT USAGE ON SCHEMA security TO boxvault_auth_runtime_m1;
           GRANT EXECUTE ON FUNCTION security.bootstrap_verified_email_tenant(text,uuid,uuid) TO boxvault_auth_runtime_m1;
           SQL
+      - name: Grant ID-03 entrypoints to disposable runtime
+        run: psql -h localhost -U postgres -d boxvault_auth_ci -v ON_ERROR_STOP=1 -f apps/api/test/family-runtime-grants.fixture.sql
       - name: Verify token-bound tenant onboarding negative security cases
         run: pnpm --filter @boxvault/api exec node --test test/onboarding.negative.test.mjs
       - name: Seed synthetic password identity
@@ -200,3 +202,4 @@ jobs:
             exit 1
           fi
           pnpm --filter @boxvault/api test:auth-http:contract
+          pnpm --filter @boxvault/api test:family:http
