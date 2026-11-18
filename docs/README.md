@@ -10,6 +10,10 @@ Mock materials are organized under [mock documentation](mock/README.md): [tester
 
 Run `pnpm install --frozen-lockfile`, then `pnpm dev:local`, and open **http://127.0.0.1:5180**. Create an account, verify it in Local inbox, create boxes/items and download/test a real access-checked QR label. [Setup, connected features and limits](development/connected-local-app.md). Local data persists in `.boxvault-local`; the Firebase site remains a separate mock UI. Production acceptance is still pending.
 
+## AWS migration preparation
+
+[AWS service mapping, cost/account discovery and migration runbook](deployment/aws-migration.md). Preparation only; no resources or data have been migrated. Read-only CLI discovery: `pnpm aws:readiness --profile boxvault --region ap-southeast-1`.
+
 ## Start here
 
 1. [Product requirements](product/product-requirements.md)
