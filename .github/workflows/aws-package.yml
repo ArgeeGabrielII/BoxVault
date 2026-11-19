@@ -11,6 +11,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Pull the Amazon Linux runtime for digest recording
+        run: docker pull --platform linux/amd64 public.ecr.aws/lambda/nodejs:24
       - name: Build Amazon Linux package without AWS credentials
         run: docker build --file infra/aws/Dockerfile --tag boxvault-lambda-package .
       - name: Extract versioned artifact

@@ -178,7 +178,6 @@
           "Version": "2012-10-17",
           "Statement": [
             {
-              "Sid": "DeploymentOnly",
               "Effect": "Deny",
               "NotAction": [
                 "apigateway:DELETE",
@@ -371,7 +370,8 @@
                 "secretsmanager:GetRandomPassword",
                 "kms:DescribeKey",
                 "lambda:GetAccountSettings",
-                "cloudformation:DescribeEvents"
+                "cloudformation:DescribeEvents",
+                "iam:ListAttachedRolePolicies"
               ],
               "Resource": "*"
             },
@@ -391,7 +391,6 @@
               }
             },
             {
-              "Sid": "NoUpgrade",
               "Effect": "Deny",
               "Action": [
                 "iam:DeleteRolePermissionsBoundary",
@@ -405,7 +404,6 @@
               "Resource": "*"
             },
             {
-              "Sid": "EnvelopeOnly",
               "Effect": "Allow",
               "Action": [
                 "apigateway:*",
@@ -428,7 +426,6 @@
               "Resource": "*"
             },
             {
-              "Sid": "NeverExposeDatabase",
               "Effect": "Deny",
               "Action": [
                 "rds:CreateDBInstance",
@@ -442,7 +439,6 @@
               }
             },
             {
-              "Sid": "RequireManagedMasterSecret",
               "Effect": "Deny",
               "Action": "rds:CreateDBInstance",
               "Resource": "*",
@@ -538,8 +534,7 @@
                 "cloudformation:CreateChangeSet",
                 "cloudformation:DescribeChangeSet",
                 "cloudformation:DeleteChangeSet",
-                "cloudformation:ExecuteChangeSet",
-                "cloudformation:DescribeEvents"
+                "cloudformation:ExecuteChangeSet"
               ],
               "Resource": [
                 "arn:aws:cloudformation:ap-southeast-2:666734238831:stack/boxvault-app-artifacts/*",
@@ -990,7 +985,8 @@
                 "iam:DeleteRolePolicy",
                 "iam:ListRolePolicies",
                 "iam:TagRole",
-                "iam:UntagRole"
+                "iam:UntagRole",
+                "iam:ListAttachedRolePolicies"
               ],
               "Resource": [
                 "arn:aws:iam::666734238831:role/boxvault/app/*"
@@ -1086,6 +1082,14 @@
                 "arn:aws:iam::666734238831:role/boxvault-app-contentrotationrole",
                 "arn:aws:iam::666734238831:role/boxvault-app-migrationrole"
               ]
+            },
+            {
+              "Sid": "RegionalDeploymentFailureMetadata",
+              "Effect": "Allow",
+              "Action": [
+                "cloudformation:DescribeEvents"
+              ],
+              "Resource": "*"
             }
           ]
         }
