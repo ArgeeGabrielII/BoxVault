@@ -67,6 +67,12 @@ RDS deletion protection is on and both database and bucket have `Retain` policie
 
 Local JSON/reference validation and AWS-side `ValidateTemplate` succeeded for the draft. Regional orderability, deployment permissions, provisioning and actual daily rotation remain unverified. Before creation, produce a CloudFormation change set and review its exact resources and cost estimate. The draft does not change Firebase CI/CD.
 
+## Retired providers and final cleanup
+
+Neon and Brevo are no longer selected for any current environment. RDS PostgreSQL replaces Neon; SES replaces Brevo. Remove old-provider URLs/credentials from approved deployment inputs, CI secrets and operational runbooks when activating AWS. Do not run the archived Neon/Brevo harness as the current integration path. The local connected launcher remains independent of both services.
+
+Before closing old resources, inventory retained records/backups, review applicable retention and verify that no active consumer depends on an old credential. Revoke obsolete credentials through their provider, then remove their stored copies; deleting an environment variable alone does not revoke a credential. Record closure outcomes separately. No provider deletion, credential revocation or data export has been performed by this documentation update.
+
 ## Migration sequence — fresh AWS database
 
 1. **Preserve existing data.** The owner already selected a fresh empty AWS application database. Keep local and Neon records intact; no default dump, restore, data merge or active-session import. Inventory existing sources without reading customer content.

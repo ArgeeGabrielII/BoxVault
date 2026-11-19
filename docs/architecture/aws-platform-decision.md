@@ -20,6 +20,17 @@ CloudFront is global; its management/certificates and the toolkit service use us
 
 HTTPS remains required end-to-end. A lean API origin may use Caddy with a valid domain/ACME certificate; that certificate issuer is external to AWS. Fully AWS-managed certificate handling uses ALB + ACM and its additional costs. A load balancer for TLS does not imply Auto Scaling. Domain/sender identity and the final TLS variant remain decisions before public deployment. See the [complete service map](../deployment/aws-service-map.md).
 
+## Provider replacement decision
+
+The owner explicitly confirmed on 2026-11-19 that **Neon and Brevo will no longer be used**. They are retired providers, with no fallback or dual-provider runtime in the selected stack.
+
+| Retired provider | AWS replacement | Active configuration rule |
+| --- | --- | --- |
+| Neon hosted PostgreSQL | Amazon RDS for PostgreSQL, private Single-AZ in Sydney | New hosted environments use RDS with separate migration/auth/content roles. Local development uses the isolated loopback database. |
+| Brevo transactional email | Amazon SES in Sydney | Verification, password reset and Family mail use SES. Prefer the API with temporary IAM credentials; implement the adapter before hosted release. |
+
+Preserving old records/audits is not continued service use. Do not reuse old Neon URLs or Brevo credentials in new configuration, CI, backend deployment or secret stores. Retire the legacy Neon-specific mock lookup path from current test procedures; never repoint its privileged lookup to RDS. Review/revoke obsolete provider credentials and close resources only after data-preservation and AWS acceptance checks, using a separately authorized cleanup. This documentation change does not delete provider resources or make the unfinished AWS application available.
+
 ## Daily rotation policy
 
 | Secret/credential | Required policy | Deployment status |
@@ -41,7 +52,7 @@ Proposed database rotation window: **08:00–09:00 Asia/Manila**, represented by
 | AWS project plan | Free/ACTIVE and USD 200 credits observed on 2026-11-19 | Monitor actual remaining credits, service limits and expiry; no recurring-price or permanent-free guarantee |
 | AWS application infrastructure | RDS/S3/network draft and daily master-rotation schedule prepared; template syntax validated | Provisioning, seven migrations, runtime grants, email, secret refresh, alarms, restore tests and cutover |
 | Firebase | Existing disconnected mock dashboard/Playground preview and static deployment guards retained | Replace only after AWS artifacts and final endpoints are accepted; do not wire private backend into the mock build |
-| Neon/Brevo | Historical isolated development/provider evidence and existing data preserved | Not the primary target; do not reset, copy or delete old resources/data as documentation cleanup |
+| Neon/Brevo | Retired from the selected stack; existing records and historical evidence preserved | No fallback/new environment use; resource closure and old credential revocation require a reviewed preservation/cleanup step |
 
 The owner selected a **fresh empty AWS application database**. No existing local or Neon records are imported automatically. Data preservation and any later import are distinct decisions.
 

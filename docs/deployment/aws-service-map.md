@@ -8,6 +8,10 @@ Accepted target architecture; deployment pending, 2026-11-19 (Asia/Manila). This
 
 The project API currently reports Free / ACTIVE with USD 200 credits. Credits fund eligible usage; this is not a permanently zero-cost architecture. Service inclusion in the new-experience Free plan does not establish that every configuration or usage level is covered.
 
+## Provider replacements
+
+**Neon → Amazon RDS PostgreSQL. Brevo → Amazon SES.** Neither old provider remains an active dependency or fallback. Historical test commands/records are retained solely as evidence. New hosted configuration uses RDS/SES; local development uses the isolated launcher.
+
 ## Selected first implementation
 
 **Owner decision (2026-11-19):** one API instance, RDS Single-AZ, no Auto Scaling or Multi-AZ for the initial release. Daily credential rotation is required; see [rotation policy and implementation gates](secret-rotation.md).

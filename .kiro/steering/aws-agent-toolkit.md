@@ -5,6 +5,8 @@ inclusion: always
 <!-- BEGIN BoxVault AWS preferences -->
 ## BoxVault AWS configuration and owner preferences
 
+- Neon and Brevo are retired from the active stack: use AWS RDS PostgreSQL and SES only for hosted environments. Preserve old records; do not reconnect old-provider tooling or delete resources as incidental cleanup.
+
 - AWS experience: new AWS experience (project-based).
 - AWS is BoxVault's primary SaaS platform. The authoritative platform/rotation decision is `docs/architecture/aws-platform-decision.md`; historical Firebase/Neon/Brevo and home/hybrid records do not override it.
 - Selected project Region: `ap-southeast-2` (Sydney), confirmed by the owner on 2026-11-19.

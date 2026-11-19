@@ -4,7 +4,7 @@
 
 AWS is the accepted primary SaaS platform under [ADR-AWS-001](../../architecture/aws-platform-decision.md). The reviewed documentation uses Sydney, one API host, private Single-AZ RDS, S3, SES and daily credential rotation. Auto Scaling and Multi-AZ are deferred. The [rotation policy](../../deployment/secret-rotation.md) records the undeployed managed-master schedule and the outstanding runtime-user/key-version implementation.
 
-This is documentation/source evidence, not production acceptance. Only toolkit IAM access is deployed. AWS application infrastructure, fresh database schema/grants, hosted email/UI, uploads, runtime secret refresh, alarms and live rotation remain unfinished. Existing local/Neon data and Firebase mock/Playground previews are preserved. The AWS database starts empty.
+This is documentation/source evidence, not production acceptance. Only toolkit IAM access is deployed. AWS application infrastructure, fresh database schema/grants, hosted email/UI, uploads, runtime secret refresh, alarms and live rotation remain unfinished. Neon and Brevo are explicitly retired from the active stack, replaced by RDS PostgreSQL and SES with no fallback. Existing local/Neon data and Firebase mock/Playground previews are preserved. Provider-resource closure and old credential revocation remain a separate reviewed task. The AWS database starts empty.
 
 Current architecture, operations, development, product, security and roadmap text was reconciled. Dated audits retain their original commands/results/commit references with historical context. Legacy provider guides remain isolated references; they are not the default AWS setup. Prices, the four-seat Family cap and web-only purchasing remain unchanged.
 

@@ -14,6 +14,7 @@ QR/NFC-powered private storage organization, with a React web portal, NestJS API
 - AWS Agent Toolkit is installed for Codex/Kiro. `boxvault-restricted` uses a verified read-only IAM role/boundary; it is not a deployment identity.
 - AWS application infrastructure and live daily rotation are **not deployed/accepted**. The CloudFormation draft includes a daily RDS master-password schedule; runtime-user rotation, connection refresh and cryptographic key versioning remain required work.
 - Firebase retains the disconnected mock dashboard and public mock Playground. Their static safeguards and workflows remain in place until AWS replacements pass acceptance.
+- **Neon → Amazon RDS PostgreSQL; Brevo → Amazon SES.** Neon and Brevo are retired from the active stack.
 - Existing local and historical Neon data remain intact. The AWS application starts with an empty database; no automatic data import is planned.
 
 Passing CI, installed tooling, a valid template and a public mock are separate from production acceptance. Photos, complete payments/operator workflows, native-device integration and hosted provider/security/recovery gates remain unfinished.

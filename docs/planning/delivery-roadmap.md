@@ -47,6 +47,7 @@ Use these statuses consistently. They track **delivery and evidence**, not a sub
 | JWT/pepper/TOTP version-aware daily rollover | **Pending implementation** | Signing overlap, proof/recovery migration, decryption/re-encryption and old-version retirement |
 | SES sender/production access and bot protection | **Pending provider/client acceptance** | Real email, feedback, CAPTCHA/WAF integration and public origin checks |
 | Private S3 photos/evidence | **Pending implementation** | Auth/validation/quota/thumbnail UI/API, denial and revocation tests |
+| Retire Neon/Brevo configuration and credentials | **Required; cleanup pending** | RDS/SES are the sole hosted target; preserve records, verify consumers, revoke old credentials and review resource closure separately |
 | CloudWatch/CloudTrail, recovery and cutover | **Pending acceptance** | Redaction, alert owner, restore drill, rollback and production review |
 
 Daily rotation is a release requirement, not an already enabled service. No scaling/HA work is scheduled for the first deployment. See [migration](../deployment/aws-migration.md) and [rotation](../deployment/secret-rotation.md).

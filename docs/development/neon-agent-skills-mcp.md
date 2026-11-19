@@ -1,7 +1,7 @@
 # Neon agent skills and MCP integration
 
 <!-- BEGIN current AWS platform -->
-> **Legacy test/reference scope (2026-11-19):** [AWS is the primary hosted target](../architecture/aws-platform-decision.md), with [daily credential rotation](../deployment/secret-rotation.md). Existing Neon/Brevo fixtures and harness commands below are historical/isolated references, not default AWS setup. Preserve their data and safety restrictions; use the connected local guide for the current local app. No AWS application cutover or live rotation is established here.
+> **Legacy test/reference scope (2026-11-19):** [AWS is the primary hosted target](../architecture/aws-platform-decision.md), with [daily credential rotation](../deployment/secret-rotation.md). Neon and Brevo are retired from the active stack: use RDS PostgreSQL and SES. Commands/fixtures below are historical evidence only; do not use them to provision or reconnect a current environment. Preserve existing records; use the connected local guide for current local development. No AWS application cutover or live rotation is established here.
 <!-- END current AWS platform -->
 
 **Installation date:** 2026-11-11. **Scope:** BoxVault GitHub repository; no account authorization or environment secrets stored in Git.
