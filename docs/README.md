@@ -12,6 +12,8 @@ Run `pnpm install --frozen-lockfile`, then `pnpm dev:local`, and open **http://1
 
 ## AWS migration preparation
 
+[Complete AWS service map and rollout plan](deployment/aws-service-map.md): core services, optional growth services, application feature ownership, security boundaries and cost decisions.
+
 [AWS service mapping, cost/account discovery and migration runbook](deployment/aws-migration.md). Read-only Agent Toolkit access is installed; application infrastructure and data migration remain pending. [Toolkit setup and renewal](deployment/aws-agent-toolkit.md). Read-only CLI discovery: `pnpm aws:readiness --profile boxvault-restricted --region ap-southeast-2`.
 
 ## Start here
