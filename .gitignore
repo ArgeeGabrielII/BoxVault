@@ -37,3 +37,7 @@ apps/web/public/favicon.ico
 # Persistent private local sandbox and connected-only build
 .boxvault-local/
 apps/web/dist-connected/
+
+# AWS build packages and downloaded database CA bundle
+apps/web/dist-aws/
+.aws-artifacts/

@@ -1,0 +1,29 @@
+name: AWS prototype package (no deployment)
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/aws-free-deployment]
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Amazon Linux package without AWS credentials
+        run: docker build --file infra/aws/build/Dockerfile --tag boxvault-lambda-package .
+      - name: Extract versioned artifact
+        run: |
+          mkdir -p .aws-artifacts
+          container_id=$(docker create boxvault-lambda-package)
+          trap 'docker rm "$container_id" >/dev/null' EXIT
+          docker cp "$container_id:/opt/artifacts/." .aws-artifacts/
+          printf '%s\n' "$GITHUB_SHA" > .aws-artifacts/source-commit.txt
+          docker image inspect public.ecr.aws/lambda/nodejs:24 --format '{{json .RepoDigests}}' > .aws-artifacts/build-image.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boxvault-lambda-${{ github.sha }}
+          path: .aws-artifacts/
+          retention-days: 3
+          if-no-files-found: error

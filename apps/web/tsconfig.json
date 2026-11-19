@@ -24,6 +24,7 @@
     "src",
     "vite.config.ts",
     "connected",
-    "vite.connected.config.ts"
+    "vite.connected.config.ts",
+    "vite.aws.config.ts"
   ]
 }

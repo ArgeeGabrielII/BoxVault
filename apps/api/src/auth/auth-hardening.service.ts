@@ -4,7 +4,10 @@ import {
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import * as nodemailer from 'nodemailer';
+import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
+const ses = new SESv2Client({ region: 'ap-southeast-2', maxAttempts: 1 });
 import { createHmac, randomInt } from 'node:crypto';
+import { hasAwsWafIngress } from '../aws-ingress';
 
 const emailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function normalizeEmail(input: unknown): string | null {
@@ -65,6 +68,9 @@ export class AuthHardeningService implements OnModuleDestroy {
   }
 
   async captcha(token: unknown, action: string) {
+    // Regional WAF applies CAPTCHA at the trusted API stage; direct HTTP entry
+    // does not receive this invocation-scoped attestation.
+    if (hasAwsWafIngress()) return;
     // The only bypass is an explicit CI/dev configuration, never production.
     if (process.env.AUTH_BOT_PROTECTION_MODE === 'off' && process.env.NODE_ENV === 'test')
       return;
@@ -134,6 +140,13 @@ export class AuthHardeningService implements OnModuleDestroy {
   }
 
   assertMailerConfigured() {
+    if (process.env.MAIL_TRANSPORT === 'ses') {
+      if (process.env.BOXVAULT_AWS_RUNTIME !== '1' || process.env.AWS_REGION !== 'ap-southeast-2' ||
+          !normalizeEmail(process.env.SES_FROM) ||
+          !process.env.PUBLIC_WEB_URL?.startsWith('https://'))
+        throw new ServiceUnavailableException('Email delivery is not configured');
+      return;
+    }
     if (!process.env.SMTP_HOST || !process.env.SMTP_FROM || !process.env.PUBLIC_WEB_URL)
       throw new ServiceUnavailableException('Email delivery is not configured');
     const isTest = process.env.NODE_ENV === 'test' &&
@@ -156,6 +169,22 @@ export class AuthHardeningService implements OnModuleDestroy {
         (address.protocol === 'http:' && loopback &&
          ['development', 'test'].includes(process.env.NODE_ENV || ''));
     } catch { /* invalid URL: fail closed */ }
+    if (process.env.MAIL_TRANSPORT === 'ses') {
+      this.assertMailerConfigured();
+      if (!allowedOrigin || !normalizeEmail(email)) throw new ServiceUnavailableException('Email delivery is not configured');
+      const paths = { 'verify-email': '/verify-email', 'reset-password': '/reset-password', 'family-invitation': '/accept-invitation' };
+      const link = new URL(paths[purpose], origin); link.hash = 'token=' + encodeURIComponent(token);
+      try {
+        await ses.send(new SendEmailCommand({
+          FromEmailAddress: process.env.SES_FROM, Destination: { ToAddresses: [email] },
+          Content: { Simple: {
+            Subject: { Data: purpose === 'family-invitation' ? 'Your BoxVault family invitation' : purpose === 'verify-email' ? 'Verify your BoxVault email' : 'Reset your BoxVault password', Charset: 'UTF-8' },
+            Body: { Text: { Data: `Open this single-use link:\n${link.toString()}\n\nIf you did not request this, ignore this message.`, Charset: 'UTF-8' } },
+          } },
+        }));
+      } catch { throw new ServiceUnavailableException('Email delivery is temporarily unavailable'); }
+      return;
+    }
     if (!host || !from || !allowedOrigin)
       throw new ServiceUnavailableException('Email delivery is not configured');
 

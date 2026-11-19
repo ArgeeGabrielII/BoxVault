@@ -28,10 +28,16 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/boxvault
           DIRECT_URL: postgresql://test:test@localhost:5432/boxvault
         run: pnpm db:generate
+      - name: AWS Free-plan deployment policy checks
+        run: pnpm test:aws-free-guard
       - name: Typecheck
         run: pnpm typecheck
       - name: Build
         run: pnpm build
+      - name: AWS runtime secret and ingress checks
+        run: pnpm --filter @boxvault/api test:aws-runtime
+      - name: AWS hosted frontend isolation checks
+        run: pnpm --filter @boxvault/web build:aws
       - name: Connected client session regression checks
         run: pnpm --filter @boxvault/web test:connected-session
       - name: Build connected local frontend

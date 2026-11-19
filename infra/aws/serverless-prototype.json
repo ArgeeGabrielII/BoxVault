@@ -1,0 +1,2594 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "BoxVault Free-plan credit-funded prototype: capped Lambda, private Single-AZ PostgreSQL, SES and isolated static web/Playground. Not production acceptance.",
+  "Metadata": {
+    "com.aws.cloudformation.Context": {
+      "arch": "Sydney private database/Lambda, regional REST API + WAF, global CloudFront; no domain or NAT",
+      "must": [
+        "Preserve FREE/ACTIVE plan; never upgrade",
+        "Fresh empty AWS database; preserve old sources",
+        "API disabled until migrations/WAF/sender/config checks",
+        "Daily DB password rotation; pinned cryptographic root",
+        "Retained resources incur credit consumption",
+        "SES sender identity is an independently verified prerequisite; never recreate an existing identity"
+      ],
+      "ref": [
+        "docs/deployment/aws-free-plan-deployment.md"
+      ]
+    }
+  },
+  "Parameters": {
+    "PostgresVersion": {
+      "Type": "String",
+      "Default": "18.6",
+      "AllowedPattern": "^18\\.[0-9]+(\\.[0-9]+)?$"
+    },
+    "ArtifactKey": {
+      "Type": "String",
+      "AllowedPattern": "^api/[a-f0-9]{40}/api\\.zip$"
+    },
+    "ArtifactVersion": {
+      "Type": "String",
+      "MinLength": 1
+    },
+    "EnableApi": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "EnableRotation": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "ExpectedApiId": {
+      "Type": "String",
+      "Default": "pending",
+      "AllowedPattern": "^[a-z0-9]+$"
+    },
+    "WebOrigin": {
+      "Type": "String",
+      "Default": "https://pending.invalid",
+      "AllowedPattern": "^https://[a-z0-9-]+\\.cloudfront\\.net$|^https://pending\\.invalid$"
+    },
+    "CryptoVersion": {
+      "Type": "String",
+      "Default": "pending",
+      "MinLength": 1
+    },
+    "WorkloadBoundaryArn": {
+      "Type": "String",
+      "Default": "arn:aws:iam::666734238831:policy/boxvault/app/BoxVaultAppWorkloadBoundary",
+      "AllowedValues": [
+        "arn:aws:iam::666734238831:policy/boxvault/app/BoxVaultAppWorkloadBoundary"
+      ]
+    },
+    "TemporarySenderEmail": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+    }
+  },
+  "Conditions": {
+    "ApiEnabled": {
+      "Fn::Equals": [
+        {
+          "Ref": "EnableApi"
+        },
+        "true"
+      ]
+    },
+    "RotationEnabled": {
+      "Fn::Equals": [
+        {
+          "Ref": "EnableRotation"
+        },
+        "true"
+      ]
+    }
+  },
+  "Rules": {
+    "CorrectProjectAndRegion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::AccountId"
+              },
+              "666734238831"
+            ]
+          },
+          "AssertDescription": "Verified BoxVault project only"
+        },
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::Region"
+              },
+              "ap-southeast-2"
+            ]
+          },
+          "AssertDescription": "Sydney only"
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Vpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.84.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Isolated application network: no public IP, internet gateway or NAT.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "SubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.84.10.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "SubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.84.11.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "ApiSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Private BoxVault Lambda network; no inbound traffic",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "127.0.0.1/32"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "DatabaseSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "PostgreSQL only from the application Lambda group",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "SourceSecurityGroupId": {
+              "Ref": "ApiSecurityGroup"
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "127.0.0.1/32"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Private RDS only; never permit public PostgreSQL ingress.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "EndpointSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Private AWS service HTTPS from Lambda only",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "SourceSecurityGroupId": {
+              "Ref": "ApiSecurityGroup"
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "127.0.0.1/32"
+          }
+        ]
+      }
+    },
+    "DbEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "ApiSecurityGroup"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": 5432,
+        "ToPort": 5432,
+        "DestinationSecurityGroupId": {
+          "Ref": "DatabaseSecurityGroup"
+        }
+      }
+    },
+    "ServiceEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "ApiSecurityGroup"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": 443,
+        "ToPort": 443,
+        "DestinationSecurityGroupId": {
+          "Ref": "EndpointSecurityGroup"
+        }
+      }
+    },
+    "SecretsEndpoint": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": "com.amazonaws.ap-southeast-2.secretsmanager",
+        "SubnetIds": [
+          {
+            "Ref": "SubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "EndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Single-AZ interface endpoint has hourly credit consumption; avoids a NAT gateway.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "SesEndpoint": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": "com.amazonaws.ap-southeast-2.email",
+        "SubnetIds": [
+          {
+            "Ref": "SubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "EndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Single-AZ interface endpoint has hourly credit consumption; avoids a NAT gateway.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "DatabaseSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupName": "boxvault-app-private",
+        "DBSubnetGroupDescription": "Two isolated AZ subnets; database is Single-AZ",
+        "SubnetIds": [
+          {
+            "Ref": "SubnetA"
+          },
+          {
+            "Ref": "SubnetB"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "DatabaseParameters": {
+      "Type": "AWS::RDS::DBParameterGroup",
+      "Properties": {
+        "Family": "postgres18",
+        "Description": "BoxVault TLS, UTC and no parameter-value logging",
+        "Parameters": {
+          "rds.force_ssl": "1",
+          "timezone": "UTC",
+          "log_statement": "none",
+          "log_parameter_max_length": "0",
+          "log_parameter_max_length_on_error": "0"
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "Database": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBInstanceIdentifier": "boxvault-app-db",
+        "DBName": "boxvault",
+        "Engine": "postgres",
+        "EngineVersion": {
+          "Ref": "PostgresVersion"
+        },
+        "DBInstanceClass": "db.t4g.micro",
+        "AllocatedStorage": "20",
+        "StorageType": "gp3",
+        "StorageEncrypted": true,
+        "MultiAZ": false,
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "PubliclyAccessible": false,
+        "MasterUsername": "boxvault_admin",
+        "ManageMasterUserPassword": true,
+        "DBSubnetGroupName": {
+          "Ref": "DatabaseSubnetGroup"
+        },
+        "DBParameterGroupName": {
+          "Ref": "DatabaseParameters"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Ref": "DatabaseSecurityGroup"
+          }
+        ],
+        "BackupRetentionPeriod": 7,
+        "DeletionProtection": true,
+        "DeleteAutomatedBackups": false,
+        "AutoMinorVersionUpgrade": true,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Fresh empty database; retain data/backups; no replicas, storage autoscaling or Multi-AZ.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "MasterDailyRotation": {
+      "Type": "AWS::SecretsManager::RotationSchedule",
+      "Properties": {
+        "SecretId": {
+          "Fn::GetAtt": [
+            "Database",
+            "MasterUserSecret.SecretArn"
+          ]
+        },
+        "RotationRules": {
+          "ScheduleExpression": "rate(1 day)",
+          "Duration": "1h"
+        },
+        "RotateImmediatelyOnUpdate": false
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "RDS-managed master rotation window 08:00-09:00 Manila; master never given to API.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "AuthDatabaseSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Name": "boxvault/app/auth-db",
+        "GenerateSecretString": {
+          "SecretStringTemplate": {
+            "Fn::Sub": "{\"engine\": \"postgres\", \"host\": \"${Database.Endpoint.Address}\", \"port\": 5432, \"dbname\": \"boxvault\", \"username\": \"boxvault_auth_runtime_m1\"}"
+          },
+          "GenerateStringKey": "password",
+          "PasswordLength": 64,
+          "ExcludeCharacters": "\"'\\/`$",
+          "RequireEachIncludedType": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate restricted SQL identity; target password must agree with current secret.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "ContentDatabaseSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Name": "boxvault/app/content-db",
+        "GenerateSecretString": {
+          "SecretStringTemplate": {
+            "Fn::Sub": "{\"engine\": \"postgres\", \"host\": \"${Database.Endpoint.Address}\", \"port\": 5432, \"dbname\": \"boxvault\", \"username\": \"boxvault_runtime_m1\"}"
+          },
+          "GenerateStringKey": "password",
+          "PasswordLength": 64,
+          "ExcludeCharacters": "\"'\\/`$",
+          "RequireEachIncludedType": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate restricted SQL identity; target password must agree with current secret.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "CryptoSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Name": "boxvault/app/crypto",
+        "GenerateSecretString": {
+          "SecretStringTemplate": "{}",
+          "GenerateStringKey": "seed",
+          "PasswordLength": 64,
+          "ExcludePunctuation": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Pinned root key for existing single-key code; no blind daily replacement. Version-aware cryptographic rollover is separate work.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "WebBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "boxvault-666734238831-app-web",
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate private bucket; no public ACLs; retained resources continue consuming credits.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "PlaygroundBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "boxvault-666734238831-app-playground",
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate private bucket; no public ACLs; retained resources continue consuming credits.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "MediaBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "boxvault-666734238831-app-media",
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate private bucket; no public ACLs; retained resources continue consuming credits.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "MediaBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "MediaBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "MediaBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${MediaBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ApiRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "boxvault-app-apirole",
+        "Path": "/boxvault/app/",
+        "PermissionsBoundary": {
+          "Ref": "WorkloadBoundaryArn"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedFunctionAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/boxvault-app-*:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt"
+                  ],
+                  "Resource": [
+                    "arn:aws:kms:ap-southeast-2:666734238831:key/*"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": [
+                        "secretsmanager.ap-southeast-2.amazonaws.com"
+                      ],
+                      "kms:CallerAccount": {
+                        "Ref": "AWS::AccountId"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    {
+                      "Ref": "AuthDatabaseSecret"
+                    },
+                    {
+                      "Ref": "ContentDatabaseSecret"
+                    },
+                    {
+                      "Ref": "CryptoSecret"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ses:SendEmail",
+                    "ses:SendRawEmail",
+                    "ses:SendTemplatedEmail"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${TemporarySenderEmail}"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate execution identity; mandatory fixed workload boundary; no human/administrator access.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "MigrationRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "boxvault-app-migrationrole",
+        "Path": "/boxvault/app/",
+        "PermissionsBoundary": {
+          "Ref": "WorkloadBoundaryArn"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedFunctionAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/boxvault-app-*:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "Database",
+                        "MasterUserSecret.SecretArn"
+                      ]
+                    },
+                    {
+                      "Ref": "AuthDatabaseSecret"
+                    },
+                    {
+                      "Ref": "ContentDatabaseSecret"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+                  },
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": "secretsmanager.ap-southeast-2.amazonaws.com",
+                      "kms:CallerAccount": {
+                        "Ref": "AWS::AccountId"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate execution identity; mandatory fixed workload boundary; no human/administrator access.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "ApiFunctionLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/boxvault-app-apifunction",
+        "RetentionInDays": 3
+      }
+    },
+    "ApiFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Runtime": "nodejs24.x",
+        "Architectures": [
+          "x86_64"
+        ],
+        "Code": {
+          "S3Bucket": "boxvault-666734238831-app-artifacts",
+          "S3Key": {
+            "Ref": "ArtifactKey"
+          },
+          "S3ObjectVersion": {
+            "Ref": "ArtifactVersion"
+          }
+        },
+        "MemorySize": 512,
+        "VpcConfig": {
+          "SecurityGroupIds": [
+            {
+              "Ref": "ApiSecurityGroup"
+            }
+          ],
+          "SubnetIds": [
+            {
+              "Ref": "SubnetA"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ],
+        "FunctionName": "boxvault-app-apifunction",
+        "Role": {
+          "Fn::GetAtt": [
+            "ApiRole",
+            "Arn"
+          ]
+        },
+        "Handler": "dist/lambda.handler",
+        "Timeout": 25,
+        "ReservedConcurrentExecutions": {
+          "Fn::If": [
+            "ApiEnabled",
+            1,
+            0
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "NODE_ENV": "production",
+            "DATABASE_HOST": {
+              "Fn::GetAtt": [
+                "Database",
+                "Endpoint.Address"
+              ]
+            },
+            "BOXVAULT_AWS_RUNTIME": "1",
+            "BOXVAULT_API_ID": {
+              "Ref": "ExpectedApiId"
+            },
+            "AUTH_DATABASE_SECRET_ARN": {
+              "Ref": "AuthDatabaseSecret"
+            },
+            "CONTENT_DATABASE_SECRET_ARN": {
+              "Ref": "ContentDatabaseSecret"
+            },
+            "AUTH_CRYPTO_SECRET_ARN": {
+              "Ref": "CryptoSecret"
+            },
+            "AUTH_CRYPTO_SECRET_VERSION": {
+              "Ref": "CryptoVersion"
+            },
+            "MAIL_TRANSPORT": "ses",
+            "SES_FROM": {
+              "Ref": "TemporarySenderEmail"
+            },
+            "AUTH_BOT_PROTECTION_MODE": "aws-waf",
+            "PUBLIC_WEB_URL": {
+              "Ref": "WebOrigin"
+            },
+            "WEB_ORIGIN": {
+              "Ref": "WebOrigin"
+            }
+          }
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Version-pinned code, private subnet and bounded concurrency; never replay application mutations.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DependsOn": [
+        "ApiFunctionLogs",
+        "SecretsEndpoint",
+        "SesEndpoint"
+      ]
+    },
+    "MigrationFunctionLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/boxvault-app-migrationfunction",
+        "RetentionInDays": 3
+      }
+    },
+    "MigrationFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Runtime": "nodejs24.x",
+        "Architectures": [
+          "x86_64"
+        ],
+        "Code": {
+          "S3Bucket": "boxvault-666734238831-app-artifacts",
+          "S3Key": {
+            "Ref": "ArtifactKey"
+          },
+          "S3ObjectVersion": {
+            "Ref": "ArtifactVersion"
+          }
+        },
+        "MemorySize": 512,
+        "VpcConfig": {
+          "SecurityGroupIds": [
+            {
+              "Ref": "ApiSecurityGroup"
+            }
+          ],
+          "SubnetIds": [
+            {
+              "Ref": "SubnetA"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ],
+        "FunctionName": "boxvault-app-migrationfunction",
+        "Role": {
+          "Fn::GetAtt": [
+            "MigrationRole",
+            "Arn"
+          ]
+        },
+        "Handler": "dist/aws/migrate.handler",
+        "Timeout": 240,
+        "ReservedConcurrentExecutions": 1,
+        "Environment": {
+          "Variables": {
+            "NODE_ENV": "production",
+            "DATABASE_HOST": {
+              "Fn::GetAtt": [
+                "Database",
+                "Endpoint.Address"
+              ]
+            },
+            "BOXVAULT_MIGRATION_RUNTIME": "1",
+            "MASTER_SECRET_ARN": {
+              "Fn::GetAtt": [
+                "Database",
+                "MasterUserSecret.SecretArn"
+              ]
+            },
+            "AUTH_DATABASE_SECRET_ARN": {
+              "Ref": "AuthDatabaseSecret"
+            },
+            "CONTENT_DATABASE_SECRET_ARN": {
+              "Ref": "ContentDatabaseSecret"
+            }
+          }
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Version-pinned code, private subnet and bounded concurrency; never replay application mutations.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DependsOn": [
+        "MigrationFunctionLogs",
+        "SecretsEndpoint",
+        "SesEndpoint"
+      ]
+    },
+    "AuthRotationRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "boxvault-app-authrotationrole",
+        "Path": "/boxvault/app/",
+        "PermissionsBoundary": {
+          "Ref": "WorkloadBoundaryArn"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedFunctionAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/boxvault-app-*:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "Database",
+                        "MasterUserSecret.SecretArn"
+                      ]
+                    },
+                    {
+                      "Ref": "AuthDatabaseSecret"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+                  },
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": "secretsmanager.ap-southeast-2.amazonaws.com",
+                      "kms:CallerAccount": {
+                        "Ref": "AWS::AccountId"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:DescribeSecret",
+                    "secretsmanager:PutSecretValue",
+                    "secretsmanager:UpdateSecretVersionStage"
+                  ],
+                  "Resource": {
+                    "Ref": "AuthDatabaseSecret"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate execution identity; mandatory fixed workload boundary; no human/administrator access.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "AuthRotationFunctionLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/boxvault-app-authrotationfunction",
+        "RetentionInDays": 3
+      }
+    },
+    "AuthRotationFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Runtime": "nodejs24.x",
+        "Architectures": [
+          "x86_64"
+        ],
+        "Code": {
+          "S3Bucket": "boxvault-666734238831-app-artifacts",
+          "S3Key": {
+            "Ref": "ArtifactKey"
+          },
+          "S3ObjectVersion": {
+            "Ref": "ArtifactVersion"
+          }
+        },
+        "MemorySize": 512,
+        "VpcConfig": {
+          "SecurityGroupIds": [
+            {
+              "Ref": "ApiSecurityGroup"
+            }
+          ],
+          "SubnetIds": [
+            {
+              "Ref": "SubnetA"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ],
+        "FunctionName": "boxvault-app-authrotationfunction",
+        "Role": {
+          "Fn::GetAtt": [
+            "AuthRotationRole",
+            "Arn"
+          ]
+        },
+        "Handler": "dist/aws/rotate-database.handler",
+        "Timeout": 60,
+        "ReservedConcurrentExecutions": 1,
+        "Environment": {
+          "Variables": {
+            "NODE_ENV": "production",
+            "DATABASE_HOST": {
+              "Fn::GetAtt": [
+                "Database",
+                "Endpoint.Address"
+              ]
+            },
+            "BOXVAULT_ROTATION_RUNTIME": "1",
+            "MASTER_SECRET_ARN": {
+              "Fn::GetAtt": [
+                "Database",
+                "MasterUserSecret.SecretArn"
+              ]
+            },
+            "TARGET_SECRET_ARN": {
+              "Ref": "AuthDatabaseSecret"
+            },
+            "TARGET_DB_USER": "boxvault_auth_runtime_m1"
+          }
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Version-pinned code, private subnet and bounded concurrency; never replay application mutations.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DependsOn": [
+        "AuthRotationFunctionLogs",
+        "SecretsEndpoint",
+        "SesEndpoint"
+      ]
+    },
+    "AuthRotationPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "AuthRotationFunction"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "secretsmanager.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Ref": "AuthDatabaseSecret"
+        }
+      }
+    },
+    "AuthDailyRotation": {
+      "Type": "AWS::SecretsManager::RotationSchedule",
+      "Properties": {
+        "SecretId": {
+          "Ref": "AuthDatabaseSecret"
+        },
+        "RotationLambdaARN": {
+          "Fn::GetAtt": [
+            "AuthRotationFunction",
+            "Arn"
+          ]
+        },
+        "RotationRules": {
+          "ScheduleExpression": "cron(0 2 * * ? *)",
+          "Duration": "1h"
+        },
+        "RotateImmediatelyOnUpdate": false
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Enable only after schema/grants/credential acceptance; stagger after managed-master rotation.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "Condition": "RotationEnabled",
+      "DependsOn": [
+        "AuthRotationPermission"
+      ]
+    },
+    "AuthAuthRotationFunctionErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "boxvault-app-auth-authrotationfunction-errors",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "AuthRotationFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "AuthApiFunctionErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "boxvault-app-auth-apifunction-errors",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "ApiFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "ContentRotationRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "boxvault-app-contentrotationrole",
+        "Path": "/boxvault/app/",
+        "PermissionsBoundary": {
+          "Ref": "WorkloadBoundaryArn"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedFunctionAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/boxvault-app-*:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "Database",
+                        "MasterUserSecret.SecretArn"
+                      ]
+                    },
+                    {
+                      "Ref": "ContentDatabaseSecret"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+                  },
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": "secretsmanager.ap-southeast-2.amazonaws.com",
+                      "kms:CallerAccount": {
+                        "Ref": "AWS::AccountId"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:DescribeSecret",
+                    "secretsmanager:PutSecretValue",
+                    "secretsmanager:UpdateSecretVersionStage"
+                  ],
+                  "Resource": {
+                    "Ref": "ContentDatabaseSecret"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate execution identity; mandatory fixed workload boundary; no human/administrator access.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "ContentRotationFunctionLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/boxvault-app-contentrotationfunction",
+        "RetentionInDays": 3
+      }
+    },
+    "ContentRotationFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Runtime": "nodejs24.x",
+        "Architectures": [
+          "x86_64"
+        ],
+        "Code": {
+          "S3Bucket": "boxvault-666734238831-app-artifacts",
+          "S3Key": {
+            "Ref": "ArtifactKey"
+          },
+          "S3ObjectVersion": {
+            "Ref": "ArtifactVersion"
+          }
+        },
+        "MemorySize": 512,
+        "VpcConfig": {
+          "SecurityGroupIds": [
+            {
+              "Ref": "ApiSecurityGroup"
+            }
+          ],
+          "SubnetIds": [
+            {
+              "Ref": "SubnetA"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ],
+        "FunctionName": "boxvault-app-contentrotationfunction",
+        "Role": {
+          "Fn::GetAtt": [
+            "ContentRotationRole",
+            "Arn"
+          ]
+        },
+        "Handler": "dist/aws/rotate-database.handler",
+        "Timeout": 60,
+        "ReservedConcurrentExecutions": 1,
+        "Environment": {
+          "Variables": {
+            "NODE_ENV": "production",
+            "DATABASE_HOST": {
+              "Fn::GetAtt": [
+                "Database",
+                "Endpoint.Address"
+              ]
+            },
+            "BOXVAULT_ROTATION_RUNTIME": "1",
+            "MASTER_SECRET_ARN": {
+              "Fn::GetAtt": [
+                "Database",
+                "MasterUserSecret.SecretArn"
+              ]
+            },
+            "TARGET_SECRET_ARN": {
+              "Ref": "ContentDatabaseSecret"
+            },
+            "TARGET_DB_USER": "boxvault_runtime_m1"
+          }
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Version-pinned code, private subnet and bounded concurrency; never replay application mutations.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "DependsOn": [
+        "ContentRotationFunctionLogs",
+        "SecretsEndpoint",
+        "SesEndpoint"
+      ]
+    },
+    "ContentRotationPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "ContentRotationFunction"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "secretsmanager.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Ref": "ContentDatabaseSecret"
+        }
+      }
+    },
+    "ContentDailyRotation": {
+      "Type": "AWS::SecretsManager::RotationSchedule",
+      "Properties": {
+        "SecretId": {
+          "Ref": "ContentDatabaseSecret"
+        },
+        "RotationLambdaARN": {
+          "Fn::GetAtt": [
+            "ContentRotationFunction",
+            "Arn"
+          ]
+        },
+        "RotationRules": {
+          "ScheduleExpression": "cron(0 3 * * ? *)",
+          "Duration": "1h"
+        },
+        "RotateImmediatelyOnUpdate": false
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Enable only after schema/grants/credential acceptance; stagger after managed-master rotation.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      },
+      "Condition": "RotationEnabled",
+      "DependsOn": [
+        "ContentRotationPermission"
+      ]
+    },
+    "ContentContentRotationFunctionErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "boxvault-app-content-contentrotationfunction-errors",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "ContentRotationFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "ContentApiFunctionErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "boxvault-app-content-apifunction-errors",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "ApiFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "Api": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Name": "boxvault-app-prototype",
+        "EndpointConfiguration": {
+          "Types": [
+            "REGIONAL"
+          ]
+        },
+        "Body": {
+          "openapi": "3.0.1",
+          "info": {
+            "title": "BoxVault prototype",
+            "version": "1"
+          },
+          "paths": {
+            "/{proxy+}": {
+              "x-amazon-apigateway-any-method": {
+                "responses": {},
+                "x-amazon-apigateway-integration": {
+                  "type": "aws_proxy",
+                  "httpMethod": "POST",
+                  "uri": {
+                    "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiFunction.Arn}/invocations"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "ApiInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "ApiFunction"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/prototype/*/*"
+        }
+      }
+    },
+    "ApiDeployment": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "Api"
+        }
+      }
+    },
+    "ApiStage": {
+      "Type": "AWS::ApiGateway::Stage",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "Api"
+        },
+        "DeploymentId": {
+          "Ref": "ApiDeployment"
+        },
+        "StageName": "prototype",
+        "MethodSettings": [
+          {
+            "HttpMethod": "*",
+            "ResourcePath": "/*",
+            "ThrottlingBurstLimit": 10,
+            "ThrottlingRateLimit": 5,
+            "DataTraceEnabled": false,
+            "LoggingLevel": "OFF",
+            "MetricsEnabled": false
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Same-origin browser API with Nest authorization and regional WAF; API disabled until deployment checks pass.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "WebAcl": {
+      "Type": "AWS::WAFv2::WebACL",
+      "Properties": {
+        "Name": "boxvault-app-prototype",
+        "Scope": "REGIONAL",
+        "DefaultAction": {
+          "Allow": {}
+        },
+        "CaptchaConfig": {
+          "ImmunityTimeProperty": {
+            "ImmunityTime": 300
+          }
+        },
+        "TokenDomains": [
+          {
+            "Fn::Select": [
+              2,
+              {
+                "Fn::Split": [
+                  "/",
+                  {
+                    "Ref": "WebOrigin"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "VisibilityConfig": {
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "boxvault-app-waf",
+          "SampledRequestsEnabled": false
+        },
+        "Rules": [
+          {
+            "Name": "auth-captcha",
+            "Priority": 0,
+            "Action": {
+              "Captcha": {}
+            },
+            "Statement": {
+              "AndStatement": {
+                "Statements": [
+                  {
+                    "ByteMatchStatement": {
+                      "FieldToMatch": {
+                        "Method": {}
+                      },
+                      "PositionalConstraint": "EXACTLY",
+                      "SearchString": "POST",
+                      "TextTransformations": [
+                        {
+                          "Priority": 0,
+                          "Type": "NONE"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "OrStatement": {
+                      "Statements": [
+                        {
+                          "ByteMatchStatement": {
+                            "FieldToMatch": {
+                              "UriPath": {}
+                            },
+                            "PositionalConstraint": "EXACTLY",
+                            "SearchString": "/api/v1/auth/login",
+                            "TextTransformations": [
+                              {
+                                "Priority": 0,
+                                "Type": "NONE"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "ByteMatchStatement": {
+                            "FieldToMatch": {
+                              "UriPath": {}
+                            },
+                            "PositionalConstraint": "EXACTLY",
+                            "SearchString": "/api/v1/auth/register",
+                            "TextTransformations": [
+                              {
+                                "Priority": 0,
+                                "Type": "NONE"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "ByteMatchStatement": {
+                            "FieldToMatch": {
+                              "UriPath": {}
+                            },
+                            "PositionalConstraint": "EXACTLY",
+                            "SearchString": "/api/v1/auth/password-reset/request",
+                            "TextTransformations": [
+                              {
+                                "Priority": 0,
+                                "Type": "NONE"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "ByteMatchStatement": {
+                            "FieldToMatch": {
+                              "UriPath": {}
+                            },
+                            "PositionalConstraint": "EXACTLY",
+                            "SearchString": "/api/v1/auth/google",
+                            "TextTransformations": [
+                              {
+                                "Priority": 0,
+                                "Type": "NONE"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "VisibilityConfig": {
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "boxvault-app-auth-captcha",
+              "SampledRequestsEnabled": false
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Protect the API stage itself so direct-origin requests cannot bypass CAPTCHA; sampled payloads disabled.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "WafAssociation": {
+      "Type": "AWS::WAFv2::WebACLAssociation",
+      "Properties": {
+        "ResourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:apigateway:${AWS::Region}::/restapis/${Api}/stages/prototype"
+        },
+        "WebACLArn": {
+          "Fn::GetAtt": [
+            "WebAcl",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "ApiStage"
+      ]
+    },
+    "WebOac": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": "boxvault-app-web",
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+    "WebDistribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Properties": {
+        "DistributionConfig": {
+          "Enabled": true,
+          "Comment": "BoxVault Web prototype",
+          "DefaultRootObject": "index.html",
+          "HttpVersion": "http2and3",
+          "PriceClass": "PriceClass_100",
+          "ViewerCertificate": {
+            "CloudFrontDefaultCertificate": true
+          },
+          "Origins": [
+            {
+              "Id": "static",
+              "DomainName": {
+                "Fn::GetAtt": [
+                  "WebBucket",
+                  "RegionalDomainName"
+                ]
+              },
+              "S3OriginConfig": {
+                "OriginAccessIdentity": ""
+              },
+              "OriginAccessControlId": {
+                "Ref": "WebOac"
+              }
+            },
+            {
+              "Id": "api",
+              "DomainName": {
+                "Fn::Sub": "${Api}.execute-api.${AWS::Region}.amazonaws.com"
+              },
+              "OriginPath": "/prototype",
+              "CustomOriginConfig": {
+                "HTTPSPort": 443,
+                "OriginProtocolPolicy": "https-only",
+                "OriginSSLProtocols": [
+                  "TLSv1.2"
+                ]
+              }
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "static",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "AllowedMethods": [
+              "GET",
+              "HEAD",
+              "OPTIONS"
+            ],
+            "CachedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "Compress": true,
+            "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+            "ResponseHeadersPolicyId": "67f7725c-6f97-4210-82d7-5512b31e9d03"
+          },
+          "CacheBehaviors": [
+            {
+              "PathPattern": "/api/*",
+              "TargetOriginId": "api",
+              "ViewerProtocolPolicy": "https-only",
+              "AllowedMethods": [
+                "DELETE",
+                "GET",
+                "HEAD",
+                "OPTIONS",
+                "PATCH",
+                "POST",
+                "PUT"
+              ],
+              "CachedMethods": [
+                "GET",
+                "HEAD"
+              ],
+              "Compress": false,
+              "CachePolicyId": "413f160f-6ff1-4f32-b913-d8d0e719885e",
+              "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac",
+              "ResponseHeadersPolicyId": "67f7725c-6f97-4210-82d7-5512b31e9d03"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "AWS-owned HTTPS hostname; no domain registration or certificate purchase.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "WebBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "WebBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "WebBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${WebBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:GetObject",
+              "Resource": {
+                "Fn::Sub": "${WebBucket.Arn}/*"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${WebDistribution}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "PlaygroundOac": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": "boxvault-app-playground",
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+    "PlaygroundDistribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Properties": {
+        "DistributionConfig": {
+          "Enabled": true,
+          "Comment": "BoxVault Playground prototype",
+          "DefaultRootObject": "index.html",
+          "HttpVersion": "http2and3",
+          "PriceClass": "PriceClass_100",
+          "ViewerCertificate": {
+            "CloudFrontDefaultCertificate": true
+          },
+          "Origins": [
+            {
+              "Id": "static",
+              "DomainName": {
+                "Fn::GetAtt": [
+                  "PlaygroundBucket",
+                  "RegionalDomainName"
+                ]
+              },
+              "S3OriginConfig": {
+                "OriginAccessIdentity": ""
+              },
+              "OriginAccessControlId": {
+                "Ref": "PlaygroundOac"
+              }
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "static",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "AllowedMethods": [
+              "GET",
+              "HEAD",
+              "OPTIONS"
+            ],
+            "CachedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "Compress": true,
+            "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+            "ResponseHeadersPolicyId": "67f7725c-6f97-4210-82d7-5512b31e9d03"
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "AWS-owned HTTPS hostname; no domain registration or certificate purchase.",
+          "must": [
+            "Free plan only; Sydney regional resources; no automatic upgrades"
+          ],
+          "mutable": "review-required"
+        }
+      }
+    },
+    "PlaygroundBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "PlaygroundBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "PlaygroundBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${PlaygroundBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:GetObject",
+              "Resource": {
+                "Fn::Sub": "${PlaygroundBucket.Arn}/*"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${PlaygroundDistribution}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "WebUrl": {
+      "Value": {
+        "Fn::Sub": "https://${WebDistribution.DomainName}"
+      }
+    },
+    "PlaygroundUrl": {
+      "Value": {
+        "Fn::Sub": "https://${PlaygroundDistribution.DomainName}"
+      }
+    },
+    "ApiId": {
+      "Value": {
+        "Ref": "Api"
+      }
+    },
+    "ApiUrl": {
+      "Value": {
+        "Fn::Sub": "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prototype"
+      }
+    },
+    "DatabaseEndpoint": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "Endpoint.Address"
+        ]
+      }
+    },
+    "CryptoSecretArn": {
+      "Value": {
+        "Ref": "CryptoSecret"
+      }
+    },
+    "AuthSecretArn": {
+      "Value": {
+        "Ref": "AuthDatabaseSecret"
+      }
+    },
+    "ContentSecretArn": {
+      "Value": {
+        "Ref": "ContentDatabaseSecret"
+      }
+    },
+    "WebAclArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "WebAcl",
+          "Arn"
+        ]
+      }
+    },
+    "MigrationFunction": {
+      "Value": {
+        "Ref": "MigrationFunction"
+      }
+    },
+    "WebDistributionId": {
+      "Value": {
+        "Ref": "WebDistribution"
+      }
+    },
+    "WebAclId": {
+      "Value": {
+        "Fn::GetAtt": [
+          "WebAcl",
+          "Id"
+        ]
+      }
+    },
+    "WebAclName": {
+      "Value": "boxvault-app-prototype"
+    }
+  }
+}

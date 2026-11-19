@@ -1,0 +1,1100 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "IAM bootstrap only: separate BoxVault application deployment role and workload boundary. Does not deploy application resources or change the read-only toolkit.",
+  "Rules": {
+    "CorrectProject": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::AccountId"
+              },
+              "666734238831"
+            ]
+          },
+          "AssertDescription": "Use only the verified BoxVault project."
+        },
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::Region"
+              },
+              "ap-southeast-2"
+            ]
+          },
+          "AssertDescription": "Bootstrap only in Sydney."
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "WorkloadBoundary": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "BoxVaultAppWorkloadBoundary",
+        "Path": "/boxvault/app/",
+        "Description": "Maximum envelope only; each execution role requires its separate least-privilege inline policy. No IAM, plan upgrades or human access.",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "DenyOtherWorkloadActions",
+              "Effect": "Deny",
+              "NotAction": [
+                "ec2:AssignPrivateIpAddresses",
+                "ec2:CreateNetworkInterface",
+                "ec2:DeleteNetworkInterface",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeSubnets",
+                "ec2:UnassignPrivateIpAddresses",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "s3:DeleteObject",
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:PutObject",
+                "secretsmanager:DescribeSecret",
+                "secretsmanager:GetRandomPassword",
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:PutSecretValue",
+                "secretsmanager:UpdateSecretVersionStage",
+                "ses:SendEmail",
+                "kms:Decrypt"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "SydneyOnly",
+              "Effect": "Deny",
+              "Action": "*",
+              "Resource": "*",
+              "Condition": {
+                "StringNotEquals": {
+                  "aws:RequestedRegion": "ap-southeast-2"
+                }
+              }
+            },
+            {
+              "Sid": "ApplicationLogs",
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": [
+                "arn:aws:logs:ap-southeast-2:666734238831:log-group:/aws/lambda/boxvault-app-*:*"
+              ]
+            },
+            {
+              "Sid": "PrivateVpcNetworkInterfaces",
+              "Effect": "Allow",
+              "Action": [
+                "ec2:CreateNetworkInterface",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeSubnets",
+                "ec2:DeleteNetworkInterface",
+                "ec2:AssignPrivateIpAddresses",
+                "ec2:UnassignPrivateIpAddresses"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "ApplicationSecrets",
+              "Effect": "Allow",
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+                "secretsmanager:PutSecretValue",
+                "secretsmanager:UpdateSecretVersionStage"
+              ],
+              "Resource": [
+                "arn:aws:secretsmanager:ap-southeast-2:666734238831:secret:boxvault/app/*",
+                "arn:aws:secretsmanager:ap-southeast-2:666734238831:secret:rds!db-*"
+              ]
+            },
+            {
+              "Sid": "GenerateRotationPassword",
+              "Effect": "Allow",
+              "Action": [
+                "secretsmanager:GetRandomPassword"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "TemporarySesSender",
+              "Effect": "Allow",
+              "Action": [
+                "ses:SendEmail"
+              ],
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${TemporarySenderEmail}"
+              }
+            },
+            {
+              "Sid": "PrivateMedia",
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject"
+              ],
+              "Resource": "arn:aws:s3:::boxvault-666734238831-app-media/*"
+            },
+            {
+              "Sid": "MigrationArtifacts",
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+              ],
+              "Resource": "arn:aws:s3:::boxvault-666734238831-app-artifacts/*"
+            },
+            {
+              "Sid": "DecryptThroughRegionalSecretsManagerOnly",
+              "Effect": "Allow",
+              "Action": [
+                "kms:Decrypt"
+              ],
+              "Resource": "arn:aws:kms:ap-southeast-2:666734238831:key/*",
+              "Condition": {
+                "StringEquals": {
+                  "kms:ViaService": "secretsmanager.ap-southeast-2.amazonaws.com",
+                  "kms:CallerAccount": "666734238831"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "DeploymentBoundary": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "BoxVaultAppDeploymentBoundary",
+        "Path": "/boxvault/deployment/",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "DeploymentActionsOnly",
+              "Effect": "Deny",
+              "NotAction": [
+                "apigateway:DELETE",
+                "apigateway:GET",
+                "apigateway:PATCH",
+                "apigateway:POST",
+                "apigateway:PUT",
+                "apigateway:SetWebACL",
+                "cloudformation:CreateChangeSet",
+                "cloudformation:CreateStack",
+                "cloudformation:DeleteChangeSet",
+                "cloudformation:DeleteStack",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:DescribeStackEvents",
+                "cloudformation:DescribeStacks",
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:GetTemplate",
+                "cloudformation:ListStackResources",
+                "cloudformation:UpdateStack",
+                "cloudformation:ValidateTemplate",
+                "cloudfront:CreateDistribution",
+                "cloudfront:CreateInvalidation",
+                "cloudfront:CreateOriginAccessControl",
+                "cloudfront:DeleteDistribution",
+                "cloudfront:DeleteOriginAccessControl",
+                "cloudfront:GetDistribution",
+                "cloudfront:GetDistributionConfig",
+                "cloudfront:GetInvalidation",
+                "cloudfront:GetOriginAccessControl",
+                "cloudfront:ListTagsForResource",
+                "cloudfront:TagResource",
+                "cloudfront:UntagResource",
+                "cloudfront:UpdateDistribution",
+                "cloudfront:UpdateOriginAccessControl",
+                "cloudwatch:DeleteAlarms",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:PutMetricAlarm",
+                "cloudwatch:TagResource",
+                "cloudwatch:UntagResource",
+                "ec2:AssociateRouteTable",
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateRouteTable",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateSubnet",
+                "ec2:CreateTags",
+                "ec2:CreateVpc",
+                "ec2:CreateVpcEndpoint",
+                "ec2:DeleteRouteTable",
+                "ec2:DeleteSecurityGroup",
+                "ec2:DeleteSubnet",
+                "ec2:DeleteVpc",
+                "ec2:DeleteVpcEndpoints",
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeRouteTables",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeVpcEndpointServices",
+                "ec2:DescribeVpcEndpoints",
+                "ec2:DescribeVpcs",
+                "ec2:DisassociateRouteTable",
+                "ec2:ModifyVpcAttribute",
+                "ec2:ModifyVpcEndpoint",
+                "ec2:RevokeSecurityGroupEgress",
+                "ec2:RevokeSecurityGroupIngress",
+                "freetier:GetAccountPlanState",
+                "iam:CreateRole",
+                "iam:CreateServiceLinkedRole",
+                "iam:DeleteRole",
+                "iam:DeleteRolePolicy",
+                "iam:GetRole",
+                "iam:GetRolePolicy",
+                "iam:ListRolePolicies",
+                "iam:PassRole",
+                "iam:PutRolePermissionsBoundary",
+                "iam:PutRolePolicy",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:UpdateAssumeRolePolicy",
+                "lambda:AddPermission",
+                "lambda:CreateFunction",
+                "lambda:DeleteFunction",
+                "lambda:DeleteFunctionConcurrency",
+                "lambda:GetFunction",
+                "lambda:GetFunctionConcurrency",
+                "lambda:GetFunctionConfiguration",
+                "lambda:GetPolicy",
+                "lambda:InvokeFunction",
+                "lambda:ListTags",
+                "lambda:PutFunctionConcurrency",
+                "lambda:RemovePermission",
+                "lambda:TagResource",
+                "lambda:UntagResource",
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration",
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:DeleteLogGroup",
+                "logs:DeleteRetentionPolicy",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams",
+                "logs:FilterLogEvents",
+                "logs:GetLogEvents",
+                "logs:ListTagsForResource",
+                "logs:PutLogEvents",
+                "logs:PutRetentionPolicy",
+                "logs:TagResource",
+                "logs:UntagResource",
+                "rds:AddTagsToResource",
+                "rds:CreateDBInstance",
+                "rds:CreateDBParameterGroup",
+                "rds:CreateDBSnapshot",
+                "rds:CreateDBSubnetGroup",
+                "rds:DeleteDBInstance",
+                "rds:DeleteDBParameterGroup",
+                "rds:DeleteDBSubnetGroup",
+                "rds:DescribeDBEngineVersions",
+                "rds:DescribeDBInstances",
+                "rds:DescribeDBParameterGroups",
+                "rds:DescribeDBParameters",
+                "rds:DescribeDBSnapshots",
+                "rds:DescribeDBSubnetGroups",
+                "rds:DescribeOrderableDBInstanceOptions",
+                "rds:ListTagsForResource",
+                "rds:ModifyDBInstance",
+                "rds:ModifyDBParameterGroup",
+                "rds:ModifyDBSubnetGroup",
+                "s3:AbortMultipartUpload",
+                "s3:CreateBucket",
+                "s3:DeleteBucket",
+                "s3:DeleteBucketPolicy",
+                "s3:DeleteObject",
+                "s3:GetBucketLocation",
+                "s3:GetBucketOwnershipControls",
+                "s3:GetBucketPolicy",
+                "s3:GetBucketPublicAccessBlock",
+                "s3:GetBucketTagging",
+                "s3:GetBucketVersioning",
+                "s3:GetEncryptionConfiguration",
+                "s3:GetLifecycleConfiguration",
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:ListBucket",
+                "s3:ListMultipartUploadParts",
+                "s3:PutBucketOwnershipControls",
+                "s3:PutBucketPolicy",
+                "s3:PutBucketPublicAccessBlock",
+                "s3:PutBucketTagging",
+                "s3:PutBucketVersioning",
+                "s3:PutEncryptionConfiguration",
+                "s3:PutLifecycleConfiguration",
+                "s3:PutObject",
+                "secretsmanager:CancelRotateSecret",
+                "secretsmanager:CreateSecret",
+                "secretsmanager:DeleteResourcePolicy",
+                "secretsmanager:DeleteSecret",
+                "secretsmanager:DescribeSecret",
+                "secretsmanager:GetResourcePolicy",
+                "secretsmanager:PutResourcePolicy",
+                "secretsmanager:RotateSecret",
+                "secretsmanager:TagResource",
+                "secretsmanager:UntagResource",
+                "secretsmanager:UpdateSecret",
+                "ses:CreateEmailIdentity",
+                "ses:DeleteEmailIdentity",
+                "ses:GetAccount",
+                "ses:GetEmailIdentity",
+                "ses:ListEmailIdentities",
+                "ses:TagResource",
+                "ses:UntagResource",
+                "sts:GetCallerIdentity",
+                "wafv2:AssociateWebACL",
+                "wafv2:CreateAPIKey",
+                "wafv2:CreateWebACL",
+                "wafv2:DeleteAPIKey",
+                "wafv2:DeleteWebACL",
+                "wafv2:DisassociateWebACL",
+                "wafv2:GetDecryptedAPIKey",
+                "wafv2:GetWebACL",
+                "wafv2:GetWebACLForResource",
+                "wafv2:ListAPIKeys",
+                "wafv2:ListResourcesForWebACL",
+                "wafv2:ListTagsForResource",
+                "wafv2:TagResource",
+                "wafv2:UntagResource",
+                "wafv2:UpdateWebACL",
+                "kms:Decrypt",
+                "kms:GenerateDataKey",
+                "secretsmanager:GetRandomPassword",
+                "kms:DescribeKey",
+                "lambda:GetAccountSettings"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Deny",
+              "NotAction": [
+                "cloudfront:*",
+                "freetier:GetAccountPlanState",
+                "iam:*",
+                "sts:GetCallerIdentity"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringNotEquals": {
+                  "aws:RequestedRegion": "ap-southeast-2"
+                }
+              }
+            },
+            {
+              "Sid": "NoPlanUpgradeOrExtraInfra",
+              "Effect": "Deny",
+              "Action": [
+                "iam:DeleteRolePermissionsBoundary",
+                "freetier:UpgradeAccountPlan",
+                "organizations:*",
+                "controltower:*",
+                "route53domains:*",
+                "ec2:CreateNatGateway",
+                "ec2:RunInstances"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "EnvelopeOnly",
+              "Effect": "Allow",
+              "Action": [
+                "apigateway:*",
+                "cloudformation:*",
+                "cloudfront:*",
+                "cloudwatch:*",
+                "ec2:*",
+                "freetier:*",
+                "iam:*",
+                "lambda:*",
+                "logs:*",
+                "rds:*",
+                "s3:*",
+                "secretsmanager:*",
+                "ses:*",
+                "sts:*",
+                "wafv2:*",
+                "kms:*"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "NeverExposeDatabase",
+              "Effect": "Deny",
+              "Action": [
+                "rds:CreateDBInstance",
+                "rds:ModifyDBInstance"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "Bool": {
+                  "rds:PubliclyAccessible": "true"
+                }
+              }
+            },
+            {
+              "Sid": "RequireManagedMasterSecret",
+              "Effect": "Deny",
+              "Action": "rds:CreateDBInstance",
+              "Resource": "*",
+              "Condition": {
+                "BoolIfExists": {
+                  "rds:ManageMasterUserPassword": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "DeploymentRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "BoxVaultAppDeploy",
+        "Path": "/boxvault/deployment/",
+        "MaxSessionDuration": 3600,
+        "PermissionsBoundary": {
+          "Ref": "DeploymentBoundary"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "arn:aws:iam::666734238831:role/managed/AccountFullAccessRole"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:PrincipalAccount": "666734238831"
+                },
+                "StringLike": {
+                  "sts:RoleSessionName": "boxvault-deploy-*"
+                }
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "FreePlanApplicationDeployment"
+          }
+        ],
+        "ManagedPolicyArns": [
+          {
+            "Ref": "DeploymentPermissions1"
+          },
+          {
+            "Ref": "DeploymentPermissions2"
+          }
+        ]
+      }
+    },
+    "DeploymentPermissions1": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "BoxVaultAppDeploy1",
+        "Path": "/boxvault/deployment/",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "IdentityAndFreePlan",
+              "Effect": "Allow",
+              "Action": [
+                "sts:GetCallerIdentity",
+                "freetier:GetAccountPlanState"
+              ],
+              "Resource": [
+                "*"
+              ]
+            },
+            {
+              "Sid": "CloudFormationApplicationStacks",
+              "Effect": "Allow",
+              "Action": [
+                "cloudformation:CreateStack",
+                "cloudformation:UpdateStack",
+                "cloudformation:DeleteStack",
+                "cloudformation:DescribeStacks",
+                "cloudformation:DescribeStackEvents",
+                "cloudformation:ListStackResources",
+                "cloudformation:GetTemplate",
+                "cloudformation:CreateChangeSet",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:DeleteChangeSet",
+                "cloudformation:ExecuteChangeSet"
+              ],
+              "Resource": [
+                "arn:aws:cloudformation:ap-southeast-2:666734238831:stack/boxvault-app-artifacts/*",
+                "arn:aws:cloudformation:ap-southeast-2:666734238831:stack/boxvault-app-prototype/*",
+                "arn:aws:cloudformation:ap-southeast-2:666734238831:changeSet/boxvault-app-artifacts-*/*",
+                "arn:aws:cloudformation:ap-southeast-2:666734238831:changeSet/boxvault-app-prototype-*/*"
+              ]
+            },
+            {
+              "Sid": "ValidateTemplates",
+              "Effect": "Allow",
+              "Action": [
+                "cloudformation:ValidateTemplate"
+              ],
+              "Resource": [
+                "*"
+              ]
+            },
+            {
+              "Sid": "NetworkDiscovery",
+              "Effect": "Allow",
+              "Action": [
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeVpcEndpoints",
+                "ec2:DescribeVpcEndpointServices",
+                "ec2:DescribeRouteTables",
+                "ec2:DescribeNetworkInterfaces"
+              ],
+              "Resource": [
+                "*"
+              ]
+            },
+            {
+              "Sid": "CreateTaggedApplicationNetwork",
+              "Effect": "Allow",
+              "Action": [
+                "ec2:CreateVpc",
+                "ec2:CreateSubnet",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateRouteTable",
+                "ec2:CreateVpcEndpoint"
+              ],
+              "Resource": [
+                "*"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/Project": "BoxVault"
+                }
+              }
+            },
+            {
+              "Sid": "TagApplicationNetwork",
+              "Effect": "Allow",
+              "Action": [
+                "ec2:CreateTags"
+              ],
+              "Resource": [
+                "*"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/Project": "BoxVault"
+                }
+              }
+            },
+            {
+              "Sid": "MaintainTaggedApplicationNetwork",
+              "Effect": "Allow",
+              "Action": [
+                "ec2:ModifyVpcAttribute",
+                "ec2:DeleteVpc",
+                "ec2:DeleteSubnet",
+                "ec2:DeleteSecurityGroup",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:RevokeSecurityGroupEgress",
+                "ec2:DeleteRouteTable",
+                "ec2:AssociateRouteTable",
+                "ec2:DisassociateRouteTable",
+                "ec2:ModifyVpcEndpoint",
+                "ec2:DeleteVpcEndpoints"
+              ],
+              "Resource": [
+                "*"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/Project": "BoxVault"
+                }
+              }
+            },
+            {
+              "Sid": "RdsDiscovery",
+              "Effect": "Allow",
+              "Action": [
+                "rds:DescribeDBInstances",
+                "rds:DescribeDBEngineVersions",
+                "rds:DescribeOrderableDBInstanceOptions",
+                "rds:DescribeDBSubnetGroups",
+                "rds:DescribeDBParameterGroups",
+                "rds:DescribeDBParameters"
+              ],
+              "Resource": [
+                "*"
+              ]
+            },
+            {
+              "Sid": "ApplicationDatabase",
+              "Effect": "Allow",
+              "Action": [
+                "rds:CreateDBInstance",
+                "rds:ModifyDBInstance",
+                "rds:DeleteDBInstance",
+                "rds:AddTagsToResource",
+                "rds:ListTagsForResource",
+                "rds:CreateDBSubnetGroup",
+                "rds:ModifyDBSubnetGroup",
+                "rds:DeleteDBSubnetGroup",
+                "rds:CreateDBParameterGroup",
+                "rds:ModifyDBParameterGroup",
+                "rds:DeleteDBParameterGroup",
+                "rds:CreateDBSnapshot",
+                "rds:DescribeDBSnapshots"
+              ],
+              "Resource": [
+                "arn:aws:rds:ap-southeast-2:666734238831:db:boxvault-app-*",
+                "arn:aws:rds:ap-southeast-2:666734238831:subgrp:boxvault-app-*",
+                "arn:aws:rds:ap-southeast-2:666734238831:pg:boxvault-app-*",
+                "arn:aws:rds:ap-southeast-2:666734238831:snapshot:boxvault-app-*"
+              ]
+            },
+            {
+              "Sid": "ManageApplicationFunctions",
+              "Effect": "Allow",
+              "Action": [
+                "lambda:CreateFunction",
+                "lambda:GetFunction",
+                "lambda:GetFunctionConfiguration",
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration",
+                "lambda:DeleteFunction",
+                "lambda:PutFunctionConcurrency",
+                "lambda:GetFunctionConcurrency",
+                "lambda:DeleteFunctionConcurrency",
+                "lambda:TagResource",
+                "lambda:UntagResource",
+                "lambda:ListTags",
+                "lambda:AddPermission",
+                "lambda:RemovePermission",
+                "lambda:GetPolicy",
+                "lambda:InvokeFunction"
+              ],
+              "Resource": [
+                "arn:aws:lambda:ap-southeast-2:666734238831:function:boxvault-app-*"
+              ]
+            },
+            {
+              "Sid": "ApplicationBuckets",
+              "Effect": "Allow",
+              "Action": [
+                "s3:CreateBucket",
+                "s3:DeleteBucket",
+                "s3:GetBucketLocation",
+                "s3:PutBucketTagging",
+                "s3:GetBucketTagging",
+                "s3:PutEncryptionConfiguration",
+                "s3:GetEncryptionConfiguration",
+                "s3:PutBucketVersioning",
+                "s3:GetBucketVersioning",
+                "s3:PutBucketPublicAccessBlock",
+                "s3:GetBucketPublicAccessBlock",
+                "s3:PutBucketOwnershipControls",
+                "s3:GetBucketOwnershipControls",
+                "s3:PutBucketPolicy",
+                "s3:GetBucketPolicy",
+                "s3:DeleteBucketPolicy",
+                "s3:PutLifecycleConfiguration",
+                "s3:GetLifecycleConfiguration",
+                "s3:ListBucket"
+              ],
+              "Resource": [
+                "arn:aws:s3:::boxvault-666734238831-app-*"
+              ]
+            },
+            {
+              "Sid": "ArtifactsAndStaticObjects",
+              "Effect": "Allow",
+              "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:DeleteObject",
+                "s3:AbortMultipartUpload",
+                "s3:ListMultipartUploadParts"
+              ],
+              "Resource": [
+                "arn:aws:s3:::boxvault-666734238831-app-artifacts/*",
+                "arn:aws:s3:::boxvault-666734238831-app-web/*",
+                "arn:aws:s3:::boxvault-666734238831-app-playground/*"
+              ]
+            },
+            {
+              "Sid": "ApplicationDistribution",
+              "Effect": "Allow",
+              "Action": [
+                "cloudfront:GetDistribution",
+                "cloudfront:GetDistributionConfig",
+                "cloudfront:UpdateDistribution",
+                "cloudfront:DeleteDistribution",
+                "cloudfront:UntagResource",
+                "cloudfront:ListTagsForResource",
+                "cloudfront:CreateInvalidation",
+                "cloudfront:GetInvalidation"
+              ],
+              "Resource": [
+                "arn:aws:cloudfront::666734238831:distribution/*"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/Project": "BoxVault"
+                }
+              }
+            },
+            {
+              "Sid": "PrivateOriginControls",
+              "Effect": "Allow",
+              "Action": [
+                "cloudfront:GetOriginAccessControl",
+                "cloudfront:UpdateOriginAccessControl",
+                "cloudfront:DeleteOriginAccessControl"
+              ],
+              "Resource": [
+                "arn:aws:cloudfront::666734238831:origin-access-control/*"
+              ]
+            },
+            {
+              "Sid": "RegionalRestApi",
+              "Effect": "Allow",
+              "Action": [
+                "apigateway:GET",
+                "apigateway:POST",
+                "apigateway:PUT",
+                "apigateway:PATCH",
+                "apigateway:DELETE",
+                "apigateway:SetWebACL"
+              ],
+              "Resource": [
+                "arn:aws:apigateway:ap-southeast-2::/restapis",
+                "arn:aws:apigateway:ap-southeast-2::/restapis/*",
+                "arn:aws:apigateway:ap-southeast-2::/tags/*"
+              ]
+            },
+            {
+              "Sid": "CreateTaggedApplicationDistribution",
+              "Effect": "Allow",
+              "Action": [
+                "cloudfront:CreateDistribution"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/Project": "BoxVault"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "DeploymentPermissions2": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "BoxVaultAppDeploy2",
+        "Path": "/boxvault/deployment/",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "TagApplicationDistribution",
+              "Effect": "Allow",
+              "Action": [
+                "cloudfront:TagResource"
+              ],
+              "Resource": [
+                "arn:aws:cloudfront::666734238831:distribution/*"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/Project": "BoxVault"
+                }
+              }
+            },
+            {
+              "Sid": "CreateOriginControl",
+              "Effect": "Allow",
+              "Action": [
+                "cloudfront:CreateOriginAccessControl"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "RegionalApplicationWaf",
+              "Effect": "Allow",
+              "Action": [
+                "wafv2:CreateWebACL",
+                "wafv2:GetWebACL",
+                "wafv2:UpdateWebACL",
+                "wafv2:DeleteWebACL",
+                "wafv2:AssociateWebACL",
+                "wafv2:DisassociateWebACL",
+                "wafv2:GetWebACLForResource",
+                "wafv2:ListResourcesForWebACL",
+                "wafv2:TagResource",
+                "wafv2:UntagResource",
+                "wafv2:ListTagsForResource"
+              ],
+              "Resource": [
+                "arn:aws:wafv2:ap-southeast-2:666734238831:regional/webacl/boxvault-app-*/*",
+                "arn:aws:wafv2:ap-southeast-2:666734238831:regional/apikey/*"
+              ]
+            },
+            {
+              "Sid": "ApplicationLogGroups",
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:DeleteLogGroup",
+                "logs:PutRetentionPolicy",
+                "logs:DeleteRetentionPolicy",
+                "logs:TagResource",
+                "logs:UntagResource",
+                "logs:ListTagsForResource",
+                "logs:DescribeLogStreams",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:FilterLogEvents",
+                "logs:GetLogEvents"
+              ],
+              "Resource": [
+                "arn:aws:logs:ap-southeast-2:666734238831:log-group:/aws/lambda/boxvault-app-*",
+                "arn:aws:logs:ap-southeast-2:666734238831:log-group:/aws/lambda/boxvault-app-*:*",
+                "arn:aws:logs:ap-southeast-2:666734238831:log-group:/boxvault/app/*",
+                "arn:aws:logs:ap-southeast-2:666734238831:log-group:/boxvault/app/*:*"
+              ]
+            },
+            {
+              "Sid": "LogGroupDiscovery",
+              "Effect": "Allow",
+              "Action": [
+                "logs:DescribeLogGroups"
+              ],
+              "Resource": [
+                "*"
+              ]
+            },
+            {
+              "Sid": "ApplicationSecretsMetadata",
+              "Effect": "Allow",
+              "Action": [
+                "secretsmanager:CreateSecret",
+                "secretsmanager:DescribeSecret",
+                "secretsmanager:UpdateSecret",
+                "secretsmanager:TagResource",
+                "secretsmanager:UntagResource",
+                "secretsmanager:DeleteSecret",
+                "secretsmanager:RotateSecret",
+                "secretsmanager:CancelRotateSecret",
+                "secretsmanager:PutResourcePolicy",
+                "secretsmanager:GetResourcePolicy",
+                "secretsmanager:DeleteResourcePolicy"
+              ],
+              "Resource": [
+                "arn:aws:secretsmanager:ap-southeast-2:666734238831:secret:boxvault/app/*",
+                "arn:aws:secretsmanager:ap-southeast-2:666734238831:secret:rds!db-*"
+              ]
+            },
+            {
+              "Sid": "TemporarySenderSetup",
+              "Effect": "Allow",
+              "Action": [
+                "ses:CreateEmailIdentity",
+                "ses:GetEmailIdentity",
+                "ses:DeleteEmailIdentity",
+                "ses:TagResource",
+                "ses:UntagResource"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${TemporarySenderEmail}"
+                }
+              ]
+            },
+            {
+              "Sid": "SesMetadata",
+              "Effect": "Allow",
+              "Action": [
+                "ses:GetAccount",
+                "ses:ListEmailIdentities"
+              ],
+              "Resource": [
+                "*"
+              ]
+            },
+            {
+              "Sid": "AlarmConfiguration",
+              "Effect": "Allow",
+              "Action": [
+                "cloudwatch:PutMetricAlarm",
+                "cloudwatch:DeleteAlarms",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:TagResource",
+                "cloudwatch:UntagResource"
+              ],
+              "Resource": [
+                "arn:aws:cloudwatch:ap-southeast-2:666734238831:alarm:boxvault-app-*"
+              ]
+            },
+            {
+              "Sid": "ApplicationIamRoles",
+              "Effect": "Allow",
+              "Action": [
+                "iam:CreateRole",
+                "iam:PutRolePermissionsBoundary"
+              ],
+              "Resource": [
+                "arn:aws:iam::666734238831:role/boxvault/app/*"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "iam:PermissionsBoundary": "arn:aws:iam::666734238831:policy/boxvault/app/BoxVaultAppWorkloadBoundary"
+                }
+              }
+            },
+            {
+              "Sid": "MaintainApplicationIamRoles",
+              "Effect": "Allow",
+              "Action": [
+                "iam:GetRole",
+                "iam:DeleteRole",
+                "iam:UpdateAssumeRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:GetRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:ListRolePolicies",
+                "iam:TagRole",
+                "iam:UntagRole"
+              ],
+              "Resource": [
+                "arn:aws:iam::666734238831:role/boxvault/app/*"
+              ]
+            },
+            {
+              "Sid": "PassOnlyApplicationLambdaRoles",
+              "Effect": "Allow",
+              "Action": [
+                "iam:PassRole"
+              ],
+              "Resource": [
+                "arn:aws:iam::666734238831:role/boxvault/app/*"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": "lambda.amazonaws.com"
+                }
+              }
+            },
+            {
+              "Sid": "RdsServiceLinkedRole",
+              "Effect": "Allow",
+              "Action": [
+                "iam:CreateServiceLinkedRole"
+              ],
+              "Resource": [
+                "arn:aws:iam::666734238831:role/aws-service-role/rds.amazonaws.com/AWSServiceRoleForRDS"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "iam:AWSServiceName": "rds.amazonaws.com"
+                }
+              }
+            },
+            {
+              "Sid": "RegionalCaptchaClientKeys",
+              "Effect": "Allow",
+              "Action": [
+                "wafv2:CreateAPIKey",
+                "wafv2:DeleteAPIKey",
+                "wafv2:ListAPIKeys",
+                "wafv2:GetDecryptedAPIKey"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "CreateEncryptedSecretsThroughService",
+              "Effect": "Allow",
+              "Action": [
+                "kms:GenerateDataKey",
+                "kms:Decrypt"
+              ],
+              "Resource": "arn:aws:kms:ap-southeast-2:666734238831:key/*",
+              "Condition": {
+                "StringEquals": {
+                  "kms:ViaService": "secretsmanager.ap-southeast-2.amazonaws.com",
+                  "kms:CallerAccount": "666734238831"
+                }
+              }
+            },
+            {
+              "Sid": "CloudFormationPasswordGeneration",
+              "Effect": "Allow",
+              "Action": "secretsmanager:GetRandomPassword",
+              "Resource": "*"
+            },
+            {
+              "Sid": "DefaultEncryptionKeyMetadata",
+              "Effect": "Allow",
+              "Action": "kms:DescribeKey",
+              "Resource": "arn:aws:kms:ap-southeast-2:666734238831:key/*"
+            },
+            {
+              "Sid": "VerifyLambdaAccountLimits",
+              "Effect": "Allow",
+              "Action": [
+                "lambda:GetAccountSettings"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "DeploymentRoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "DeploymentRole",
+          "Arn"
+        ]
+      }
+    },
+    "WorkloadBoundaryArn": {
+      "Value": {
+        "Ref": "WorkloadBoundary"
+      }
+    }
+  },
+  "Parameters": {
+    "TemporarySenderEmail": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
+      "Description": "Owner-selected temporary SES sender. Pass privately; do not commit personal email in source."
+    }
+  }
+}
