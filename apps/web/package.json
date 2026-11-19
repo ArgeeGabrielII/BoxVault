@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "dev:connected": "vite --config vite.connected.config.ts",
     "build:connected": "pnpm --filter @boxvault/qr build && tsc --noEmit && vite build --config vite.connected.config.ts",
-    "test:connected-session": "node --experimental-strip-types --test connected/api.test.mjs"
+    "test:connected-session": "node --experimental-strip-types --test connected/api.test.mjs",
+    "build:aws": "pnpm --filter @boxvault/qr build && tsc --noEmit && vite build --config vite.aws.config.ts --mode aws && node scripts/audit-aws-build.mjs"
   },
   "dependencies": {
     "@boxvault/assets": "workspace:*",

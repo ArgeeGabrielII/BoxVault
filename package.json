@@ -13,6 +13,8 @@
     "dev:playground": "pnpm --filter @boxvault/playground dev",
     "build:playground": "pnpm --filter @boxvault/playground build",
     "dev:local": "node scripts/local-app.mjs",
-    "aws:readiness": "node scripts/aws-readiness.mjs"
+    "aws:readiness": "node scripts/aws-readiness.mjs",
+    "aws:free-guard": "node scripts/aws-free-plan-guard.mjs",
+    "test:aws-free-guard": "node --test scripts/aws-free-plan-policy.test.mjs"
   }
 }

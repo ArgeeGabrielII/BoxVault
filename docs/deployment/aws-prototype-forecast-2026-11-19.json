@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-19",
+  "region": "ap-southeast-2",
+  "horizon": "one planning month (730 fixed-cost hours); review before extending",
+  "basis": "Conservative low-use prototype forecast. No discount/free request allowance assumed. Variable allowances are planning ceilings, not exact regional tariffs or technical caps. Fixed rates are in aws-fixed-costs-2026-11-19.json.",
+  "items": [
+    {
+      "item": "RDS instance, storage and two private endpoints",
+      "usd": "39.99"
+    },
+    {
+      "item": "One WAF ACL and one rule",
+      "usd": "6"
+    },
+    {
+      "item": "Four stored secrets",
+      "usd": "1.60"
+    },
+    {
+      "item": "10000 API requests, ceiling USD 5/million",
+      "usd": "0.05"
+    },
+    {
+      "item": "10000 Lambda requests, 2 seconds at 512 MiB, ceiling USD .00002/GB-second plus .20/million requests",
+      "usd": "0.202000"
+    },
+    {
+      "item": "35000 secret reads, USD .05/10000",
+      "usd": "0.175"
+    },
+    {
+      "item": "100 CAPTCHA attempts",
+      "usd": "0.040"
+    },
+    {
+      "item": "100 emails and small message transfer allowance",
+      "usd": "0.05"
+    },
+    {
+      "item": "S3 versions/requests, 2 GiB retained artifacts/static data allowance",
+      "usd": "1"
+    },
+    {
+      "item": "CloudFront 5 GiB transfer plus 10000 requests allowance",
+      "usd": "2"
+    },
+    {
+      "item": "Four alarms plus bounded logs allowance",
+      "usd": "3"
+    },
+    {
+      "item": "Additional backup storage allowance",
+      "usd": "1"
+    },
+    {
+      "item": "Endpoint processed data allowance",
+      "usd": "0.10"
+    },
+    {
+      "item": "CPU surplus, rotation/migration invocations and other usage contingency",
+      "usd": "15"
+    }
+  ],
+  "forecastUsd": "70.207000",
+  "creditsObservedUsd": "199.45",
+  "reserveUsd": "20",
+  "fundedMonthsAtForecastBeforeReserve": "2.556012933183300810460495392",
+  "limitations": "No out-of-pocket upgrade authorized. Free plan ends on credits/term exhaustion. Traffic, CAPTCHA abuse, CPU surplus, version growth or logging can exhaust credits sooner; throttle/alarms/guard do not constitute a monetary cap. No indefinite lifetime-free promise. Additional usage/services require fresh estimate and plan check.",
+  "sources": [
+    "aws-fixed-costs-2026-11-19.json",
+    "https://aws.amazon.com/waf/pricing/",
+    "https://aws.amazon.com/secrets-manager/pricing/",
+    "https://aws.amazon.com/lambda/pricing/",
+    "https://aws.amazon.com/api-gateway/pricing/",
+    "https://aws.amazon.com/ses/pricing/",
+    "https://aws.amazon.com/s3/pricing/",
+    "https://aws.amazon.com/cloudfront/pricing/",
+    "https://aws.amazon.com/cloudwatch/pricing/"
+  ]
+}

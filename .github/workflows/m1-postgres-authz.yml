@@ -52,7 +52,7 @@ jobs:
         run: |
           psql -h localhost -U postgres -d boxvault_authz -v ON_ERROR_STOP=1 <<'SQL'
           CREATE ROLE boxvault_fixture LOGIN BYPASSRLS PASSWORD 'ephemeral_fixture_only';
-          CREATE ROLE boxvault_runtime_m1 LOGIN PASSWORD 'ephemeral_runtime_only';
+          CREATE ROLE boxvault_runtime_m1 LOGIN PASSWORD 'ephemeral_runtime_only' NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE;
           GRANT CONNECT ON DATABASE boxvault_authz TO boxvault_fixture,boxvault_runtime_m1;
           GRANT USAGE ON SCHEMA public TO boxvault_fixture,boxvault_runtime_m1;
           GRANT ALL ON ALL TABLES IN SCHEMA public TO boxvault_fixture;
@@ -66,5 +66,7 @@ jobs:
           GRANT SELECT ON "Tenant","TenantMember","Container","ContainerAccessGrant","Item","MediaAsset" TO boxvault_runtime_m1;
           GRANT INSERT,UPDATE,DELETE ON "Container","ContainerAccessGrant","Item","MediaAsset" TO boxvault_runtime_m1;
           SQL
+      - name: Verify no-login policy role and retained FORCE RLS
+        run: pnpm --filter @boxvault/api exec node --test test/policy-owner.postgres.test.mjs
       - name: Execute critical RLS authorization tests
         run: pnpm --filter @boxvault/api test:authz:e2e

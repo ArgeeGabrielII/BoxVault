@@ -1,0 +1,7 @@
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+const root=new URL('../dist-aws/',import.meta.url);
+async function scan(dir){for(const item of await readdir(dir,{withFileTypes:true})){const path=join(dir,item.name);if(item.isDirectory())await scan(path);else if(/\.(js|html|json)$/.test(item.name)){const text=await readFile(path,'utf8');if(/\/__(?:local)\/|Enable local Family|Open local inbox|Local inbox|localhost:4380|127\.0\.0\.1:4380|AUTH_SESSION_PEPPER|TOTP_ENCRYPTION_KEY|AWS_SECRET_ACCESS_KEY/.test(text))throw Error('Development helper or server configuration in hosted artifact');}}}
+await scan(root.pathname);
+const index=new URL('index.html',root);let text=await readFile(index,'utf8');text=text.replace('Your connected local BoxVault workspace.','Your private BoxVault workspace.');text=text.replace('</head>',`<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://*.awswaf.com; connect-src 'self' https://*.awswaf.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.awswaf.com; font-src 'self' data:; frame-src 'self' https://*.awswaf.com; worker-src 'self' blob:; media-src 'self' data: blob: https://*.awswaf.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"></head>`);await writeFile(index,text);
+console.log('Hosted frontend artifact passed isolation checks. Runtime security configuration is supplied separately at deployment.');

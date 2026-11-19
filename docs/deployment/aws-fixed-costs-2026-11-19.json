@@ -1,0 +1,43 @@
+{
+  "observedDate": "2026-11-19",
+  "region": "ap-southeast-2",
+  "basisHoursPerMonth": 730,
+  "fixedSubtotalUsd": "39.9900000000",
+  "items": [
+    {
+      "service": "RDS PostgreSQL db.t4g.micro Single-AZ",
+      "quantity": 730,
+      "unit": "hours",
+      "rateUsd": "0.0250000000",
+      "monthlyUsd": "18.2500000000",
+      "sku": "MGQEJQ9TZUN7KB8H"
+    },
+    {
+      "service": "RDS gp3 storage",
+      "quantity": 20,
+      "unit": "GB-month",
+      "rateUsd": "0.1380000000",
+      "monthlyUsd": "2.7600000000",
+      "sku": "XVCEBKZQD46QGPYP"
+    },
+    {
+      "service": "Secrets Manager and SES interface endpoints, one AZ each",
+      "quantity": 1460,
+      "unit": "endpoint-hours",
+      "rateUsd": "0.0130000000",
+      "monthlyUsd": "18.9800000000",
+      "sku": "QXSR7BJCHWCXBRSN"
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonRDS/current/ap-southeast-2/index.json",
+      "publicationDate": "2026-11-17T22:55:03Z"
+    },
+    {
+      "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonVPC/current/ap-southeast-2/index.json",
+      "publicationDate": "2026-11-17T01:14:03Z"
+    }
+  ],
+  "excluded": "API Gateway, Lambda, S3, Secrets Manager secrets/requests, WAF/CAPTCHA, CloudFront, logs/alarms, SES messages, data transfer, surplus CPU and additional backup storage. Not a full deployment estimate or usage cap."
+}

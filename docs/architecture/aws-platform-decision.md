@@ -7,10 +7,10 @@ Decision accepted by the owner on 2026-11-19 (Asia/Manila). This is the authorit
 BoxVault is the SaaS application; AWS supplies its primary hosting and managed infrastructure. The selected new-experience AWS project is in **Sydney (`ap-southeast-2`)**.
 
 - React public/customer/admin/support web: private S3 static origin and CloudFront, with an isolated Developer Playground build/origin.
-- NestJS API: **one EC2 instance**, encrypted EBS, least-privilege instance role and Systems Manager administration. No Auto Scaling in the initial release.
+- NestJS API: **Lambda behind a Regional API Gateway REST API**, retaining existing authentication and authorization. The owner selected AWS-provided HTTPS addresses because no domain is owned. EC2/Caddy is superseded for this prototype. No Auto Scaling group is planned. AWS rejected reserved concurrency one; the owner subsequently approved the existing shared-five limit with throttling and browser request queues.
 - Database: **Single-AZ RDS for PostgreSQL**, private subnets and API-only security-group ingress. No Multi-AZ or replicas in the initial release. Preserve the separate migration, authentication and content SQL identities and tenant/object RLS.
 - Private photos, thumbnails and payment evidence: private S3, with API authorization, quotas and validated uploads. Do not publish these through the website origin.
-- Transactional email: SES, with verified sender and production access for arbitrary recipients; feedback via SNS/API as implemented. Prefer SES API temporary IAM credentials over long-lived SMTP credentials. The current mailer remains SMTP-only until that transport change is implemented.
+- Transactional email: SES, with verified sender and production access for arbitrary recipients; feedback via SNS/API as implemented. Prefer SES API temporary IAM credentials over long-lived SMTP credentials. The feature branch implements SES API transport with temporary workload credentials; live delivery acceptance remains pending.
 - Runtime credentials: Secrets Manager; daily database credential rotation, bounded runtime refresh, scoped rotation identity and failure alarms.
 - Observability: redacted CloudWatch logs/alarms; CloudTrail for AWS administrative activity; application and financial audit records remain in PostgreSQL.
 - Delivery: existing GitHub Actions with short-lived IAM/OIDC deployment access and CloudFormation. Current source templates are under `infra/aws`; retained Firebase preview verification lives under `infrastructure/firebase`.
@@ -18,7 +18,7 @@ BoxVault is the SaaS application; AWS supplies its primary hosting and managed i
 
 CloudFront is global; its management/certificates and the toolkit service use us-east-1 where required. Regional application resources stay in Sydney. No cross-region replicas, Lambda@Edge or StackSets.
 
-HTTPS remains required end-to-end. A lean API origin may use Caddy with a valid domain/ACME certificate; that certificate issuer is external to AWS. Fully AWS-managed certificate handling uses ALB + ACM and its additional costs. A load balancer for TLS does not imply Auto Scaling. Domain/sender identity and the final TLS variant remain decisions before public deployment. See the [complete service map](../deployment/aws-service-map.md).
+HTTPS remains required end-to-end: CloudFront’s AWS hostname serves the web app and proxies uncached `/api/*` to API Gateway’s Sydney HTTPS origin. Regional WAF protects the actual API stage, including direct-origin requests. No domain purchase, EC2, ALB or public Lambda function URL is part of this prototype. Isolated Lambda functions reach private RDS, Secrets Manager and SES through scoped security groups and two single-AZ interface endpoints; endpoint hours consume credits. See the [complete service map](../deployment/aws-service-map.md) and [current deployment checkpoint](../deployment/aws-free-plan-deployment.md).
 
 ## Provider replacement decision
 
@@ -35,13 +35,13 @@ Preserving old records/audits is not continued service use. Do not reuse old Neo
 
 | Secret/credential | Required policy | Deployment status |
 | --- | --- | --- |
-| RDS managed master/migration password | Secrets Manager managed rotation every day | `DatabaseMasterDailyRotation` exists in the undeployed RDS draft; never use master credentials in NestJS |
-| Auth/content SQL user passwords | Separate daily-rotated secrets, dedicated rotation implementation and application connection refresh | Lambda/database role integration and Prisma refresh still need implementation and acceptance |
-| AWS workload, SES API and CI access | Automatically refreshed short-lived IAM/STS credentials | Toolkit role access exists; application and deployment roles remain separate work |
+| RDS managed master/migration password | Secrets Manager managed rotation every day | Schedule exists in the staged serverless draft; no live rotation accepted; never use master credentials in NestJS |
+| Auth/content SQL user passwords | Separate daily-rotated secrets, dedicated rotation implementation and application connection refresh | Rotation Lambda and per-invocation Prisma refresh implemented on the feature branch; live acceptance pending |
+| AWS workload, SES API and CI access | Automatically refreshed short-lived IAM/STS credentials | Toolkit and separate deployment role exist; runtime roles remain undeployed; GitHub OIDC is not configured |
 | JWT signing, session/proof/recovery pepper and TOTP encryption keys | Version-aware rollover, overlap/rehash/re-encryption and safe retirement before automatic daily changes | Current single-key implementations are not rotation-ready; blind replacement is forbidden |
 | Retained third-party secrets | Provider-supported staged replacement | Must update the upstream provider and all consumers, not merely a stored random value |
 
-Proposed database rotation window: **08:00–09:00 Asia/Manila**, represented by `rate(1 day)` with a one-hour UTC rotation window. There is no live daily rotation acceptance yet. Rotation must change the real target credential, update its current secret version, refresh application connections, and prove success/failure recovery across at least two scheduled windows. See the [rotation policy](../deployment/secret-rotation.md).
+Draft daily windows: master **08:00–09:00 Asia/Manila** (`rate(1 day)`); auth **10:00–11:00** (`cron(0 2 * * ? *)`); content **11:00–12:00** (`cron(0 3 * * ? *)`). Runtime schedules stay disabled until migration/grants checks pass. There is no live daily rotation acceptance yet. Rotation must change the real target credential, update its current secret version, refresh application connections, and prove success/failure recovery across at least two scheduled windows. See the [rotation policy](../deployment/secret-rotation.md).
 
 ## Current state versus target
 
@@ -49,8 +49,8 @@ Proposed database rotation window: **08:00–09:00 Asia/Manila**, represented by
 | --- | --- | --- |
 | Local connected app | Registration/verification, auth/MFA, saved boxes/items, QR generation/rotation/resolution, Family controls and scoped HTTP/session tests | Production browser/device/provider acceptance; private photos, full billing and other documented limits |
 | AWS tooling | Codex/Kiro skills and MCP configured; `boxvault-restricted` assumes `BoxVaultToolkitReadOnly`; role/boundary stack and allow/deny checks verified | Keep tooling read-only; use separately scoped identities for authorized deployment/runtime/rotation |
-| AWS project plan | Free/ACTIVE and USD 200 credits observed on 2026-11-19 | Monitor actual remaining credits, service limits and expiry; no recurring-price or permanent-free guarantee |
-| AWS application infrastructure | RDS/S3/network draft and daily master-rotation schedule prepared; template syntax validated | Provisioning, seven migrations, runtime grants, email, secret refresh, alarms, restore tests and cutover |
+| AWS project plan | Free/ACTIVE and USD 199.45 remaining credits last observed on 2026-11-19 | Monitor actual remaining credits, service limits and expiry; no recurring-price or permanent-free guarantee |
+| AWS application infrastructure | Staged source and Linux package checks pass; shared-five approved; AWS CloudFront project-verification restriction blocks deployment; unused app resources removed at owner request | AWS Support verification, fresh artifact/key provisioning, eight migrations/runtime grants, live email/rotation acceptance, alert delivery, restore tests and cutover |
 | Firebase | Existing disconnected mock dashboard/Playground preview and static deployment guards retained | Replace only after AWS artifacts and final endpoints are accepted; do not wire private backend into the mock build |
 | Neon/Brevo | Retired from the selected stack; existing records and historical evidence preserved | No fallback/new environment use; resource closure and old credential revocation require a reviewed preservation/cleanup step |
 
