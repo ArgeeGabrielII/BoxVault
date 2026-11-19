@@ -1,92 +1,55 @@
-# Operations, Deployment, Reliability and Cost Controls
+# Operations, deployment, reliability and costs
 
-**Operational snapshot (2026-11-12; PR #4):** Production topology, private media store, backup/restore objectives and incident response are still **proposed**. Isolated Neon test-branch migrations/grants A–C and scoped GitHub Actions CI have evidence; these are **not** operational readiness or launch sign-off. Real local Brevo/reCAPTCHA onboarding was observed, but mail outbox/alerting, secure token logging, production WAF/rate-limits, secret rotation, audit retention, legacy privileged-role retirement, current-head tests and independent security review remain. Neon must remain on the Free tier. See [roadmap](../planning/delivery-roadmap.md), [platform audit](../audit/platform/m1-ci-and-release-gates.md) and [Phase D](../audit/api/phase-d-real-provider-validation.md).
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
 
-Status: proposed operational design. Production hosting has **not** been selected. The [Firebase Spark public site pipeline](../firebase-spark-cicd.md) deploys only static informational content.
+Current baseline, 2026-11-19: **AWS is primary**, Sydney (`ap-southeast-2`). One EC2 API host, private **Single-AZ** RDS PostgreSQL, private S3 and SES. Auto Scaling and Multi-AZ are deferred. [Platform decision](../architecture/aws-platform-decision.md), [service map](../deployment/aws-service-map.md).
 
-## 1. Environments
+The read-only toolkit IAM stack is installed. Application infrastructure, live rotation, mail, uploads, backups/restoration and production cutover remain unaccepted. Firebase is a retained disconnected mock preview; local PostgreSQL and historical Neon/Brevo evidence are preserved. This document does not authorize a plan upgrade or claim a deployed SaaS backend.
 
-- `local`: workstation PostgreSQL and NestJS, Vite dev server, Xcode simulator; synthetic data.
-- `test`: automated integration database, isolated object bucket and fake payment verifier; no live banking.
-- `staging`: production-like TLS/security and real iPhone device tests; fake payment references.
-- `production`: approved domain, network exposure, backups, monitoring, legal/privacy policies and release gate.
+## Environments and identities
 
-Config via environment and secret manager; no production credentials in Git, shared static assets, frontend build vars or iOS binary.
+- Local: persistent private PostgreSQL/synthetic SMTP through `pnpm dev:local`; no AWS migrations or real payments.
+- CI: disposable PostgreSQL and mail fixtures, migrations, auth/RLS/Family/QR/session and artifact checks as implemented. No hosted production credentials.
+- AWS pilot: fresh database, approved TLS origin, scoped runtime/deployment/rotation roles and synthetic acceptance data. A separate staging fleet is not provisioned by default.
+- Production: only after provider/browser/device/security/recovery and business acceptance. Single-instance downtime must be an explicit service limitation, not an implied HA guarantee.
 
-## 2. Home/hybrid deployment requirements
+Use `boxvault-restricted` for tooling metadata only. The owner source is for renewal and explicitly authorized IAM bootstrap. Runtime gets only its own secrets/objects/email sender; migrations do not run with customer runtime credentials. App admin/support is distinct from AWS/SQL infrastructure administration.
 
-```text
-Public client
-  -> HTTPS edge / Cloudflare Tunnel
-  -> Caddy or API reverse proxy
-  -> React static app + NestJS runtime
-  -> internal PostgreSQL (no public ingress)
-  -> private photo object store (cloud preferred for hybrid)
-  -> encrypted off-site DB and configuration backups
-```
+## Deployment and rollback
 
-A small 16–32 GB Linux mini PC may run a pilot, but sizing must follow measured active connections, image processing, storage capacity and concurrent uploads. Run dedicated low-privilege service accounts, database migrations out of band, OS and dependency patching, host firewall and separate management access. Verify residential ISP terms, dynamic IP/CGNAT behavior, upstream bandwidth, router security, UPS and power-outage handling.
+1. Review a Sydney usage/cost estimate, Free-plan service constraints, remaining credits and expiration. Never activate paid/advanced features automatically.
+2. Finalize domain/sender and TLS: CloudFront HTTPS plus a valid HTTPS API origin; Caddy/ACME is the lean software option, ALB+ACM the AWS-managed certificate option with extra cost. Protect origin access and disable private API caching.
+3. Review a CloudFormation change set for the fresh application target. No Auto Scaling, Multi-AZ, replicas, NAT gateway or paid security add-ons by default. A two-subnet RDS subnet group does not mean a Multi-AZ database.
+4. Deploy private RDS and verify current engine/instance orderability. Apply the seven migrations and reviewed distinct runtime grants; prove SQL/RLS and schema/history consistency. Do not import old data automatically or disable RLS to make a migration pass.
+5. Deploy built API/web artifacts through scoped short-lived GitHub OIDC credentials. Preserve app/data compatibility during rollout; do not run Vite or `pnpm dev:local` on the hosted target.
+6. Complete actual SES, bot protection, private upload and entitlement integrations; remove local-only inbox/Family helpers from the cloud UI. Keep Firebase previews until replacement artifacts/endpoints pass acceptance.
+7. Run positive/negative account → box/items → photo → QR → Family share/revoke tests and the financial tests for any enabled billing feature. Verify real devices and the final HTTPS label origin.
+8. Take/verify a recovery checkpoint before breaking changes. Roll back app artifacts only where schema compatibility holds; reconcile any new AWS writes before reverting a data endpoint. Switching DNS alone does not reconcile divergent databases.
 
-Cloudflare Tunnel removes the need for inbound port forwarding but **does not** prevent outages of home power or ISP. If all components are home-hosted, expect single-site failure risk. A hybrid design with cloud primary object storage reduces home bandwidth demands.
+## Daily secret rotation
 
-## 3. Backups / recovery
+The [rotation policy](../deployment/secret-rotation.md) is mandatory. The draft RDS master secret has `rate(1 day)`, one-hour window (08:00–09:00 Asia/Manila). Runtime auth/content SQL passwords need separate daily rotation and Prisma pool refresh. Prefer SES API/temporary IAM credentials; do not store a static AWS key just to rotate it daily.
 
-- Daily encrypted PostgreSQL backups with regular transaction-log/WAL archival if low RPO is required.
-- Off-site copies separate from production credentials, versioned/immutable when feasible.
-- Protect inventory images and DB in a mutually consistent recovery strategy; document orphan handling.
-- Restore into isolated environment **at least monthly** during pilot and after schema migrations.
-- Suggested initial **targets to validate**: RPO 24 hours, RTO 24 hours for pilot; stricter customer commitments require different architecture.
-- Keep a written runbook for SSD loss, ISP failure, corrupted migrations, ransomware and credential compromise.
+JWT signing, HMAC pepper and TOTP encryption keys require version-aware verification, recovery-code handling and ciphertext migration before automatic daily rollover. A newly stored value is not proof the database/provider changed or that consumers refreshed it. No local crypto key is overwritten by this policy.
 
-## 4. CI/CD and release pipeline
+Acceptance: controlled rotation, fresh connection, chosen old-password invalidation behavior, preserved grants/RLS, full account/share/QR tests across rotation and restart, observed completion in at least two daily windows, failure alert and tested target/secret recovery. Rotation failure is a release/incident event. The runtime/rotation identities are separate; tooling stays read-only. Never retrieve secret values into chat, logs or evidence.
 
-Already scaffolded: GitHub Actions for TypeScript install/typecheck/build; add:
-1. ESLint/format, unit tests, integration tests against Postgres with two tenants.
-2. Prisma migration lint/validation and deployment dry-run with separate DB role.
-3. Secret scanning, dependency/OS CVE scanning, basic SAST.
-4. Swift iOS tests/build on macOS runner; signing certificates securely managed (not in repo).
-5. Deploy staging → smoke/authorization checks → manual production approval → health test.
-6. DB migrations: expand/contract patterns, backup before breaking changes.
-7. Version web/API/mobile independently; backwards-compatible mobile API window.
+## Backups and recovery
 
-## 5. Monitoring and incident response
+Use encrypted RDS automated backups/snapshots and S3 versioning/lifecycle with stated retention. Keep recovery credentials separate; protect metadata and originals consistently. Perform an isolated restore exercise at least monthly during pilot and after major schema changes. RPO/RTO 24 hours are initial targets to validate, not guarantees. Same-project versioning is not an independent immutable backup; review additional protection if the risk warrants it without introducing cross-region services automatically.
 
-Service metrics: uptime, HTTP status, route p50/p95/p99, DB connections, CPU/RAM, disk free space, media-upload failure rate, job queue depth, backup last-success/restore-test timestamp, login failures and suspicious enumeration. Business metrics: payment-verification backlog, subscription expirations, credit mismatches, revenue reconciliations, tenant bytes/downloads.
+The RDS/media foundation draft retains resources and enables DB deletion protection. Deleting its stack does not necessarily remove retained objects or stop credit consumption. Inventory retained resources before approving cleanup. Never delete local/Neon data or the toolkit identity as speculative cleanup.
 
-Logs: correlation ID, safe endpoint template, HTTP status, duration, build version, error code; **never customer inventory, QR label tokens, raw photos, proof screenshots, payment credentials or signed URLs**. Guard access and enforce retention.
+## Monitoring and incident response
 
-Suggested **pilot** alert thresholds: disk <20% free, failed backup, API unavailable for >5 min, sustained 5xx >2%, elevated database connections, credit reconciliation discrepancy (immediate).
+CloudWatch: API availability/5xx/latency, memory/disk, database connections, uploads/quota failures, email feedback, rotation success/age, backup age and restore evidence. Set bounded retention and alert owners. CloudTrail covers AWS management activity; application audit and append-only financial ledger remain in RDS. Do not record passwords, JWTs/proofs, content titles, media/evidence bytes, signed URLs or full request bodies.
 
-## 6. Capacity and cost management
+Runbooks: app rollback; rotation failure/compromise; backup/restore; private-object exposure; member revocation; duplicate payment/refund; credit reconciliation; account export/deletion; certificate renewal; provider outage and privacy incident communications. Diagnose an unexpected AccessDenied using the actual identity/policy and AWS Settings spend status; never broaden the toolkit profile or use its owner source as an application workaround.
 
-Record tenant usage counters without reading customer content:
-- `storage_bytes_used` and daily delta,
-- container count vs plan limit,
-- media download bytes and thumbnails generated,
-- upload traffic and API-request counts,
-- queue operation counts and error rates.
+## Costs and availability
 
-Use resizing/thumbnailing, delete retention, deduplicated variants (only within authorized tenant), short-lived media URLs, response caching that never leaks identity, and efficient DB indexes. Monitor actual usage and plan for burst traffic.
+Track EC2/RDS baseline, EBS, public IPv4, storage/backup versions, secrets, requests, logs and egress. ALB, WAF, endpoints and queues add costs when selected. Credit coverage and service inclusion do not guarantee permanent zero cost. Use AWS Settings for project billing/spend controls and Budgets for alerts; budget alerts do not universally stop resources.
 
-**Cost planning placeholders**, not vendor quotes:
-- Managed GCP pilot: ~PHP 7,000/month.
-- Lean home pilot: ~PHP 2,000/month in monthly expenses **plus hardware and possible extra ISP/failover costs**.
-- Additional other OPEX scenario: PHP 15,000/month.
-- Cost increase: 10% annually, while subscription prices remain PHP 999/1,999 for 2027–2029.
-
-Avoid conflating direct cash hosting expenses with full economic operating cost (owner's time, manual verification, support, taxes and downtime).
-
-## 7. Operational runbooks to add before launch
-
-- Deploy and rollback.
-- Scheduled backup/restore and disaster recovery drill.
-- Rotating compromised secrets and revoked tokens.
-- Approving/rejecting manual bank transfers, duplicate references and disputed receipts.
-- Handling high-CPU/uploads and media delivery failures.
-- Invoking access requests, data export, account deletion and privacy incident response.
-- Domain/certificate renewal and Apple developer membership renewal.
-- Public status/customer communications during outage.
-
-## 8. SLO and launch gate
-
-Aim for 99.5% initial monthly availability **only when measured**, not an implied contractual SLA. A paid launch requires demonstrated restoration, tenant-isolation tests, secure media handling, alert ownership, privacy/retention policy, and a suitable App Store classification.
+Do not present old home/GCP planning figures as AWS quotes. Price actual Sydney configuration and usage before provisioning, and review monthly against application quotas and credits. One EC2 and Single-AZ RDS can be unavailable during failures/maintenance/rotation reconnects. Do not advertise an SLA based solely on green CI or a target availability percentage.

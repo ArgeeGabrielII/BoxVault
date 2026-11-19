@@ -1,8 +1,12 @@
 # Critical end-to-end authorization test (Milestone 1)
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Verification snapshot (2026-11-12; PR #4):** Database SEC-style assertions and scoped GitHub Actions gates have recorded passing results on an earlier source commit; the isolated Neon branch additionally verified selected ACL, revocation and restricted-role cases. Do **not** interpret these as a full production HTTP authorization pass. Browser tenant-isolation testing reported unauthenticated 401, unrelated-tenant 403 and **unexpected own-tenant 403**, requiring principal/tenant binding investigation and retesting. Current-head complete RLS/ACL, QR/media, write/search/count and concurrency coverage remains pending. See [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
 
-**Implementation:** [../apps/api/test/authorization.e2e.test.mjs](../apps/api/test/authorization.e2e.test.mjs)
+**Implementation:** [../apps/api/test/authorization.e2e.test.mjs](../../apps/api/test/authorization.e2e.test.mjs)
 
 This is a **real PostgreSQL database integration test**, not a mocked unit test. It exercises Prisma/PostgreSQL RLS; it does **not** exercise HTTP since authenticated tenant/container endpoints have not been implemented. It must not be represented as a complete API E2E suite.
 
@@ -36,7 +40,7 @@ Historical note: these tests had not been executed when first written; later sco
 
 ## Automated, free execution path
 
-A proposed GitHub Actions gate now exists at [M1 Postgres Authorization Gate](../.github/workflows/m1-authorization.yml). It starts **ephemeral PostgreSQL 18** on a public-repository GitHub-hosted runner; it does **not** use Neon compute, Neon credentials, or the persistent `dev` branch. The baseline is generated from `apps/api/prisma/baseline.prisma` in the runner and is followed by the draft M1 migration. It provisions a non-BYPASSRLS runtime identity and executes the Node test suite.
+A proposed GitHub Actions gate now exists at [M1 Postgres Authorization Gate](../../.github/workflows/m1-authorization.yml). It starts **ephemeral PostgreSQL 18** on a public-repository GitHub-hosted runner; it does **not** use Neon compute, Neon credentials, or the persistent `dev` branch. The baseline is generated from `apps/api/prisma/baseline.prisma` in the runner and is followed by the draft M1 migration. It provisions a non-BYPASSRLS runtime identity and executes the Node test suite.
 
 **Execution evidence:** no successful GitHub Actions run observed as of 2026-11-11. Keep it as an unverified security gate until a real green run is inspected, and commit a real versioned baseline migration after reviewing the generated SQL.
 

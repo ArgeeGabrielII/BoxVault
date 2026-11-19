@@ -1,6 +1,10 @@
 # Database and Data Model Specification
 
-**Implementation snapshot (2026-11-12; PR #4):** The description below is the *target logical model*, but the M1 branch now includes **six versioned Prisma migrations** (`202611110000`–`202611110005`), auth/session/MFA/recovery/audit records, tenant membership constraints, and tenant-aware RLS/ACL controls. The isolated `m1-security-test` Neon branch has verified A/B/C history, deployment and restricted-role grants. This does **not** establish production schema migration, all financial/media models or independent acceptance of live HTTP authorization. See [database audit](../audit/database/phase-b-schema-deployment.md) and [roadmap](../planning/delivery-roadmap.md).
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
+**Current data context — 2026-11-19:** AWS RDS PostgreSQL is the primary hosted target, with seven committed migrations and distinct migration/auth/content roles. Local auth/Family/inventory/QR flows have scoped tests; AWS deployment and full media/finance acceptance remain pending. A fresh AWS database is selected, with historical local/Neon data preserved. [Platform decision](aws-platform-decision.md).
 
 Status: **target schema**; M1 branch now includes staged auth/tenant migrations and PostgreSQL RLS; complete target schema and production acceptance remain pending.
 
@@ -109,3 +113,7 @@ Redemption workflow: verify active price version + tenant role + sufficient bala
 ## 8. Retention and privacy
 
 Create a retention matrix for users, uploaded inventory, deleted media, financial transaction data, bank payment proofs, audit events and backups. Some payment and legal records may need to outlive account deletion; disclose and implement those exceptions. Avoid recording inventory names or image content in platform operational logs.
+
+## Secret versions and rotation integration
+
+Store secret references/identifiers, never plaintext infrastructure credentials, in operational metadata. Daily auth/content password rotation must preserve SQL grants and RLS and refresh Prisma pools. TOTP has an `encryptionKeyId` field, but current code uses a single key and hardcodes `v1`; that field alone does not implement key rollover. JWT overlap, pepper-based proof/recovery migration and TOTP re-encryption need explicit implementation before daily application-key changes. [Rotation policy](../deployment/secret-rotation.md).

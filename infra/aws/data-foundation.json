@@ -1,0 +1,388 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "BoxVault EMPTY AWS data foundation. Review Free account credits and regional eligibility before creation. Creates private RDS, isolated networking and private S3 only; no application host or email sending.",
+  "Parameters": {
+    "PostgresVersion": {
+      "Type": "String",
+      "AllowedPattern": "^18\\.[0-9]+(\\.[0-9]+)?$",
+      "Description": "Explicit available PostgreSQL 18 minor version, verified as orderable on the selected micro instance in this region."
+    },
+    "DatabaseClass": {
+      "Type": "String",
+      "Default": "db.t4g.micro",
+      "AllowedValues": [
+        "db.t4g.micro",
+        "db.t3.micro"
+      ],
+      "Description": "Verify account eligibility, engine compatibility and credits before selection."
+    }
+  },
+  "Resources": {
+    "Vpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.84.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "PrivateSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.84.10.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "PrivateSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.84.11.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "ApplicationSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Reserved for the future BoxVault API host; no inbound rules",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "DatabaseSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "PostgreSQL from the BoxVault API group only",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "SourceSecurityGroupId": {
+              "Ref": "ApplicationSecurityGroup"
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "DatabaseSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "Two isolated subnets; the database remains Single-AZ",
+        "SubnetIds": [
+          {
+            "Ref": "PrivateSubnetA"
+          },
+          {
+            "Ref": "PrivateSubnetB"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "DatabaseParameters": {
+      "Type": "AWS::RDS::DBParameterGroup",
+      "Properties": {
+        "Description": "BoxVault PostgreSQL TLS enforcement",
+        "Family": "postgres18",
+        "Parameters": {
+          "rds.force_ssl": "1"
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "Database": {
+      "Type": "AWS::RDS::DBInstance",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Engine": "postgres",
+        "EngineVersion": {
+          "Ref": "PostgresVersion"
+        },
+        "EngineLifecycleSupport": "open-source-rds-extended-support-disabled",
+        "DBInstanceClass": {
+          "Ref": "DatabaseClass"
+        },
+        "DBName": "boxvault",
+        "AllocatedStorage": "20",
+        "StorageType": "gp3",
+        "StorageEncrypted": true,
+        "MasterUsername": "boxvault_migration_admin",
+        "ManageMasterUserPassword": true,
+        "DBSubnetGroupName": {
+          "Ref": "DatabaseSubnetGroup"
+        },
+        "DBParameterGroupName": {
+          "Ref": "DatabaseParameters"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Fn::GetAtt": [
+              "DatabaseSecurityGroup",
+              "GroupId"
+            ]
+          }
+        ],
+        "PubliclyAccessible": false,
+        "MultiAZ": false,
+        "BackupRetentionPeriod": 7,
+        "AutoMinorVersionUpgrade": true,
+        "AllowMajorVersionUpgrade": false,
+        "DeletionProtection": true,
+        "CopyTagsToSnapshot": true,
+        "EnablePerformanceInsights": false,
+        "MonitoringInterval": 0,
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "PrivateMedia": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "AbortIncompleteUploads",
+              "Status": "Enabled",
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Environment",
+            "Value": "prototype"
+          }
+        ]
+      }
+    },
+    "MediaPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "PrivateMedia"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "RequireTLS",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "PrivateMedia",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${PrivateMedia.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "DatabaseMasterDailyRotation": {
+      "Type": "AWS::SecretsManager::RotationSchedule",
+      "Properties": {
+        "SecretId": {
+          "Fn::GetAtt": [
+            "Database",
+            "MasterUserSecret.SecretArn"
+          ]
+        },
+        "RotateImmediatelyOnUpdate": false,
+        "RotationRules": {
+          "ScheduleExpression": "rate(1 day)",
+          "Duration": "1h"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "VpcId": {
+      "Value": {
+        "Ref": "Vpc"
+      }
+    },
+    "ApplicationSecurityGroupId": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ApplicationSecurityGroup",
+          "GroupId"
+        ]
+      }
+    },
+    "DatabaseHost": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "Endpoint.Address"
+        ]
+      }
+    },
+    "DatabasePort": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "Endpoint.Port"
+        ]
+      }
+    },
+    "MasterSecretArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "MasterUserSecret.SecretArn"
+        ]
+      },
+      "Description": "Reference only. Never give this migration credential to the application runtime."
+    },
+    "PrivateMediaBucket": {
+      "Value": {
+        "Ref": "PrivateMedia"
+      }
+    }
+  }
+}

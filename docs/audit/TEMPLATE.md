@@ -1,5 +1,9 @@
 # <Application/component> — <phase and audit title>
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Snapshot date/time (timezone):** YYYY-MM-DD HH:mm Asia/Manila  
 **Status:** NOT STARTED / IN REVIEW / VERIFIED / BLOCKED / FAILED  
 **Area:** API / Database / Web / Mobile / Assets / Platform  

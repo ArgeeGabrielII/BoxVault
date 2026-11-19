@@ -1,5 +1,9 @@
 # GitHub security alert verification — 2026-11-18
 
+<!-- BEGIN current AWS platform -->
+> **Current platform / historical evidence (2026-11-19):** [AWS is primary](../architecture/aws-platform-decision.md); Sydney, one API host, Single-AZ RDS, no Auto Scaling/Multi-AZ initially, and [daily credential rotation](../deployment/secret-rotation.md) are the accepted direction. The dated results, commands, commits and limitations below remain historical evidence, not proof of current AWS deployment or live rotation. Earlier provider/default-hosting and branch-only statements do not override that decision.
+<!-- END current AWS platform -->
+
 Reviewed repository: `ArgeeGabrielII/BoxVault`, main revision `51336a7c0f1ca80846079652a3f68f7fd06c0dea`.
 
 ## GitHub alerts

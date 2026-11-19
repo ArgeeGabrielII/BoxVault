@@ -1,5 +1,9 @@
 # ADR-QRC-001 — BoxVault QR generation package (design review)
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](architecture/aws-platform-decision.md) and [daily rotation policy](deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Status:** Four QR-library foundational decisions approved by product owner (2026-11-13); advertisement interstitial extension remains proposed pending provider, UX and privacy review. No code implemented  
 **Date:** 2026-11-13  
 **Branch:** `docs/qr-library-architecture`  

@@ -1,5 +1,9 @@
 # M1 token-bound personal tenant onboarding — implementation review
 
+<!-- BEGIN current AWS platform -->
+> **Current platform / historical evidence (2026-11-19):** [AWS is primary](../architecture/aws-platform-decision.md); Sydney, one API host, Single-AZ RDS, no Auto Scaling/Multi-AZ initially, and [daily credential rotation](../deployment/secret-rotation.md) are the accepted direction. The dated results, commands, commits and limitations below remain historical evidence, not proof of current AWS deployment or live rotation. Earlier provider/default-hosting and branch-only statements do not override that decision.
+<!-- END current AWS platform -->
+
 **Later evidence (2026-11-12; PR #4):** The “not deployed” statement below describes the **original review date**. Since then, phases A/B/C were authorized and verified on isolated Neon `m1-security-test`: migrations `000`/`001` adopted, `002`–`005` deployed, and narrowly scoped auth-runtime permissions applied. Real-provider registration/verification/login succeeded in a local test; production deployment and full security acceptance **have not** occurred. See [database audit](../audit/README.md), [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
 
 **Original design-stage status (historical):** Implementation committed on draft PR #4; at this document's initial review, no live Neon deployment was yet authorized. **Later test-branch phases A–C were subsequently authorized and verified; production remains unapproved.**

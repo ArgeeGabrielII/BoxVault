@@ -1,5 +1,9 @@
 # API — M1 authentication and tenant-onboarding implementation
 
+<!-- BEGIN current AWS platform -->
+> **Current platform / historical evidence (2026-11-19):** [AWS is primary](../../architecture/aws-platform-decision.md); Sydney, one API host, Single-AZ RDS, no Auto Scaling/Multi-AZ initially, and [daily credential rotation](../../deployment/secret-rotation.md) are the accepted direction. The dated results, commands, commits and limitations below remain historical evidence, not proof of current AWS deployment or live rotation. Earlier provider/default-hosting and branch-only statements do not override that decision.
+<!-- END current AWS platform -->
+
 **Current reconciliation — 2026-11-18:** The chronological records below preserve their original dates. Their branch-only/PR merge holds and unresolved own-tenant 403 statements are superseded: source was consolidated with owner authorization, and the 401/200/403 smoke retest passed. ID-03 now has a backend implementation and scoped automated verification; see the [current audit](id03-family-membership.md). This does not approve M1 or production release.
 
 **Date:** 2026-11-12 (Asia/Manila)  

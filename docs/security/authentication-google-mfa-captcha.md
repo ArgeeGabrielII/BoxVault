@@ -1,8 +1,12 @@
 # Authentication, Google Sign-In, MFA and Anti-Bot Controls
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Implementation snapshot (2026-11-12; PR #4):** NestJS branch code includes Google ID token validation/linking, Argon2id credentials, verified-email onboarding, password reset, TOTP/recovery codes, session refresh/replay controls, and operator step-up guards. Scoped CI passed on an **earlier** commit; local registration, Brevo verification and login succeeded in the isolated test setting. These are **not** complete client or production acceptance: React/iOS flows, live negative cases, current-head CI and operational safeguards remain. See [API audit](../audit/api/m1-implementation.md), [Phase D](../audit/api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
 
-Version 0.2 • Status: **approved direction + partial M1 implementation (branch only)**, not deployed/production approved. See [m1-authentication-implementation.md](./m1-authentication-implementation.md) for implementation and verification evidence • 2026-11-11
+Version 0.3 • Status: **approved direction + consolidated partial implementation**, not deployed/production approved. See [m1-authentication-implementation.md](./m1-authentication-implementation.md) for implementation and verification evidence • 2026-11-11
 
 ## Decisions
 
@@ -12,7 +16,7 @@ Version 0.2 • Status: **approved direction + partial M1 implementation (branch
 - **Google reCAPTCHA** (or approved equivalent) protects risk-prone **public web** signup/login/reset/contact endpoints, with server verification and risk-based challenges. Do not blanket-challenge every authenticated API request.
 - CAPTCHA is **not** an authentication factor, proof of user identity, or a replacement for rate limiting.
 - All sign-in methods converge on **the same BoxVault local user ID, per-user MFA policy and tenant authorization pipeline**. Google is an identity provider, not a shortcut around existing MFA, family permissions or the active subscription.
-- The **M1 branch** now implements a bounded password/linked-Google/TOTP/session foundation verified with disposable PostgreSQL CI, but no production auth service has been deployed. Missing onboarding, account recovery, CAPTCHA, admin MFA and audit controls remain blocking. No production session may be issued until all release requirements below are implemented and reviewed.
+- Consolidated source implements password/linked-Google/TOTP/session, onboarding/reset and scoped guard/audit foundations with disposable PostgreSQL and connected local evidence. Hosted SES, Google/client/CAPTCHA integration, private media/finance boundaries and production operations remain unaccepted. Do not describe existing local onboarding/recovery as absent, or infer a deployed AWS auth service from their tests.
 
 ## User flows
 
@@ -95,3 +99,7 @@ Google Cloud: register authorized JavaScript origins and redirect URIs/bundle ID
 5. Complete audit, operator step-up, negative tests and independent security review.
 
 References: Google Identity backend verification (https://developers.google.com/identity/sign-in/web/backend-auth); Google reCAPTCHA server verification (https://developers.google.com/recaptcha/docs/verify); OWASP MFA Cheat Sheet (https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html).
+
+## AWS secrets and public auth integration
+
+Keep existing NestJS identity/MFA and RDS tenant policies; Cognito is not a required migration dependency. SES replaces local/legacy mail for the hosted target. Daily runtime SQL password rotation must refresh the separate auth/content clients. The current HS256 key, shared pepper and single TOTP AES key are not rotation-ready: implement verification overlap, proof/recovery migration and versioned decryption/re-encryption before daily rollover. The public frontend must send valid CAPTCHA proofs or complete an AWS-native WAF replacement with backend trust/origin checks; do not disable production bot protection.

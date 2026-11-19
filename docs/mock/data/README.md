@@ -1,5 +1,9 @@
 # Mock test data — catalog and boundaries
 
+<!-- BEGIN current AWS platform -->
+> **Legacy test/reference scope (2026-11-19):** [AWS is the primary hosted target](../../architecture/aws-platform-decision.md), with [daily credential rotation](../../deployment/secret-rotation.md). Neon and Brevo are retired from the active stack: use RDS PostgreSQL and SES. Commands/fixtures below are historical evidence only; do not use them to provision or reconnect a current environment. Preserve existing records; use the connected local guide for current local development. No AWS application cutover or live rotation is established here.
+<!-- END current AWS platform -->
+
 This folder is the **documentation source of truth** for mock test data, fixture boundaries, expected results, and safe examples. It contains **no real user emails, passwords, verification tokens, JWTs, connection strings, or live tenant UUIDs**.
 
 ## Source of the test data
@@ -33,7 +37,7 @@ The UUID placeholders are **not valid UUIDs**. The local mock obtains actual IDs
 | Same request with a verified session for the owning user | 200 |
 | `GET /api/v1/containers?tenantId=<unrelated>` with that session | 403 |
 
-As of the latest operator test, the own-tenant HTTP check produced **403** unexpectedly. Do **not** mark it passed merely because the database RLS fixture check succeeded. Consult the [Phase D audit](../../audit/api/phase-d-real-provider-validation.md).
+Historical checkpoint: the own-tenant HTTP check initially returned 403; the recorded 2026-11-13 retest passed 401/200/403, and the subsequent connected local flow has scoped HTTP evidence. Neither proves hosted AWS production acceptance. Consult the [Phase D chronology](../../audit/api/phase-d-real-provider-validation.md) and [local guide](../../development/connected-local-app.md).
 
 ## Rules for adding mock data
 

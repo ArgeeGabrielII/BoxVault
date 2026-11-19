@@ -1,5 +1,9 @@
 # Web Experience, SEO, Accessibility & Compliance Requirements
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **UI preview implementation snapshot (2026-11-13):** The public Firebase mock now includes branded 404, per-route metadata, a 1200×630 Open Graph image, SVG/ICO/PNG/apple/manifest icons, robots and generated sitemap, image alternatives, responsive breakpoints, route/submission loading states, inline validation, a demonstration thank-you flow, dated privacy/terms drafts, consent controls and an above-the-fold CTA. Six public/error pages are prerendered at build time; Hosting remains static on Spark. Existing backend infrastructure is not connected to this public mock.
 
 **Remaining launch inputs:** Analytics is implemented behind consent but deliberately disabled until a real GA4 measurement ID is supplied in `apps/web/src/seo/siteConfig.json`. Operator identity, privacy contact and legal approval remain unset; policy drafts are visibly labeled and excluded from the sitemap. This is not a claim of production legal compliance or completed production authentication.

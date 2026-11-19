@@ -1,5 +1,9 @@
 # Manual Credits, Subscriptions and Financial Reporting
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Implementation snapshot (2026-11-12; PR #4):** Fixed-price and closed-loop credit designs remain **specifications**, not an operational billing service. M1 adds authentication and privileged-operator guard foundations, but actual payment-review processing is deliberately unavailable (guarded `GET /api/v1/admin/topups` returns 501 for authorized operators). No verified web top-up, transfer approval, ledger posting, redemption, or mobile-payment-policy acceptance is claimed. See [roadmap](../planning/delivery-roadmap.md).
 
 Status: proposed design. No payment gateway is connected or needed for MVP.

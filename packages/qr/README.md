@@ -1,5 +1,9 @@
 # @boxvault/qr
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../../docs/architecture/aws-platform-decision.md) and [daily rotation policy](../../docs/deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 Framework-neutral QR Code Model 2 generator facade for BoxVault.
 
 **Status:** Internal preview implementation. Do **not** use to issue production container labels until independent test, security and deployment gates pass. All production token issuance, validation and ACL checks belong in NestJS, not the QR package or mock UI.

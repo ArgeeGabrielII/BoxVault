@@ -1,6 +1,10 @@
 # BoxVault Security Acceptance Checklist
 
-**Review snapshot (2026-11-12; PR #4):** This is a **production release acceptance checklist**; none of its broad security gates should be checked simply because M1 code or isolated tests exist. Scoped PostgreSQL policies, restricted roles, migrations and auth CI have evidence, but latest-head CI, full HTTP authorization, media/QR/finance safety, independent review, operations and production sign-off are still pending. Browser own-tenant GET incorrectly returned 403. See [roadmap](../planning/delivery-roadmap.md) and [engineering audit](../audit/README.md).
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
+**Production acceptance — 2026-11-19:** These boxes are release gates, not source-completion flags. AWS is primary; local auth/Family/inventory/QR tests and a restricted toolkit do not establish hosted provider, media, finance, rotation or recovery acceptance. The old own-tenant 403 was superseded by the recorded 401/200/403 retest. [Platform decision](../architecture/aws-platform-decision.md).
 
 This file is a **release gate** and future verification tracker. **All boxes are initially unchecked.** Do not interpret the specification as proof of implementation.
 
@@ -33,7 +37,11 @@ This file is a **release gate** and future verification tracker. **All boxes are
 - [ ] HTTPS/TLS, strict CORS, CSP/HSTS, rate limits and upload size limits verified.
 - [ ] Secret scan/dependency scan/SAST and security integration tests are CI required checks.
 - [ ] Backups encrypted off-site, restore tested, RPO/RTO defined.
-- [ ] Host/OS patched, SSH/DB ports private, tunnel origin secured, UPS tested if home hosting.
+- [ ] EC2/OS patched; private RDS and protected HTTPS origin; SSM/runtime/deployment identities scoped; no public SSH/database access.
+- [ ] Initial AWS change set has one API host and Single-AZ RDS; no Auto Scaling or Multi-AZ. Free plan and Sydney regional scope preserved.
+- [ ] Daily master/auth/content database password rotation changes the actual target, refreshes runtime pools and succeeds across two observed windows with tested failure alerts/recovery.
+- [ ] JWT signing overlap, pepper/recovery migration and TOTP versioned decryption/re-encryption pass before daily cryptographic key rollover is enabled.
+- [ ] Agent access remains read-only; owner login excluded from MCP; no secret values appear in build/test/rotation evidence.
 - [ ] Data export, deletion request, retention and incident runbook completed.
 - [ ] Outside security review/penetration test completed and high findings resolved.
 - [ ] Philippine privacy, tax/registration/payment-credit terms and Apple distribution review completed.
@@ -53,6 +61,9 @@ This file is a **release gate** and future verification tracker. **All boxes are
 | Concurrent redemptions exceed wallet balance | exactly one wins; no negative balance | Transaction test |
 | Malicious oversized/decompression-bomb photo | upload rejected, no unsafe processing | Media pipeline |
 | Log/tracing includes authentication or inventory payload | test fails/redaction enforced | CI/log test |
-| Restore encrypted backup on isolated host | complete recovery within target | DR exercise |
+| Restore encrypted RDS/S3 recovery checkpoint | complete recovery within defined target | DR exercise |
+| Rotate a database password during active requests/restart | current credentials reconnect; tenant scope and grants preserved | Rotation/HTTP |
+| Rotate signing/pepper/TOTP key versions | valid unexpired flows and stored MFA remain usable; retired versions handled | Auth/key migration |
+| Rotation fails or becomes overdue | scoped alert fires; target/secret consistency recovered without logging values | Operational drill |
 
 Record test name, reviewer, evidence URL, date, environment and result for each row before go-live. Never place actual customer data or credentials in test evidence.

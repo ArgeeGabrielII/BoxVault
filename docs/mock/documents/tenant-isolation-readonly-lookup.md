@@ -1,5 +1,9 @@
 # M1 — Read-only tenant ID lookup for browser isolation tests
 
+<!-- BEGIN current AWS platform -->
+> **Legacy test/reference scope (2026-11-19):** [AWS is the primary hosted target](../../architecture/aws-platform-decision.md), with [daily credential rotation](../../deployment/secret-rotation.md). Neon and Brevo are retired from the active stack: use RDS PostgreSQL and SES. Commands/fixtures below are historical evidence only; do not use them to provision or reconnect a current environment. Preserve existing records; use the connected local guide for current local development. No AWS application cutover or live rotation is established here.
+<!-- END current AWS platform -->
+
 **Scope:** isolated Neon `m1-security-test` only. This step does not modify data or change runtime permissions.
 
 The local HTML registration tester needs two **tenant UUIDs**: the tenant belonging to the account you just logged into, and an unrelated existing synthetic test tenant. The API deliberately does not allow the user to enumerate other tenants; fetch these IDs separately through an operator-controlled, read-only Prisma query.

@@ -1,5 +1,9 @@
 # Firebase Spark mock dashboard CI/CD
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](architecture/aws-platform-decision.md) and [daily rotation policy](deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Current status — 2026-11-13:** The owner approved publishing the interactive mock dashboard and creating its dedicated deployment identity. The target is `boxvault-argee-2026`, on Spark with no linked billing account. Earlier public-coming-soon-only and manual-approval plans are superseded for this mock release.
 
 ## Deployment scope

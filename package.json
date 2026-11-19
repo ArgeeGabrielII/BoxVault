@@ -12,6 +12,7 @@
     "db:migrate": "pnpm --filter @boxvault/api db:migrate",
     "dev:playground": "pnpm --filter @boxvault/playground dev",
     "build:playground": "pnpm --filter @boxvault/playground build",
-    "dev:local": "node scripts/local-app.mjs"
+    "dev:local": "node scripts/local-app.mjs",
+    "aws:readiness": "node scripts/aws-readiness.mjs"
   }
 }

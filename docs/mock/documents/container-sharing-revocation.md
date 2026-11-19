@@ -1,5 +1,9 @@
 # M1 — Container sharing and immediate revocation test
 
+<!-- BEGIN current AWS platform -->
+> **Legacy test/reference scope (2026-11-19):** [AWS is the primary hosted target](../../architecture/aws-platform-decision.md), with [daily credential rotation](../../deployment/secret-rotation.md). Neon and Brevo are retired from the active stack: use RDS PostgreSQL and SES. Commands/fixtures below are historical evidence only; do not use them to provision or reconnect a current environment. Preserve existing records; use the connected local guide for current local development. No AWS application cutover or live rotation is established here.
+<!-- END current AWS platform -->
+
 **Current state — 2026-11-18:** Container sharing and ID-03 invitations are implemented in consolidated source. The disposable HTTP suite registers/verifies separate users, accepts a same-tenant invitation and proves 404 → 200 → 404 selected sharing with the same session. See the [ID-03 audit](../../audit/api/id03-family-membership.md). Browser/client integration and production approval remain pending; this guide retains the manual browser procedure.
 
 ## What changed

@@ -1,5 +1,9 @@
 # Proposed REST API Contract
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Implementation snapshot — 2026-11-18:** Auth/MFA, registration/verification/reset, session controls, guarded container list/detail/private creation/sharing and the deny-by-default admin top-up route are implemented in consolidated source. ID-03 adds the eight tenant/invitation/member routes documented in the [current audit](../audit/api/id03-family-membership.md). Their scoped automated evidence does not establish complete client integration or production acceptance. QR/media CRUD, financial services and most remaining table entries are still proposals.
 
 **Contract status:** a mixture of implemented and proposed routes. The old statement that main contains only `/health` is superseded. The hosted Firebase release still has no connected application backend.
@@ -192,3 +196,7 @@ Label creation returns a one-time `/scan#token=…` URL; only its SHA-256 hash i
 `/__local/mail` and `/__local/family` belong to the Vite development sandbox, not the NestJS or public hosting contract. They require the explicit loopback/test profile; Family activation additionally checks actual owner membership and an allowlisted local database. There is no payment, credit grant, external email or hosted database migration in this flow.
 
 Automated evidence includes the proxy-level register → verify → login → box/items → QR rotation → invitation acceptance → selected sharing → revocation → reset/refresh/logout flow. Browser/device interaction and production release acceptance remain separate.
+
+## AWS hosting and rotation contract
+
+AWS adoption changes infrastructure, not the client authority model: clients use HTTPS API routes and never receive SQL, SMTP, AWS or secret-store credentials. Runtime auth/content connections stay separate and private on Single-AZ RDS. Daily password rotation must preserve transaction-scoped authorization and refresh pools; do not automatically replay an ambiguous financial or invitation write. Versioned signing/pepper/MFA changes require compatibility tests for existing sessions and pending proofs. [Platform decision](aws-platform-decision.md), [rotation acceptance](../deployment/secret-rotation.md).

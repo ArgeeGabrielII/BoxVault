@@ -1,14 +1,18 @@
 # Product Requirements Document (PRD)
 
-**Implementation snapshot (2026-11-12; PR #4):** The MVP requirements remain the approved target, not a completed product. A NestJS authentication/tenant/RLS foundation exists on the feature branch; database phases A–C were verified on an isolated Neon test branch, and a local registration → email verification → login was observed. Family invitation/seat-limit UI, inventory CRUD, media, web-only payment processing, and native app onboarding are not accepted. A browser own-tenant read returned unexpected HTTP 403; release acceptance remains blocked. See [roadmap](../planning/delivery-roadmap.md) and [Phase D audit](../audit/api/phase-d-real-provider-validation.md).
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
 
-Version 0.1 • Owner: Product/Engineering • Status: proposed
+**Current product context — 2026-11-19:** The product requirements remain the target. AWS is the primary platform in Sydney, with one API host, Single-AZ RDS and daily credential rotation; no Auto Scaling/Multi-AZ initially. Connected local auth/MFA, inventory/QR and Family controls have scoped evidence. Photo, payment, native-device, hosted provider and production acceptance remain unfinished. [Platform decision](../architecture/aws-platform-decision.md).
+
+Version 0.2 • Owner: Product/Engineering • Status: approved product/platform direction; implementation and release gates remain open
 
 ## 1. Product vision and personas
 
 **BoxVault** lets people identify a storage box by a printed QR label or NFC tag and securely view photographic contents without opening a stacked container. The system includes a React customer website, a native SwiftUI iPhone app, a NestJS API, and an operator-only web admin portal.
 
-Personas: **Personal owner** (single-user tenant), **Family owner** (payer, invitation and access control), **Family editor** (maintains shared boxes), **Family viewer** (read-only), **Payment reviewer** (financial decisions), **Operations admin** (business/operational metadata), **System Support** (support cases, account-status lookup and redacted diagnostics), and **Security admin** (operator identity/security governance). A member can belong to multiple tenants in the future; tenant switching must be explicit and independently authorized.
+Personas: **Personal owner** (single-user tenant), **Family owner** (payer, invitation and access control), **Family editor** (maintains shared boxes), **Family viewer** (read-only), **Payment reviewer** (financial decisions), **Operations admin** (business/operational metadata), **System Support** (support cases, account-status lookup and redacted diagnostics), and **Security admin** (operator identity/security governance). A member can have multiple workspace memberships; workspace selection is implemented locally and must remain explicit and independently authorized in hosted clients.
 
 ## 2. Release labels
 
@@ -26,7 +30,7 @@ Personas: **Personal owner** (single-user tenant), **Family owner** (payer, invi
 | ID-03 | MVP | Family owner invites members by email; invite links single-use and expiring | Seat cap enforced at **4 total members including owner**; duplicate/pending invitations handled |
 | ID-04 | MVP | Roles OWNER, EDITOR, VIEWER; platform ADMIN separate from tenant roles | Unauthorized mutations and reads denied at both application and database layers |
 | ID-05 | MVP | Profile, password change, active-device/session management | Session revocation takes effect; credentials never logged |
-| ID-06 | V1 | Personal/private boxes inside a family | Only explicitly authorized members can read, even if other members share tenant |
+| ID-06 | MVP | Personal/private boxes inside a family | Only explicitly authorized members can read, even if other members share tenant |
 | ID-07 | V1 | Member removal, ownership transfer and tenant switching | Removed member's refresh tokens revoked; access denied before any inventory responses |
 | ID-08 | V1 | Account data export/deletion and tenant closure | Export is authenticated, time-limited; retention exceptions documented |
 
@@ -134,7 +138,9 @@ Define precise expired-plan behavior before launch: suggested **read-only grace 
 - Accessibility: scalable text, screen reader labels, high-contrast UI and QR manual-lookup fallback.
 - Reliability: idempotent uploads where practical, idempotent financial actions mandatory.
 - Privacy: operational logging cannot leak inventory; admin cannot browse private media.
-- Costs: meter storage bytes and downloads per tenant without examining image contents.
+- Costs: meter storage bytes/downloads without examining image contents; preserve the AWS Free plan and review actual Sydney costs.
+- Hosting: AWS is primary, one EC2 API and private Single-AZ RDS initially; Auto Scaling/Multi-AZ deferred.
+- Secrets: daily database credential rotation, safe consumer refresh and monitored recovery; version-aware signing/pepper/MFA key handling before automated rollover. These are acceptance requirements, not live controls.
 
 ## 12. Out of scope for MVP
 

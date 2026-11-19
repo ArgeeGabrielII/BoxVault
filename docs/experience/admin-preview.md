@@ -1,5 +1,9 @@
 # Admin console UI preview
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 Implemented on 2026-11-13. Open `/#/admin/overview`, or use **Explore admin preview** in the customer demo sidebar.
 
 The console follows the existing light/dark/system theme and uses fictional account and billing fixtures from `apps/web/src/admin/mockData.ts`.

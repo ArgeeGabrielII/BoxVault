@@ -1,5 +1,9 @@
 # Mobile — M1 authentication integration audit
 
+<!-- BEGIN current AWS platform -->
+> **Current platform / historical evidence (2026-11-19):** [AWS is primary](../../architecture/aws-platform-decision.md); Sydney, one API host, Single-AZ RDS, no Auto Scaling/Multi-AZ initially, and [daily credential rotation](../../deployment/secret-rotation.md) are the accepted direction. The dated results, commands, commits and limitations below remain historical evidence, not proof of current AWS deployment or live rotation. Earlier provider/default-hosting and branch-only statements do not override that decision.
+<!-- END current AWS platform -->
+
 **Date:** 2026-11-12 (Asia/Manila)  
 **Application:** iOS / SwiftUI companion (mobile workspace)  
 **Status:** NO M1 LOGIN/REGISTRATION INTEGRATION EVIDENCE in this review.
