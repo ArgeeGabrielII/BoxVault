@@ -1154,6 +1154,25 @@
                 "lambda:GetFunctionScalingConfig"
               ],
               "Resource": "arn:aws:lambda:ap-southeast-2:666734238831:function:boxvault-app-*"
+            },
+            {
+              "Sid": "CreateNetworkChildrenInTaggedVpc",
+              "Effect": "Allow",
+              "Action": [
+                "ec2:CreateSubnet",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateVpcEndpoint"
+              ],
+              "Resource": [
+                "arn:aws:ec2:ap-southeast-2:666734238831:vpc/*",
+                "arn:aws:ec2:ap-southeast-2:666734238831:subnet/*",
+                "arn:aws:ec2:ap-southeast-2:666734238831:security-group/*"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/Project": "BoxVault"
+                }
+              }
             }
           ]
         }
