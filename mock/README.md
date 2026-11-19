@@ -1,5 +1,9 @@
 # BoxVault local mock assets
 
+<!-- BEGIN current AWS platform -->
+> **Legacy test/reference scope (2026-11-19):** [AWS is the primary hosted target](../docs/architecture/aws-platform-decision.md), with [daily credential rotation](../docs/deployment/secret-rotation.md). Existing Neon/Brevo fixtures and harness commands below are historical/isolated references, not default AWS setup. Preserve their data and safety restrictions; use the connected local guide for the current local app. No AWS application cutover or live rotation is established here.
+<!-- END current AWS platform -->
+
 This folder holds **runnable local-only mock assets**, not documentation or real test data.
 
 - [M1 registration/password/tenant-isolation browser harness](boxvault-m1-registration-harness.html) — serve at `http://localhost:5173/boxvault-m1-registration-harness.html`

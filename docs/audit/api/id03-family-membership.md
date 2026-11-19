@@ -1,5 +1,9 @@
 # ID-03 — Family invitations and membership management
 
+<!-- BEGIN current AWS platform -->
+> **Current platform / historical evidence (2026-11-19):** [AWS is primary](../../architecture/aws-platform-decision.md); Sydney, one API host, Single-AZ RDS, no Auto Scaling/Multi-AZ initially, and [daily credential rotation](../../deployment/secret-rotation.md) are the accepted direction. The dated results, commands, commits and limitations below remain historical evidence, not proof of current AWS deployment or live rotation. Earlier provider/default-hosting and branch-only statements do not override that decision.
+<!-- END current AWS platform -->
+
 **Updated:** 2026-11-18 (Asia/Manila). **Engineering state:** implemented; local and commit-scoped GitHub automated verification recorded below. **Production acceptance:** NOT APPROVED. CI evidence is recorded for specific commits and does not authorize runtime deployment, hosted database migrations, or accepting customers.
 
 This is the current feature/status reference. Older PR #4 branch-only and merge-hold passages are historical: the owner authorized source consolidation into `main`. The earlier own-tenant 403 was superseded by the 2026-11-13 operator-observed 401/200/403 retest. Neither that smoke test nor later CI constitutes full M1 production approval.

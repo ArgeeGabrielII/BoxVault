@@ -1,5 +1,9 @@
 # BoxVault role-based sitemap
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 Updated 2026-11-13. Browse the interactive map at `/#/sitemap`.
 
 This map separates **implemented mock UI** from **planned connected-product screens**. It is a human-facing information architecture, not a search-engine XML sitemap. The public UI has no live authentication or authorization. A demo username chooses a preview; it does not grant real account permissions.

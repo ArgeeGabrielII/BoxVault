@@ -1,6 +1,12 @@
 # ADR-CLD-001 — Firebase Spark-only static deployment for BoxVault
 
+<!-- BEGIN current AWS platform -->
+> **Superseded platform ADR (2026-11-19):** [AWS is primary](architecture/aws-platform-decision.md) with [daily credential rotation](deployment/secret-rotation.md). This former Firebase proposal is retained as history; its original “not created” and coming-soon-only statements are not current status. Existing fictional-data Firebase previews remain intact until AWS cutover acceptance. Do not use this ADR as the primary application deployment plan.
+<!-- END current AWS platform -->
+
 > **2026-11-13 decision update:** The owner explicitly authorized publishing the interactive mock dashboard and its CI/CD deploy identity. The earlier coming-soon-only scope and per-release manual approval below describe the original plan. The current static deployment uses `apps/web` with fictional fixtures, no backend connections, and Spark billing safeguards. See [current CI/CD](firebase-spark-cicd.md).
+
+## Original proposal (historical)
 
 **Status:** Proposed for approval; **no Firebase project, credentials, site, deployment workflow, or running service has been created**  
 **Date:** 2026-11-13  

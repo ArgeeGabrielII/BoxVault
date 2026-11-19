@@ -6,6 +6,7 @@ inclusion: always
 ## BoxVault AWS configuration and owner preferences
 
 - AWS experience: new AWS experience (project-based).
+- AWS is BoxVault's primary SaaS platform. The authoritative platform/rotation decision is `docs/architecture/aws-platform-decision.md`; historical Firebase/Neon/Brevo and home/hybrid records do not override it.
 - Selected project Region: `ap-southeast-2` (Sydney), confirmed by the owner on 2026-11-19.
 - `help_level: HIGH`, already selected by the owner. Explain steps, alternatives and best practices; do not ask for this preference again.
 - Use `boxvault-restricted` for AWS tooling and MCP. It assumes `BoxVaultToolkitReadOnly`, with an explicit action allowlist and permissions boundary. The profile is deliberately read-only.

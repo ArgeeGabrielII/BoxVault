@@ -1,5 +1,9 @@
 # API — Phase D: Real Brevo / reCAPTCHA signup verification
 
+<!-- BEGIN current AWS platform -->
+> **Current platform / historical evidence (2026-11-19):** [AWS is primary](../../architecture/aws-platform-decision.md); Sydney, one API host, Single-AZ RDS, no Auto Scaling/Multi-AZ initially, and [daily credential rotation](../../deployment/secret-rotation.md) are the accepted direction. The dated results, commands, commits and limitations below remain historical evidence, not proof of current AWS deployment or live rotation. Earlier provider/default-hosting and branch-only statements do not override that decision.
+<!-- END current AWS platform -->
+
 **Latest audit roll-up (2026-11-12):** The first-line `PENDING` below reflects the initial audit opening. Later entries document operator-reported successful real-CAPTCHA registration, Brevo email verification and login, with independently inspected Neon auth events and tenant membership. A subsequent HTTP tenant-isolation test initially returned own-tenant 403 unexpectedly, but the **2026-11-13 operator retest PASSED** (unauthenticated 401, own tenant 200 with zero containers, unrelated tenant 403). See the latest dated evidence below. No complete current-head CI, authenticated media/QR/finance authorization or production sign-off is claimed. The dated audit entries below remain historical evidence, not a single flat status.
 
 **Date opened:** 2026-11-12 (Asia/Manila)  

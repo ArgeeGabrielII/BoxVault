@@ -1,10 +1,15 @@
 # VaultBox Developer Playground
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](architecture/aws-platform-decision.md) and [daily rotation policy](deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 > **2026-11-13 publication update:** The owner explicitly requested a separate public Playground URL. `pnpm --filter @boxvault/playground build:public` now produces a distinct mock-only artifact with the local backend tester excluded. The older local-only publication restriction below is superseded for this public mock build only. The local bridge and real backend tester remain local. Public site: https://boxvault-playground-argee-2026.web.app
 
 
 **Status:** Local development workspace: fictional UI mocks plus restricted real-local-backend checks. Not a production application.  
-**Baseline:** QR architecture and VaultBox Developer Playground merged into `main`. Local backend tester developed independently; PR #4 and PR #6 remain unmerged.  
+**Baseline:** QR architecture and VaultBox Developer Playground merged into `main`. Local backend tester developed independently; the old PR #4/#6 merge statements below are historical, and source was subsequently consolidated. AWS is the selected future hosting target; current public mock remains isolated.
+
 **Product repository and package namespace:** BoxVault (`@boxvault/*`)  
 **Playground display name:** VaultBox Developer Playground
 
@@ -81,7 +86,7 @@ Manual QA still required: both mock screens on Safari/Chrome/Firefox/Edge and ph
 
 - [QR library architecture](qr-library-architecture.md)
 - [QR library implementation](qr-library-implementation.md)
-- [Web experience and compliance](web-experience-seo-compliance.md)
+- [Web experience and compliance](experience/web-experience-seo-compliance.md)
 
 ## Merge integration note
 

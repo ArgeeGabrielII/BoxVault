@@ -1,10 +1,14 @@
 # BoxVault AWS service map
 
-Proposed application architecture, 2026-11-19 (Asia/Manila). This maps the existing React/NestJS/Prisma/PostgreSQL application to AWS. It does not deploy anything. Selected project Region: **ap-southeast-2 (Sydney)**; CloudFront is global and its control plane/certificates use us-east-1 where required. No Lambda@Edge, cross-region replication or Organizations is planned.
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
+Accepted target architecture; deployment pending, 2026-11-19 (Asia/Manila). This maps the existing React/NestJS/Prisma/PostgreSQL application to AWS. It does not deploy anything. Selected project Region: **ap-southeast-2 (Sydney)**; CloudFront is global and its control plane/certificates use us-east-1 where required. No Lambda@Edge, cross-region replication or Organizations is planned.
 
 The project API currently reports Free / ACTIVE with USD 200 credits. Credits fund eligible usage; this is not a permanently zero-cost architecture. Service inclusion in the new-experience Free plan does not establish that every configuration or usage level is covered.
 
-## Recommended first implementation
+## Selected first implementation
 
 **Owner decision (2026-11-19):** one API instance, RDS Single-AZ, no Auto Scaling or Multi-AZ for the initial release. Daily credential rotation is required; see [rotation policy and implementation gates](secret-rotation.md).
 
@@ -53,7 +57,7 @@ Public origin access must be restricted so API callers cannot bypass edge protec
 | Server access and maintenance | Systems Manager | Session Manager and patch/deployment administration with scoped permissions. A network path to SSM endpoints is still required. Avoid an internet-open SSH port. |
 | Spend visibility | AWS Settings + Budgets | Monitor remaining credits/expiry, set alerts and review service estimates. Budgets do not universally stop spending. Do not upgrade the project or enable advanced features automatically. |
 
-The capability map is a proposed selection, not evidence that those services are configured or that the application features are complete. AWS lists the principal services above in the new-experience Free-plan catalog, subject to feature restrictions and regional availability. Check the exact instance, engine, quotas, configuration and cost before creating a change set.
+The capability map is the accepted service selection, not evidence that those services are configured or that the application features are complete. AWS lists the principal services above in the new-experience Free-plan catalog, subject to feature restrictions and regional availability. Check the exact instance, engine, quotas, configuration and cost before creating a change set.
 
 ## Before public signup
 

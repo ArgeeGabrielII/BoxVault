@@ -1,5 +1,9 @@
 # BoxVault Web UI Redesign — isolated frontend workstream
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](architecture/aws-platform-decision.md) and [daily rotation policy](deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 Current integration (2026-11-13): the owner requested consolidation into `main`. The branch-isolation steps below record the original workstream. Source is now consolidated, with no new API integration or change to prototype status. Local typecheck and build passed; browser/accessibility acceptance remains pending.
 
 ## Branch isolation and priorities

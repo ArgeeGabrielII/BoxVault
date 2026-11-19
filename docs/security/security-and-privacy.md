@@ -1,6 +1,10 @@
 # Security, Tenant Isolation and Privacy Specification
 
-**Implementation snapshot (2026-11-12; PR #4):** This document defines mandatory security policy. Its M1 implementation includes auth/MFA/session safeguards, restricted database roles, and tenant/container ACL-aware RLS. Isolated test-branch DB permissions and scoped CI have recorded evidence; full current-head CI, web/iOS integration, all authenticated cross-tenant/media/QR/finance negative tests, operator provisioning, key/secret operations and independent security review are **not accepted**. The legacy overprivileged test auth role is an outstanding risk. See [security gates](m1-security-gate-status.md) and [roadmap](../planning/delivery-roadmap.md).
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
+**Current security context — 2026-11-19:** AWS is primary. Consolidated auth/MFA, tenant/ACL RLS, local inventory/QR/Family and read-only toolkit access have scoped evidence. AWS application deployment, private media, finance, live rotation and independent production review remain unaccepted. [Platform decision](../architecture/aws-platform-decision.md).
 
 Status: design requirements; not a claim of deployed security controls.
 
@@ -24,7 +28,7 @@ Platform operator access to invoices, subscription status, account activity and 
 | Double credit on retries | Row locks/serializable transactions + unique source event/idempotency |
 | Log exfiltration | No raw payload logging; field allowlist, short retention, protected log access |
 | Insider admin browsing | No content API scopes, separate DB roles and storage IAM, audited maintenance |
-| Home server compromise | OS hardening, secrets vault, isolated VLAN, patched services, encrypted backups |
+| AWS host / runtime compromise | Patched EC2, scoped instance roles, private RDS/S3, daily credential rotation, redacted audit and tested recovery |
 | Ransomware / disk corruption | Tested immutable/off-site backups and restoration |
 | Upload attacks | MIME signature validation, virus/scanning where feasible, size/pixel limits, image re-encode |
 | Lost/stolen phone | Keychain, session revocation, local cache encryption and logout purge |
@@ -41,7 +45,7 @@ Platform operator access to invoices, subscription status, account activity and 
 | Business aggregate reporting | No | No | No | Authorized operational role |
 | Safe troubleshooting events | Own support reference only | Own support reference only | Own support reference only | Authorized operations role |
 
-A future private-box ACL can further narrow members' access inside a family.
+Private-box ACLs are mandatory now: membership alone does not grant access to another creator's private container; selected/all-family sharing remains explicit.
 
 ## 4. Database, storage and admin isolation
 
@@ -66,7 +70,8 @@ Troubleshooting should use synthetic reproduction or user-consented, explicitly 
 ## 7. Cryptography, retention and incident response
 
 - TLS for every public connection; private internal services restricted by network policy and credentials.
-- Encryption at rest for database, disks and off-site backup objects; encrypted secrets with rotation.
+- Encryption at rest for RDS, EBS, S3 and recovery artifacts; scoped Secrets Manager access with daily database credential rotation, runtime refresh and failure alarms.
+- JWT/pepper/TOTP daily rollover requires version-aware verification/rehash/re-encryption; never blindly replace the single keys or invalidate all recovery material. [Rotation policy](../deployment/secret-rotation.md).
 - Separate retention schedules for active media, deleted media, audit events, receipts and legally retained financial documents.
 - Offer authenticated export, deletion request and account closure pathways; account deletion must not silently erase legally required transaction records.
 - Document Philippine Data Privacy Act obligations, data subject rights, breach response and retention decisions. Obtain legal/organizational review before launch.

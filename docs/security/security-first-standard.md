@@ -1,8 +1,12 @@
 # BoxVault Security-First Engineering Standard
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Current status — 2026-11-18:** This is the mandatory release baseline, not a production-compliance claim. Auth/MFA, tenant/ACL RLS and ID-03 membership controls exist in consolidated source with scoped automated verification. The earlier own-tenant 403 was superseded by the 2026-11-13 401/200/403 retest. See the [ID-03 evidence](../audit/api/id03-family-membership.md). Source merges and green CI do not approve a hosted backend migration or paying-customer release; independent review, client/provider integration and all applicable production gates remain required.
 
-**Status:** Mandatory design baseline; **partially implemented in draft M1**, not production approved. **Scope:** React customer/admin web, SwiftUI iOS, NestJS API, PostgreSQL/Prisma, QR/NFC labels, private media, manual payments and home/hybrid hosting.
+**Status:** Mandatory design baseline; partly implemented in consolidated source, not production approved. **Scope:** React customer/admin web, SwiftUI iOS, NestJS API, PostgreSQL/Prisma, QR/NFC labels, private media, manual payments and the primary AWS deployment.
 
 ## 1. Security invariants (must hold for every release)
 
@@ -87,13 +91,13 @@ Required PR checks:
 
 Required before public launch: external penetration test/security review proportionate to exposure, restore drill, incident runbook, security contacts and privacy/legal review.
 
-## 9. Home and hybrid hosting security gate
+## 9. AWS hosting, credentials and recovery gate
 
-**Preferred for paid production:** hybrid or managed private media service with off-site database backup; home-only is a pilot option with explicit downtime and recovery assumptions.
+Apply [ADR-AWS-001](../architecture/aws-platform-decision.md): Sydney only for regional application resources, one EC2 API and Single-AZ RDS initially, private S3, SES and Secrets Manager. Auto Scaling/Multi-AZ are deferred. Protect API origin access, enforce TLS, keep database/management ports private and use scoped instance/deployment/rotation roles.
 
-If home-hosted: router and server OS patched, management VLAN, no public PostgreSQL/SSH, no UPnP port exposure, dedicated service user, host firewall, MFA for remote administration, hardened tunnel with origin access restrictions, UPS, ISP redundancy strategy, disk encryption, backup immutability and restore drills. Cloudflare/Tunnel does not protect against physical theft, malware or power/network loss.
+Require [daily database credential rotation](../deployment/secret-rotation.md), actual target/secret consistency, bounded credential refresh, rotation-failure alerts and tests across restarts. Master/auth/content secrets remain separate. JWT, pepper/recovery-code and TOTP keys need version-aware compatibility and retirement before automated daily changes. No secret values in evidence and no direct master access for the API.
 
-Document validated RPO/RTO and do not advertise an availability SLA until real monitoring supports it.
+Use the read-only toolkit role for metadata, not deployment; do not widen it or expose the owner login to MCP. Preserve the Free plan, estimate actual usage and avoid automatic account/feature upgrades. Test encrypted RDS/S3 recovery, set retention and document the downtime limits of one host/Single-AZ. No availability SLA follows from CI success.
 
 ## 10. Definition of Done for every feature
 
@@ -107,4 +111,4 @@ Security acceptance required before merge:
 7. Secure dependencies, secret handling and migration rollback reviewed.
 8. Relevant docs, OpenAPI contracts and threat model updated.
 
-**Current status:** These are architectural requirements; the M1 feature branch has some protected flows and scoped test evidence, but does not yet satisfy the full security release gate. **Do not deploy it for paid customers** until the release gate is satisfied.
+**Current status:** These are architectural requirements; consolidated auth/Family/inventory/QR source has scoped local/CI evidence, but does not yet satisfy the full security release gate. **Do not deploy it for paid customers** until the release gate is satisfied.

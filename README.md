@@ -1,151 +1,73 @@
 # BoxVault
 
-QR/NFC-powered storage organization. One monorepo for the customer web portal, native iOS app, API, shared assets, and API contracts.
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](docs/architecture/aws-platform-decision.md) and [daily rotation policy](docs/deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
 
-Current integration (2026-11-13): development branches are consolidated into `main` at the owner’s request. The Firebase Spark target is `boxvault-argee-2026`; the owner approved publishing the fictional-data dashboard from `apps/web` with automatic Hosting deployment from `main`. Customer UI remains a mock prototype and API production acceptance is pending. See [deployment setup](docs/firebase-spark-cicd.md).
+QR/NFC-powered private storage organization, with a React web portal, NestJS API and native iOS companion.
 
-## Connected local BoxVault
+**Primary SaaS platform: AWS.** The owner selected Sydney (`ap-southeast-2`), one EC2 API instance and private Single-AZ RDS PostgreSQL. Auto Scaling and Multi-AZ are deferred. Daily credential rotation is required through Secrets Manager, with safe application refresh and key-version compatibility. [Accepted platform decision](docs/architecture/aws-platform-decision.md).
+
+## Current state
+
+- The connected local app supports real registration/verification, login/MFA, saved boxes/items, QR labels and Family controls, with scoped HTTP/session evidence.
+- AWS Agent Toolkit is installed for Codex/Kiro. `boxvault-restricted` uses a verified read-only IAM role/boundary; it is not a deployment identity.
+- AWS application infrastructure and live daily rotation are **not deployed/accepted**. The CloudFormation draft includes a daily RDS master-password schedule; runtime-user rotation, connection refresh and cryptographic key versioning remain required work.
+- Firebase retains the disconnected mock dashboard and public mock Playground. Their static safeguards and workflows remain in place until AWS replacements pass acceptance.
+- Existing local and historical Neon data remain intact. The AWS application starts with an empty database; no automatic data import is planned.
+
+Passing CI, installed tooling, a valid template and a public mock are separate from production acceptance. Photos, complete payments/operator workflows, native-device integration and hosted provider/security/recovery gates remain unfinished.
+
+## Run locally
+
+Requirements: Node.js 22, pnpm 10.18, PostgreSQL 18 server tools.
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm dev:local
 ```
 
-Open **http://127.0.0.1:5180**. Create and verify an account through Local inbox, sign in, save boxes/items, and create/download/test QR labels. PostgreSQL 18 is required; local data persists across restarts. [Full setup and supported flows](docs/development/connected-local-app.md). This local sandbox does not send external mail or enable payments; the Firebase site remains the separate mock preview.
+Open **http://127.0.0.1:5180**. Create an account → Local inbox → verify → sign in → create a box/items → create/download/test a QR label. Data persists in `.boxvault-local/`; press Ctrl+C to stop and run the same command to resume. If port 5180 is busy, check whether BoxVault is already running.
 
-## Stack
-- Web: React 19, Vite, TypeScript, Bootstrap 5
-- API: NestJS, TypeScript, Prisma 6, PostgreSQL
-- iPhone: SwiftUI, Core NFC, AVFoundation (XcodeGen project definition)
-- Package management: pnpm workspaces, Node 22
-- Hosting: home/hybrid deployment later; production security hardening required
+This loopback sandbox uses synthetic mail and a test-only CAPTCHA mode; it sends no external mail and processes no payments. Phone QR scanning needs the later public HTTPS deployment. [Local guide and feature limits](docs/development/connected-local-app.md).
 
-## Structure
-- `apps/web` — customer and admin web application
-- `apps/api` — NestJS REST API and Prisma schema
-- `apps/ios` — native SwiftUI iPhone app
-- `packages/assets` — shared first-party visual assets
-- `packages/contracts` — OpenAPI / cross-platform generated clients
-- `packages/config` — future shared lint/formatting config
-- [`docs`](docs/README.md) — categorized product, architecture, security, audits, development and operations documentation
-- `infrastructure` — deployment configuration
-
-## Architecture overview
-
-The diagram below shows BoxVault's **target logical architecture**, not a claim that all components are deployed. PR #4 implements portions of the authentication, tenant authorization, and RLS foundation; production readiness remains gated by the [security acceptance checklist](docs/security/security-release-checklist.md).
+## AWS target
 
 ```mermaid
-flowchart TB
-    CUSTOMER["Customer / Family Member"]
-    OPERATOR["Platform Operator"]
-
-    subgraph CLIENTS["Client applications"]
-        WEB["React web portal<br/>apps/web<br/>Inventory, account, web-only credits"]
-        IOS["Native SwiftUI iOS<br/>apps/ios<br/>Inventory, QR / NFC scanner"]
-        ADMIN["Admin web area<br/>apps/web<br/>Limited billing operations"]
-    end
-
-    subgraph SERVICE["Backend / Trust Boundary"]
-        API["NestJS REST API<br/>apps/api"]
-        AUTH["Identity + Sessions<br/>Google sign-in / MFA"]
-        ACCESS["Tenant membership<br/>Container ACL / authorization"]
-        INVENTORY["Inventory + QR/NFC<br/>Label resolution"]
-        FINANCE["Plans + Credits<br/>Payment verification workflow"]
-    end
-
-    subgraph STORAGE["Private data layer"]
-        DB[("PostgreSQL / Prisma<br/>Tenant-scoped data + RLS")]
-        MEDIA[("Private media storage<br/>Photos / payment evidence")]
-    end
-
-    subgraph PROVIDERS["External integrations"]
-        GOOGLE["Google Identity"]
-        BOT["reCAPTCHA verification"]
-        MAIL["Email delivery"]
-        BANK["Bank transfer<br/>Manual independent reconciliation"]
-    end
-
-    subgraph SHARED["Monorepo shared packages - build time"]
-        CONTRACTS["packages/contracts<br/>OpenAPI + generated clients"]
-        ASSETS["packages/assets<br/>Brand / shared images"]
-        CONFIG["packages/config<br/>Tooling / configuration"]
-    end
-
-    CUSTOMER --> WEB
-    CUSTOMER --> IOS
-    OPERATOR --> ADMIN
-
-    WEB -->|"HTTPS / authenticated API"| API
-    IOS -->|"HTTPS / authenticated API"| API
-    ADMIN -->|"HTTPS / restricted admin API"| API
-
-    API --> AUTH
-    API --> ACCESS
-    API --> INVENTORY
-    API --> FINANCE
-
-    AUTH --> DB
-    ACCESS --> DB
-    INVENTORY --> DB
-    FINANCE --> DB
-    API -->|"Authorized media operations"| MEDIA
-
-    AUTH --> GOOGLE
-    AUTH --> BOT
-    AUTH --> MAIL
-    FINANCE -. "Operator verifies received funds" .-> BANK
-
-    CONTRACTS -. "Client contracts" .-> WEB
-    CONTRACTS -. "Client contracts" .-> IOS
-    CONTRACTS -. "API definition" .-> API
-    ASSETS -. "Shared first-party visuals" .-> WEB
-    CONFIG -. "Build / lint settings" .-> API
-
-    classDef client fill:#e8f3ff,stroke:#3178c6,color:#123;
-    classDef backend fill:#e8f8ef,stroke:#277a50,color:#123;
-    classDef data fill:#fff2da,stroke:#ac761c,color:#123;
-    class WEB,IOS,ADMIN client;
-    class API,AUTH,ACCESS,INVENTORY,FINANCE backend;
-    class DB,MEDIA data;
+flowchart LR
+    Client[Web / iOS] --> Edge[HTTPS edge]
+    Edge --> Web[S3 + CloudFront web]
+    Edge --> API[One EC2 NestJS API]
+    API --> DB[(Private Single-AZ RDS PostgreSQL)]
+    API --> Media[Private S3 photos / evidence]
+    API --> Mail[SES email]
+    API --> Secrets[Secrets Manager: daily credentials]
+    API --> Logs[CloudWatch]
 ```
 
-**Security boundaries:** Web and iOS clients never connect directly to PostgreSQL or private media storage. The API must enforce identity, tenant membership, per-container permissions, and entitlements before data access; PostgreSQL row-level security provides defense in depth. QR/NFC labels locate resources but are not authorization tokens. Admin workflows must not expose customer inventory content.
+Keep auth/MFA and tenant/container RLS in the existing backend. The API authorizes every content operation; QR/NFC possession grants no access. Admin/support roles do not imply inventory browsing or AWS administration. TLS origin design, actual sender identity, uploads, secret refresh and release acceptance must be completed before public service.
 
-**Channel separation:** Credits, pricing, bank QR display, and payment evidence submission are web-only; iOS remains a companion inventory application. Private media storage and home/hybrid hosting are design targets, not confirmed production deployments.
+[Service map](docs/deployment/aws-service-map.md) · [Migration](docs/deployment/aws-migration.md) · [Daily rotation](docs/deployment/secret-rotation.md) · [Toolkit and renewal](docs/deployment/aws-agent-toolkit.md) · [Operations](docs/operations/operations-and-deployment.md).
 
-For details, see the [solution architecture](docs/architecture/solution-architecture.md), [API contract](docs/architecture/api-contract.md), and [M1 security gate status](docs/security/m1-security-gate-status.md).
+## Stack and source
 
-## Local setup (no Docker required)
-Prerequisites: Node.js 22+, pnpm 10+, PostgreSQL 16+; Xcode and XcodeGen for iOS.
+- Web: React 19, Vite, TypeScript, Bootstrap 5.
+- API: NestJS, Prisma 6, PostgreSQL; seven committed migrations with distinct auth/content/migration identities.
+- iOS: SwiftUI, Core NFC and AVFoundation; XcodeGen project definition.
+- Shared: assets, QR encoder and API/client contracts under `packages/`.
+- AWS templates: `infra/aws/`. Retained Firebase preview guards: `infrastructure/firebase/`.
+- Documentation: [index](docs/README.md), [architecture](docs/architecture/solution-architecture.md), [roadmap](docs/planning/delivery-roadmap.md), [release checklist](docs/security/security-release-checklist.md).
 
-```sh
-corepack enable
-pnpm install
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
-# Create a local PostgreSQL database matching DATABASE_URL.
-pnpm db:generate
-pnpm db:migrate
-pnpm dev:api
-# In a second terminal:
-pnpm dev:web
-```
+Manual API setup and Xcode steps are in the [development workflow](docs/development/development.md) and [iOS guide](apps/ios/README.md). Do not use the local launcher as an AWS deployment command or put secrets into frontend variables.
 
-Web: http://localhost:5173
-API health: http://localhost:3000/api/v1/health
+## Preview and Playground
 
-iOS: `cd apps/ios && xcodegen generate`, then open `BoxVault.xcodeproj` in Xcode. The iOS app expects a reachable API URL; the simulator uses localhost and physical devices need a LAN/TLS URL.
+The existing Firebase Spark dashboard/landing page and separate mock Playground remain legacy public previews. They contain fictional fixtures and no private backend connection. The connected local entrypoint has its own build. [Preview CI/CD](docs/firebase-spark-cicd.md), [Playground guide](docs/developer-playground.md). No DNS switch, Firebase deletion or backend exposure is implied by choosing AWS.
 
-## Firebase Spark public-site CI/CD
+## Product boundaries
 
-The repository includes a **sanitized public coming-soon site** under `apps/public-site` and a guarded CI/CD workflow for Firebase Hosting on the **no-billing Spark plan**. Pull requests and matching pushes to `main` build and audit the static artifact. Live deployment is **disabled by default** and requires explicit GitHub variables, protected environment, a deploy identity and a successful Cloud Billing *disabled* check. This pipeline does not deploy the API, customer portal, SSR, or Developer Playground. See [Firebase Spark CI/CD setup](docs/firebase-spark-cicd.md).
+Free User has limited containers and advertisements; the exact free quota and ad integration remain pending. Single User: PHP 119/month or PHP 999/year (Best Value). Family: PHP 219/month or PHP 1,999/year, up to four total users including owner. Billing implementation and entitlement acceptance remain separate from price previews.
 
-## Developer Playground (mock-only)
+Credit purchase, bank transfer evidence, manual verification and redemption are web-only. iOS is an inventory/account-status companion without purchasing or external checkout calls to action. [Product requirements](docs/product/product-requirements.md).
 
-The **VaultBox Developer Playground** centralizes QR Generator and responsive web UI mockups **plus restricted real local backend verification** in `apps/playground`, completely separate from normal production app builds. The NestJS backend still runs independently; the Playground offers a read-only health test. Start it with `pnpm install --no-frozen-lockfile && pnpm dev:playground` and open http://localhost:5174/. See [playground documentation](docs/developer-playground.md). Do not deploy the Playground publicly.
-
-## Security
-**This is an initial development scaffold, not production-ready.** Prisma models are not access controls. No private inventory or credit approval APIs are exposed until authentication, authorization, row-level security, and audit controls have been implemented. Never commit .env files, account details, user media, or payment receipts.
-
-## Subscriptions
-Personal PHP 999/year; Family PHP 1,999/year (up to four including owner). Credits are purchased and redeemed on the web only. iOS is storage/inventory-only, subject to Apple review.
+Never commit credentials, keys, customer media, payment receipts or raw tokens. The [security standard](docs/security/security-first-standard.md) and [release checklist](docs/security/security-release-checklist.md) apply to the AWS target; no production readiness claim is made here.

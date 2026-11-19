@@ -1,5 +1,9 @@
 # BoxVault engineering audit register
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Current reconciliation — 2026-11-18:** The chronological records below preserve their original dates. Their branch-only/PR merge holds and unresolved own-tenant 403 statements are superseded: source was consolidated with owner authorization, and the 401/200/403 smoke retest passed. ID-03 now has a backend implementation and scoped automated verification; see the [current audit](api/id03-family-membership.md). This does not approve M1 or production release.
 
 **Current roll-up (2026-11-13):** The isolated Neon A/B/C migration and least-privilege-grant work is **verified**; GitHub Actions CI has **scoped passes at commit `deed36b8`**; Phase D progressed from pending to an operator-observed successful local Brevo/reCAPTCHA register → verify → login sequence, corroborated in part by read-only Neon audit queries. **Local browser tenant isolation smoke test PASSED on 2026-11-13**: operator-reported unauthenticated 401, own-tenant 200 with 0 containers, unrelated-tenant 403, superseding an earlier own-tenant 403 failure. Latest-head CI, full HTTP authorization matrix, real client flows and release sign-off remain pending. See the chronological [Phase D audit](api/phase-d-real-provider-validation.md) and [roadmap](../planning/delivery-roadmap.md).
@@ -9,6 +13,12 @@
 **Working branch:** `feat/m1-auth-tenant-acl-rls`  
 **Pull request:** [#4](https://github.com/ArgeeGabrielII/BoxVault/pull/4), **draft and unmerged** at snapshot.  
 **Scope:** engineering/change-control evidence; not a substitute for live application-generated security audit events.
+
+## Current platform checkpoint — 2026-11-19
+
+AWS is the accepted primary platform. Connected local source and scoped checks exist; read-only AWS toolkit access is installed. Application hosting, fresh RDS deployment and live daily rotation remain unfinished. Earlier branch/merge and own-tenant-403 notes below retain their original evidence dates; they do not override the current [roadmap](../planning/delivery-roadmap.md) or [platform decision](../architecture/aws-platform-decision.md).
+
+See the [documentation reconciliation](platform/aws-documentation-reconciliation-2026-11-19.md) for the reviewed document inventory and validation scope.
 
 ## Structure by application and phase
 

@@ -1,8 +1,12 @@
 # Technical Solution Architecture
 
-**Implementation snapshot (2026-11-12; PR #4):** The modular-monolith topology remains the target. M1 has staged NestJS authentication (password/Google, email verification, recovery, TOTP, sessions and operator step-up), Prisma migrations `000`–`005`, separate restricted database roles, and tenant/container RLS on the feature branch. Isolated Neon test-branch migrations and privileges are verified; scoped CI passed at a recorded earlier commit. Private media storage, complete QR/NFC and inventory flows, production hosting, and an accepted own-tenant HTTP read are **not** established. See [engineering audit](../audit/README.md) and [roadmap](../planning/delivery-roadmap.md).
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
 
-Status: proposed architecture; existing scaffold has partial implementations only.
+**Current architecture — 2026-11-19:** AWS is the accepted primary platform: one EC2 API, private Single-AZ RDS PostgreSQL, S3, SES and Secrets Manager daily credential rotation in Sydney. Auto Scaling and Multi-AZ are deferred. Local connected auth/inventory/QR/Family flows and the read-only AWS toolkit have scoped evidence; hosted application and live rotation acceptance remain pending. [Platform decision](aws-platform-decision.md).
+
+Status: accepted platform direction with partial application implementation; not a deployed production backend.
 
 ## 1. Repository and application boundaries
 
@@ -44,15 +48,15 @@ flowchart TD
     IOS --> API[NestJS REST API]
     WEB --> API
     ADM --> API
-    API --> PG[(PostgreSQL)]
-    API --> MEDIA[(Private photo storage)]
+    API --> PG[(Single-AZ RDS PostgreSQL)]
+    API --> MEDIA[(Private S3 photo storage)]
     API --> JOBS[Scheduled tasks / job queue]
-    JOBS --> EMAIL[Email provider]
-    API --> LOGS[Redacted metrics and audit events]
+    JOBS --> EMAIL[SES email]
+    API --> LOGS[CloudWatch redacted operations]
     BANK[Bank transfer outside application] -. independently verified .-> A
 ```
 
-Recommended future public entry: domain + HTTPS reverse proxy/Cloudflare Tunnel. TLS must remain valid end to end. DB is accessible only to the API service on a private interface.
+Selected public entry: CloudFront web delivery and an HTTPS API origin on one EC2 host. TLS must remain valid end-to-end; Caddy/ACME or ALB+ACM is an explicit cost/domain choice. Private RDS is accessible only to approved API/migration identities, never directly from clients.
 
 ## 3. Technical stack
 
@@ -61,10 +65,10 @@ Recommended future public entry: domain + HTTPS reverse proxy/Cloudflare Tunnel.
 | Customer + admin web | React 19, Vite, TypeScript, Bootstrap 5 | Admin routes share build initially but must have strict server permissions |
 | iPhone | Swift 5.10+, SwiftUI, AVFoundation, PhotosUI, Core NFC | iOS 17+ target (scaffold); use Keychain tokens |
 | API | Node.js 22, NestJS 11 | API prefix `/api/v1`, validation, guards, interceptors |
-| Persistence | PostgreSQL, Prisma 6 | M1 migrations and RLS implemented on branch; isolated test verified, not production-approved |
-| Asset/media store | Private S3-compatible or cloud object storage | Choice pending; thumbnails, checksum and quotas |
+| Persistence | PostgreSQL, Prisma 6 | Seven committed migrations and auth/content RLS; local/CI evidence, AWS deployment unaccepted |
+| Asset/media store | Private Amazon S3 | Selected; upload/thumbnail API, quota and revocation integration pending |
 | Shared contracts | NestJS-generated OpenAPI | Generate typed TS and Swift clients; do not share TS directly with Swift |
-| Background work | Queued job processor/cron | Thumbnail generation, email, expiration, reconciliation |
+| Background work | Small worker initially; SQS/Lambda/Scheduler when justified | Daily runtime-secret rotation needs dedicated integration; image/email jobs remain scoped work |
 | Reverse proxy | Caddy or equivalent | HTTPS, request limits, safe headers |
 | CI | GitHub Actions | TS typecheck/build scaffold; add API tests and macOS iOS build |
 | Telemetry | Structured JSON, metrics, error reporting | Redaction by default |
@@ -119,15 +123,11 @@ On iOS: AVFoundation reads QR; NDEF URL tags can trigger supported background re
 - Signed download URLs are short-lived. Cache headers must not cause cross-account leakage on shared devices.
 - Media cannot be fetched using just an object key without tenant authorization.
 
-## 7. Deployment topologies
+## 7. Selected AWS deployment
 
-**Lean home:** Caddy/Cloudflare Tunnel → NestJS and React → PostgreSQL + locally held media with encrypted off-site backups. Lower cash cost, but single-site power/internet risk and privacy/restore responsibility.
+AWS is primary, Sydney (`ap-southeast-2`): one EC2 NestJS host with encrypted EBS, private Single-AZ RDS, private S3 and SES. Static web/Playground origins are separate and delivered with CloudFront. Runtime secrets use Secrets Manager. Daily database password rotation requires target update, current secret version, connection refresh and alarms; signing/pepper/TOTP keys require version-aware rollover. See [service map](../deployment/aws-service-map.md) and [rotation policy](../deployment/secret-rotation.md).
 
-**Preferred hybrid candidate:** public edge → home or small VPS API/DB → **private managed cloud object storage for primary media** plus encrypted DB backups off-site. This reduces home uplink pressure but introduces object storage/egress costs.
-
-**Fully managed:** React static hosting, Cloud Run NestJS, managed PostgreSQL, managed object storage. Highest recurring fixed OPEX, less physical maintenance.
-
-Do not deploy development defaults, default passwords, public PostgreSQL or open storage buckets. See [operations-and-deployment.md](../operations/operations-and-deployment.md).
+No Auto Scaling or Multi-AZ in the initial release. Home/hybrid/GCP variants are superseded, not alternate default deployment commands. Existing Firebase previews and historical Neon/Brevo test data remain until accepted cutover. The RDS/S3 foundation is a draft; the installed IAM toolkit stack is not the application stack.
 
 ## 8. Evolution path
 
@@ -135,4 +135,4 @@ Initial work follows the current scaffold. Before scaling, split worker into a s
 
 ## 9. Key architectural decision records to create later
 
-ADR-001 Authentication/session strategy; ADR-002 media storage provider and URL signing; ADR-003 database tenant isolation and RLS strategy; ADR-004 web-only billing and iOS review; ADR-005 home versus hybrid deployment; ADR-006 encrypted customer content and family key management (future).
+ADR-001 Authentication/session strategy; ADR-002 media storage provider and URL signing; ADR-003 database tenant isolation and RLS strategy; ADR-004 web-only billing and iOS review; ADR-AWS-001 accepted primary AWS platform; ADR-006 encrypted customer content and family key management (future).

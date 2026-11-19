@@ -1,5 +1,9 @@
 # Platform — M1 CI, operational controls and release gates
 
+<!-- BEGIN current AWS platform -->
+> **Current platform / historical evidence (2026-11-19):** [AWS is primary](../../architecture/aws-platform-decision.md); Sydney, one API host, Single-AZ RDS, no Auto Scaling/Multi-AZ initially, and [daily credential rotation](../../deployment/secret-rotation.md) are the accepted direction. The dated results, commands, commits and limitations below remain historical evidence, not proof of current AWS deployment or live rotation. Earlier provider/default-hosting and branch-only statements do not override that decision.
+<!-- END current AWS platform -->
+
 **Snapshot:** 2026-11-12 (Asia/Manila)  
 **System:** GitHub Actions, Neon test branch, repository governance  
 **Status:** CI PASSED for recorded commit; release remains **BLOCKED**.

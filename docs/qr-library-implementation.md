@@ -1,5 +1,9 @@
 # BoxVault QR library + mock QR Lab — Phase 1 implementation record
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](architecture/aws-platform-decision.md) and [daily rotation policy](deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 **Date:** 2026-11-13  
 **Status:** Implemented in isolated feature branch; CI build / QR regression tests / mock Lab typecheck and standalone Vite bundle passed on 2026-11-13 (GitHub Actions run 43353136902); pending independent decoder, browser, physical-scan and security approval  
 **Branch:** `feat/qr-library-mock-lab` (derived from docs architecture branch; does not modify PR #4 or PR #6)

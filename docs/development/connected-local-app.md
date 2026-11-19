@@ -1,5 +1,9 @@
 # Connected local BoxVault
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](../deployment/secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 Updated 2026-11-18 (Asia/Manila). This is the first connected local account/inventory/QR workflow. The Firebase site continues to publish the separate mock build; no hosted API or Neon database is changed by these commands.
 
 ## Start and use

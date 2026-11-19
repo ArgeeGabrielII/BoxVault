@@ -1,5 +1,9 @@
 # M1 live Neon reconciliation audit — 2026-11-12
 
+<!-- BEGIN current AWS platform -->
+> **Legacy test/reference scope (2026-11-19):** [AWS is the primary hosted target](../architecture/aws-platform-decision.md), with [daily credential rotation](../deployment/secret-rotation.md). Existing Neon/Brevo fixtures and harness commands below are historical/isolated references, not default AWS setup. Preserve their data and safety restrictions; use the connected local guide for the current local app. No AWS application cutover or live rotation is established here.
+<!-- END current AWS platform -->
+
 **Later state (2026-11-12):** This document records a **pre-deployment read-only investigation**, not today's migration deployment status. Subsequent, separately authorized phases A–C adopted the existing schema history, applied auth migrations and validated restricted auth-role grants on isolated `m1-security-test`, retaining observed synthetic inventory counts. Full formal migration equivalence review and production release acceptance remain pending. See [A/B/C audit register](../audit/README.md) and [roadmap](../planning/delivery-roadmap.md).
 
 **Status:** READ-ONLY INSPECTION COMPLETED; RECONCILIATION NOT APPROVED OR APPLIED.  

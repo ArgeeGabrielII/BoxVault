@@ -1,5 +1,9 @@
 # BoxVault daily secret rotation
 
+<!-- BEGIN current AWS platform -->
+> **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
+<!-- END current AWS platform -->
+
 Owner requirement recorded 2026-11-19 (Asia/Manila): keep the initial deployment to one API host and Single-AZ RDS; defer Auto Scaling and Multi-AZ. Require daily credential rotation. This document and the infrastructure draft are preparation; **no live secret or local key was rotated**.
 
 ## Scope by secret type
