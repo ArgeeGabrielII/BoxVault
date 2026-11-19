@@ -178,7 +178,7 @@
           "Version": "2012-10-17",
           "Statement": [
             {
-              "Sid": "DeploymentActionsOnly",
+              "Sid": "DeploymentOnly",
               "Effect": "Deny",
               "NotAction": [
                 "apigateway:DELETE",
@@ -370,7 +370,8 @@
                 "kms:GenerateDataKey",
                 "secretsmanager:GetRandomPassword",
                 "kms:DescribeKey",
-                "lambda:GetAccountSettings"
+                "lambda:GetAccountSettings",
+                "cloudformation:DescribeEvents"
               ],
               "Resource": "*"
             },
@@ -390,7 +391,7 @@
               }
             },
             {
-              "Sid": "NoPlanUpgradeOrExtraInfra",
+              "Sid": "NoUpgrade",
               "Effect": "Deny",
               "Action": [
                 "iam:DeleteRolePermissionsBoundary",
@@ -537,7 +538,8 @@
                 "cloudformation:CreateChangeSet",
                 "cloudformation:DescribeChangeSet",
                 "cloudformation:DeleteChangeSet",
-                "cloudformation:ExecuteChangeSet"
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:DescribeEvents"
               ],
               "Resource": [
                 "arn:aws:cloudformation:ap-southeast-2:666734238831:stack/boxvault-app-artifacts/*",
@@ -1069,6 +1071,21 @@
                 "lambda:GetAccountSettings"
               ],
               "Resource": "*"
+            },
+            {
+              "Sid": "NamedApplicationRoleExistenceChecks",
+              "Effect": "Allow",
+              "Action": [
+                "iam:GetRole",
+                "iam:DeleteRole"
+              ],
+              "Resource": [
+                "arn:aws:iam::666734238831:role/boxvault-app-apirole",
+                "arn:aws:iam::666734238831:role/boxvault-app-authrotationrole",
+                "arn:aws:iam::666734238831:role/boxvault-app-concurrency-probe",
+                "arn:aws:iam::666734238831:role/boxvault-app-contentrotationrole",
+                "arn:aws:iam::666734238831:role/boxvault-app-migrationrole"
+              ]
             }
           ]
         }
@@ -1095,6 +1112,11 @@
       "Type": "String",
       "AllowedPattern": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
       "Description": "Owner-selected temporary SES sender. Pass privately; do not commit personal email in source."
+    }
+  },
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
     }
   }
 }

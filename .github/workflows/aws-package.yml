@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build Amazon Linux package without AWS credentials
-        run: docker build --file infra/aws/build/Dockerfile --tag boxvault-lambda-package .
+        run: docker build --file infra/aws/Dockerfile --tag boxvault-lambda-package .
       - name: Extract versioned artifact
         run: |
           mkdir -p .aws-artifacts
