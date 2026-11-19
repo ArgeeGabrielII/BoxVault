@@ -7,8 +7,8 @@ const load = createRuntimeLoader();
 let app: INestApplication | undefined;
 let adapter: ReturnType<typeof serverlessExpress> | undefined;
 let version = '';
-// A single Lambda environment handles one invocation at a time. The stack must
-// reserve concurrency=1. No write/transaction is replayed after a failed request.
+// Each Lambda environment handles one invocation at a time; environments share
+// the existing project quota of five. Never replay a failed write/transaction.
 export async function handler(event: any, context: any) {
  try {
   if (!event?.requestContext?.apiId || !event?.requestContext?.stage || !process.env.BOXVAULT_API_ID || event.requestContext.apiId !== process.env.BOXVAULT_API_ID || event.requestContext.stage !== 'prototype') throw Error('Untrusted API entry point');

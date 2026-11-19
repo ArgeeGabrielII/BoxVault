@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "BoxVault Free-plan credit-funded prototype: capped Lambda, private Single-AZ PostgreSQL, SES and isolated static web/Playground. Not production acceptance.",
+  "Description": "BoxVault Free-plan credit-funded prototype: shared-five Lambda, private Single-AZ PostgreSQL, SES and isolated static web/Playground. Not production acceptance.",
   "Metadata": {
     "com.aws.cloudformation.Context": {
       "arch": "Sydney private database/Lambda, regional REST API + WAF, global CloudFront; no domain or NAT",
@@ -10,11 +10,15 @@
         "API disabled until migrations/WAF/sender/config checks",
         "Daily DB password rotation; pinned cryptographic root",
         "Retained resources incur credit consumption",
-        "SES sender identity is an independently verified prerequisite; never recreate an existing identity"
+        "SES sender identity is an independently verified prerequisite; never recreate an existing identity",
+        "Use existing shared Lambda limit five; no positive reservation or quota increase"
       ],
       "ref": [
         "docs/deployment/aws-free-plan-deployment.md"
       ]
+    },
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
     }
   },
   "Parameters": {
@@ -840,7 +844,7 @@
               ],
               "Condition": {
                 "Bool": {
-                  "aws:SecureTransport": "false"
+                  "aws:SecureTransport": false
                 }
               }
             }
@@ -1138,7 +1142,9 @@
         "ReservedConcurrentExecutions": {
           "Fn::If": [
             "ApiEnabled",
-            1,
+            {
+              "Ref": "AWS::NoValue"
+            },
             0
           ]
         },
@@ -1183,9 +1189,11 @@
       },
       "Metadata": {
         "com.aws.cloudformation.Context": {
-          "why": "Version-pinned code, private subnet and bounded concurrency; never replay application mutations.",
+          "why": "Private function using the existing shared project concurrency quota of five; no positive reservations are available.",
           "must": [
-            "Free plan only; Sydney regional resources; no automatic upgrades"
+            "Do not increase quotas or enable provisioned concurrency",
+            "Never log secret values",
+            "API stays disabled with reservation zero until migration and security checks pass"
           ],
           "mutable": "review-required"
         }
@@ -1251,7 +1259,6 @@
         },
         "Handler": "dist/aws/migrate.handler",
         "Timeout": 240,
-        "ReservedConcurrentExecutions": 1,
         "Environment": {
           "Variables": {
             "NODE_ENV": "production",
@@ -1279,9 +1286,11 @@
       },
       "Metadata": {
         "com.aws.cloudformation.Context": {
-          "why": "Version-pinned code, private subnet and bounded concurrency; never replay application mutations.",
+          "why": "Private function using the existing shared project concurrency quota of five; no positive reservations are available.",
           "must": [
-            "Free plan only; Sydney regional resources; no automatic upgrades"
+            "Do not increase quotas or enable provisioned concurrency",
+            "Never log secret values",
+            "API stays disabled with reservation zero until migration and security checks pass"
           ],
           "mutable": "review-required"
         }
@@ -1465,7 +1474,6 @@
         },
         "Handler": "dist/aws/rotate-database.handler",
         "Timeout": 60,
-        "ReservedConcurrentExecutions": 1,
         "Environment": {
           "Variables": {
             "NODE_ENV": "production",
@@ -1491,9 +1499,11 @@
       },
       "Metadata": {
         "com.aws.cloudformation.Context": {
-          "why": "Version-pinned code, private subnet and bounded concurrency; never replay application mutations.",
+          "why": "Private function using the existing shared project concurrency quota of five; no positive reservations are available.",
           "must": [
-            "Free plan only; Sydney regional resources; no automatic upgrades"
+            "Do not increase quotas or enable provisioned concurrency",
+            "Never log secret values",
+            "API stays disabled with reservation zero until migration and security checks pass"
           ],
           "mutable": "review-required"
         }
@@ -1789,7 +1799,6 @@
         },
         "Handler": "dist/aws/rotate-database.handler",
         "Timeout": 60,
-        "ReservedConcurrentExecutions": 1,
         "Environment": {
           "Variables": {
             "NODE_ENV": "production",
@@ -1815,9 +1824,11 @@
       },
       "Metadata": {
         "com.aws.cloudformation.Context": {
-          "why": "Version-pinned code, private subnet and bounded concurrency; never replay application mutations.",
+          "why": "Private function using the existing shared project concurrency quota of five; no positive reservations are available.",
           "must": [
-            "Free plan only; Sydney regional resources; no automatic upgrades"
+            "Do not increase quotas or enable provisioned concurrency",
+            "Never log secret values",
+            "API stays disabled with reservation zero until migration and security checks pass"
           ],
           "mutable": "review-required"
         }
@@ -2020,8 +2031,8 @@
           {
             "HttpMethod": "*",
             "ResourcePath": "/*",
-            "ThrottlingBurstLimit": 10,
-            "ThrottlingRateLimit": 5,
+            "ThrottlingBurstLimit": 2,
+            "ThrottlingRateLimit": 1,
             "DataTraceEnabled": false,
             "LoggingLevel": "OFF",
             "MetricsEnabled": false
@@ -2362,7 +2373,7 @@
               ],
               "Condition": {
                 "Bool": {
-                  "aws:SecureTransport": "false"
+                  "aws:SecureTransport": false
                 }
               }
             },
@@ -2491,7 +2502,7 @@
               ],
               "Condition": {
                 "Bool": {
-                  "aws:SecureTransport": "false"
+                  "aws:SecureTransport": false
                 }
               }
             },

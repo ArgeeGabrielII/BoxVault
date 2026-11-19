@@ -14,7 +14,7 @@ The project API currently reports Free / ACTIVE with USD 199.45 remaining credit
 
 ## Selected first implementation
 
-**Owner decision (2026-11-19):** AWS-provided HTTPS addresses, Lambda API and RDS Single-AZ, no Auto Scaling group or Multi-AZ for the initial release. Reserved concurrency one was rejected by AWS’s minimum-five-unreserved rule; proceeding within the shared five-execution quota awaits the owner’s choice. Do not provision hourly-cost resources until that decision and the full estimate are settled. Daily credential rotation is required; see [rotation policy and implementation gates](secret-rotation.md).
+**Owner decision (2026-11-19):** AWS-provided HTTPS addresses, Lambda API and RDS Single-AZ, no Auto Scaling group or Multi-AZ for the initial release. Reserved concurrency one was rejected by AWS’s minimum-five-unreserved rule; the owner approved the existing shared-five limit with API throttling and browser request queues. A full estimate remains required before hourly-cost provisioning. Daily credential rotation is required; see [rotation policy and implementation gates](secret-rotation.md).
 
 Run the existing modular NestJS API in a Node 24 x86_64 Lambda Event Function behind a Regional API Gateway REST API, PostgreSQL on private RDS, private files in S3, and transactional email through the SES API. Keep current password/MFA/session/Family authorization code. Private migration and rotation functions have separate IAM roles. The feature branch is prepared; live acceptance is unfinished.
 
@@ -45,7 +45,7 @@ Public origin access must be restricted so API callers cannot bypass edge protec
 | --- | --- | --- |
 | Landing page, customer/admin/support web UI | S3 + CloudFront | Separate static website storage from private user uploads; use a private S3 REST origin with OAC, SPA routing and security headers. Business actions remain API-authorized. |
 | Developer Playground | Separate S3 origin / CloudFront distribution | Keep its mock-only build, URL and deployment isolated; never give it production credentials or private API access. Keep current Firebase link until replacement passes checks. |
-| API and business rules | Lambda Event Function + Regional API Gateway REST API | Existing NestJS API, native dependencies built on Amazon Linux in CI, initially disabled for migration/configuration. No provisioned concurrency. Shared-five alternative pending; preserve throttling and no automatic mutation retries. |
+| API and business rules | Lambda Event Function + Regional API Gateway REST API | Existing NestJS API, native dependencies built on Amazon Linux in CI, initially disabled for migration/configuration. No provisioned concurrency. Shared-five execution approved; preserve throttling and no automatic mutation retries. |
 | PostgreSQL and persistent business records | RDS for PostgreSQL | Users, tenants, memberships, containers/items, grants, label hashes, sessions, plans, wallets, top-ups and audit records. Preserve distinct SQL migration/auth/content identities and RLS. Start with an empty database as requested. |
 | Private photos and documents | S3 | Original item/container photos, thumbnails and private payment evidence. Block public access, validate upload size/type, enforce tenant/object authorization, track metadata/quotas in RDS. APIs and upload UI still need implementation. |
 | Verification, reset, invitations and receipts | SES | Verified sender, regional credentials or runtime IAM, delivery limits, suppression handling and production approval for arbitrary recipients. No local inbox in public hosting. |
@@ -98,7 +98,7 @@ Do not provision DynamoDB, EKS, OpenSearch, Aurora, RDS Proxy, NAT Gateway, cros
 
 ## Rollout order
 
-1. Resolve the shared-five concurrency decision and full Sydney credit estimate. AWS HTTPS addresses and temporary verified sender are selected. No plan change is authorized.
+1. Complete the full Sydney credit estimate; shared-five concurrency is approved. AWS HTTPS addresses and temporary verified sender are selected. No plan change is authorized.
 2. Prepare separately scoped deployment and runtime roles; keep the existing toolkit role read-only.
 3. Create private RDS, apply/review the eight migrations and runtime grants, prove positive/negative tenant and membership tests.
 4. Deploy the real API and connected frontend, replace local-only controls and connect actual production bot protection.
@@ -112,7 +112,7 @@ The principal baseline costs are RDS instance/storage/backups, two interface end
 
 CloudFront itself is in the new-experience Free-plan service list; its separate flat-rate service plans (including the plan marketed at USD 0/month) are not available to Free Tier projects under their current plan requirements. Do not select that pricing program as a presumed no-charge bundle.
 
-Open decisions/acceptance: shared-five concurrency, full workload estimate, traffic/user count, photo quota and retention, downtime/recovery targets, notification ownership and SES production access. The draft selects PostgreSQL 18.6 on db.t4g.micro with 20 GiB gp3, subject to final eligibility and cost checks. IAM-only access exists; application provisioning remains unfinished. See the [deployment checkpoint](aws-free-plan-deployment.md) for current evidence.
+Open decisions/acceptance: full workload estimate, traffic/user count, photo quota and retention, downtime/recovery targets, notification ownership and SES production access. The draft selects PostgreSQL 18.6 on db.t4g.micro with 20 GiB gp3, subject to final eligibility and cost checks. IAM-only access exists; application provisioning remains unfinished. See the [deployment checkpoint](aws-free-plan-deployment.md) for current evidence.
 
 ## Primary references checked
 

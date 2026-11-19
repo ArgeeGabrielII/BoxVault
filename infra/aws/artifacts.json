@@ -51,6 +51,16 @@
             "Value": "BoxVault"
           }
         ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Private versioned code artifacts for the separately scoped BoxVault deployment role.",
+          "must": [
+            "No public access",
+            "HTTPS only",
+            "Do not store application data or plaintext secrets"
+          ]
+        }
       }
     },
     "TlsPolicy": {
@@ -72,13 +82,28 @@
               ],
               "Condition": {
                 "Bool": {
-                  "aws:SecureTransport": "false"
+                  "aws:SecureTransport": false
                 }
               }
             }
           ]
         }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Private versioned code artifacts for the separately scoped BoxVault deployment role.",
+          "must": [
+            "No public access",
+            "HTTPS only",
+            "Do not store application data or plaintext secrets"
+          ]
+        }
       }
+    }
+  },
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
     }
   }
 }
