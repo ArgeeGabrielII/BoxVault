@@ -231,14 +231,6 @@
                 "ec2:DeleteSubnet",
                 "ec2:DeleteVpc",
                 "ec2:DeleteVpcEndpoints",
-                "ec2:DescribeAvailabilityZones",
-                "ec2:DescribeNetworkInterfaces",
-                "ec2:DescribeRouteTables",
-                "ec2:DescribeSecurityGroups",
-                "ec2:DescribeSubnets",
-                "ec2:DescribeVpcEndpointServices",
-                "ec2:DescribeVpcEndpoints",
-                "ec2:DescribeVpcs",
                 "ec2:DisassociateRouteTable",
                 "ec2:ModifyVpcAttribute",
                 "ec2:ModifyVpcEndpoint",
@@ -295,13 +287,6 @@
                 "rds:DeleteDBInstance",
                 "rds:DeleteDBParameterGroup",
                 "rds:DeleteDBSubnetGroup",
-                "rds:DescribeDBEngineVersions",
-                "rds:DescribeDBInstances",
-                "rds:DescribeDBParameterGroups",
-                "rds:DescribeDBParameters",
-                "rds:DescribeDBSnapshots",
-                "rds:DescribeDBSubnetGroups",
-                "rds:DescribeOrderableDBInstanceOptions",
                 "rds:ListTagsForResource",
                 "rds:ModifyDBInstance",
                 "rds:ModifyDBParameterGroup",
@@ -371,7 +356,18 @@
                 "kms:DescribeKey",
                 "lambda:GetAccountSettings",
                 "cloudformation:DescribeEvents",
-                "iam:ListAttachedRolePolicies"
+                "iam:ListAttachedRolePolicies",
+                "ec2:Describe*",
+                "cloudwatch:ListTagsForResource",
+                "kms:CreateGrant",
+                "logs:TagLogGroup",
+                "logs:UntagLogGroup",
+                "logs:ListTagsLogGroup",
+                "rds:Describe*",
+                "lambda:GetFunctionCodeSigningConfig",
+                "lambda:GetFunctionRecursionConfig",
+                "lambda:GetRuntimeManagementConfig",
+                "lambda:GetFunctionScalingConfig"
               ],
               "Resource": "*"
             },
@@ -497,6 +493,9 @@
           },
           {
             "Ref": "DeploymentPermissions2"
+          },
+          {
+            "Ref": "DeploymentPermissions3"
           }
         ]
       }
@@ -564,7 +563,12 @@
                 "ec2:DescribeVpcEndpoints",
                 "ec2:DescribeVpcEndpointServices",
                 "ec2:DescribeRouteTables",
-                "ec2:DescribeNetworkInterfaces"
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeVpcAttribute",
+                "ec2:DescribeNetworkAcls",
+                "ec2:DescribeSecurityGroupRules",
+                "ec2:DescribeAccountAttributes",
+                "ec2:DescribeInternetGateways"
               ],
               "Resource": [
                 "*"
@@ -876,7 +880,10 @@
                 "logs:CreateLogStream",
                 "logs:PutLogEvents",
                 "logs:FilterLogEvents",
-                "logs:GetLogEvents"
+                "logs:GetLogEvents",
+                "logs:TagLogGroup",
+                "logs:UntagLogGroup",
+                "logs:ListTagsLogGroup"
               ],
               "Resource": [
                 "arn:aws:logs:ap-southeast-2:666734238831:log-group:/aws/lambda/boxvault-app-*",
@@ -951,7 +958,8 @@
                 "cloudwatch:DeleteAlarms",
                 "cloudwatch:DescribeAlarms",
                 "cloudwatch:TagResource",
-                "cloudwatch:UntagResource"
+                "cloudwatch:UntagResource",
+                "cloudwatch:ListTagsForResource"
               ],
               "Resource": [
                 "arn:aws:cloudwatch:ap-southeast-2:666734238831:alarm:boxvault-app-*"
@@ -1090,7 +1098,73 @@
                 "cloudformation:DescribeEvents"
               ],
               "Resource": "*"
+            },
+            {
+              "Sid": "RdsManagedEncryptionGrant",
+              "Effect": "Allow",
+              "Action": "kms:CreateGrant",
+              "Resource": "arn:aws:kms:ap-southeast-2:666734238831:key/*",
+              "Condition": {
+                "StringEquals": {
+                  "kms:ViaService": "rds.ap-southeast-2.amazonaws.com",
+                  "kms:CallerAccount": "666734238831"
+                },
+                "Bool": {
+                  "kms:GrantIsForAWSResource": "true"
+                }
+              }
+            },
+            {
+              "Sid": "ReadRdsServiceLinkedRole",
+              "Effect": "Allow",
+              "Action": "iam:GetRole",
+              "Resource": "arn:aws:iam::666734238831:role/aws-service-role/rds.amazonaws.com/AWSServiceRoleForRDS"
             }
+          ]
+        }
+      }
+    },
+    "DeploymentPermissions3": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "BoxVaultAppDeploy3",
+        "Path": "/boxvault/deployment/",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "RdsProvisioningMetadata",
+              "Effect": "Allow",
+              "Action": [
+                "rds:DescribeEngineDefaultParameters",
+                "rds:DescribeDBClusters",
+                "rds:DescribeDBClusterSnapshots",
+                "rds:DescribeDBInstanceAutomatedBackups",
+                "rds:DescribeEvents"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "NamedFunctionConfigurationMetadata",
+              "Effect": "Allow",
+              "Action": [
+                "lambda:GetFunctionCodeSigningConfig",
+                "lambda:GetFunctionRecursionConfig",
+                "lambda:GetRuntimeManagementConfig",
+                "lambda:GetFunctionScalingConfig"
+              ],
+              "Resource": "arn:aws:lambda:ap-southeast-2:666734238831:function:boxvault-app-*"
+            }
+          ]
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "CloudFormation published resource handlers require additional read-only RDS and named-function configuration metadata.",
+          "must": [
+            "No secret values or application data",
+            "Selected Region only",
+            "No quota increases or plan changes"
           ]
         }
       }

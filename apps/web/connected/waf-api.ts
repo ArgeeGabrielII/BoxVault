@@ -23,11 +23,15 @@ export function loadSecurity() {
  return ready;
 }
 let queue: Promise<unknown> = Promise.resolve();
+let lastStarted = 0;
 export async function hostedFetch(input: RequestInfo | URL, init?: RequestInit) {
  if(import.meta.env?.MODE!=='aws')return fetch(input,init);
  const request=queue.then(async()=>{
   await loadSecurity();const token=await window.AwsWafIntegration!.getToken();
+  const wait = Math.max(0, lastStarted + 1100 - Date.now());
+  if (wait) await new Promise(resolve => setTimeout(resolve, wait));
   const headers=new Headers(init?.headers);headers.set('x-aws-waf-token',token);
+  lastStarted = Date.now();
   // Never replay a possibly committed mutation after an edge/network failure.
   return fetch(input,{...init,headers});
  });
