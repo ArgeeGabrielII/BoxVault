@@ -12,7 +12,7 @@ Run `pnpm install --frozen-lockfile`, then `pnpm dev:local`, and open **http://1
 
 ## AWS migration preparation
 
-[AWS service mapping, cost/account discovery and migration runbook](deployment/aws-migration.md). Preparation only; no resources or data have been migrated. Read-only CLI discovery: `pnpm aws:readiness --profile boxvault --region ap-southeast-1`.
+[AWS service mapping, cost/account discovery and migration runbook](deployment/aws-migration.md). Read-only Agent Toolkit access is installed; application infrastructure and data migration remain pending. [Toolkit setup and renewal](deployment/aws-agent-toolkit.md). Read-only CLI discovery: `pnpm aws:readiness --profile boxvault-restricted --region ap-southeast-2`.
 
 ## Start here
 

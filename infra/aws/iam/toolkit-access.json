@@ -1,0 +1,248 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "BoxVault read-only Agent Toolkit IAM identity only. No application resources or paid-plan changes.",
+  "Parameters": {
+    "ApprovedBootstrapRoleArn": {
+      "Type": "String",
+      "Default": "arn:aws:iam::666734238831:role/managed/AccountFullAccessRole",
+      "AllowedPattern": "^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]+$",
+      "Description": "Existing project owner role verified by IAM GetRole. Must be in this project account."
+    }
+  },
+  "Resources": {
+    "ToolkitBoundary": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "BoxVaultToolkitReadinessBoundary",
+        "Path": "/boxvault/",
+        "Description": "Maximum read-only permissions for BoxVault toolkit, including explicit deny of all other actions",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "DenyEveryOtherAction",
+              "Effect": "Deny",
+              "NotAction": [
+                "rds:DescribeDBInstances",
+                "rds:DescribeDBEngineVersions",
+                "rds:DescribeOrderableDBInstanceOptions",
+                "ses:GetAccount",
+                "ses:ListEmailIdentities",
+                "ec2:DescribeAvailabilityZones",
+                "cloudformation:ValidateTemplate",
+                "freetier:GetAccountPlanState",
+                "budgets:ViewBudget",
+                "sts:GetCallerIdentity"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "ReadOwnIdentity",
+              "Effect": "Allow",
+              "Action": "sts:GetCallerIdentity",
+              "Resource": "*"
+            },
+            {
+              "Sid": "ReadSydneyServiceMetadata",
+              "Effect": "Allow",
+              "Action": [
+                "rds:DescribeDBInstances",
+                "rds:DescribeDBEngineVersions",
+                "rds:DescribeOrderableDBInstanceOptions",
+                "ses:GetAccount",
+                "ses:ListEmailIdentities",
+                "ec2:DescribeAvailabilityZones",
+                "cloudformation:ValidateTemplate"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "ap-southeast-2"
+                }
+              }
+            },
+            {
+              "Sid": "DenyOtherRegionalEndpoints",
+              "Effect": "Deny",
+              "Action": [
+                "rds:DescribeDBInstances",
+                "rds:DescribeDBEngineVersions",
+                "rds:DescribeOrderableDBInstanceOptions",
+                "ses:GetAccount",
+                "ses:ListEmailIdentities",
+                "ec2:DescribeAvailabilityZones",
+                "cloudformation:ValidateTemplate"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringNotEquals": {
+                  "aws:RequestedRegion": "ap-southeast-2"
+                }
+              }
+            },
+            {
+              "Sid": "ReadPlanAndBudgetMetadata",
+              "Effect": "Allow",
+              "Action": [
+                "freetier:GetAccountPlanState",
+                "budgets:ViewBudget"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "us-east-1"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ToolkitRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "BoxVaultToolkitReadOnly",
+        "Path": "/boxvault/",
+        "Description": "Read-only service readiness for BoxVault tooling; no deployments, data or secret retrieval",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Ref": "ApprovedBootstrapRoleArn"
+                }
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:PrincipalAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "StringLike": {
+                  "sts:RoleSessionName": "boxvault-toolkit-*"
+                }
+              }
+            }
+          ]
+        },
+        "PermissionsBoundary": {
+          "Ref": "ToolkitBoundary"
+        },
+        "Policies": [
+          {
+            "PolicyName": "BoxVaultToolkitReadiness",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "DenyEveryOtherAction",
+                  "Effect": "Deny",
+                  "NotAction": [
+                    "rds:DescribeDBInstances",
+                    "rds:DescribeDBEngineVersions",
+                    "rds:DescribeOrderableDBInstanceOptions",
+                    "ses:GetAccount",
+                    "ses:ListEmailIdentities",
+                    "ec2:DescribeAvailabilityZones",
+                    "cloudformation:ValidateTemplate",
+                    "freetier:GetAccountPlanState",
+                    "budgets:ViewBudget",
+                    "sts:GetCallerIdentity"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "ReadOwnIdentity",
+                  "Effect": "Allow",
+                  "Action": "sts:GetCallerIdentity",
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "ReadSydneyServiceMetadata",
+                  "Effect": "Allow",
+                  "Action": [
+                    "rds:DescribeDBInstances",
+                    "rds:DescribeDBEngineVersions",
+                    "rds:DescribeOrderableDBInstanceOptions",
+                    "ses:GetAccount",
+                    "ses:ListEmailIdentities",
+                    "ec2:DescribeAvailabilityZones",
+                    "cloudformation:ValidateTemplate"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-2"
+                    }
+                  }
+                },
+                {
+                  "Sid": "DenyOtherRegionalEndpoints",
+                  "Effect": "Deny",
+                  "Action": [
+                    "rds:DescribeDBInstances",
+                    "rds:DescribeDBEngineVersions",
+                    "rds:DescribeOrderableDBInstanceOptions",
+                    "ses:GetAccount",
+                    "ses:ListEmailIdentities",
+                    "ec2:DescribeAvailabilityZones",
+                    "cloudformation:ValidateTemplate"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringNotEquals": {
+                      "aws:RequestedRegion": "ap-southeast-2"
+                    }
+                  }
+                },
+                {
+                  "Sid": "ReadPlanAndBudgetMetadata",
+                  "Effect": "Allow",
+                  "Action": [
+                    "freetier:GetAccountPlanState",
+                    "budgets:ViewBudget"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "BoxVault"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "ReadOnlyToolkit"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ToolkitRoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ToolkitRole",
+          "Arn"
+        ]
+      }
+    },
+    "ToolkitBoundaryArn": {
+      "Value": {
+        "Ref": "ToolkitBoundary"
+      }
+    }
+  }
+}

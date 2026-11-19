@@ -1,6 +1,18 @@
 # AWS migration preparation
 
-Reviewed 2026-11-18 (Asia/Manila). **Preparation only: nothing has been provisioned or migrated.** Owner confirmed a Free account created approximately one week ago and selected an empty AWS database. The account plan still needs independent CLI verification; authenticated access and sender identity are pending. No local or Neon records will be imported. Existing local data and services remain in place.
+Updated 2026-11-19 (Asia/Manila). **Agent Toolkit and its read-only IAM access are installed; application migration is not complete.** The owner selected an empty AWS database. No local or Neon records have been imported, no application database or storage bucket has been provisioned, and existing local services remain in place. AWS API verification reports the Free plan is ACTIVE, with USD 200 credits at this checkpoint. Sender identity and application deployment remain pending.
+
+## Agent Toolkit setup checkpoint
+
+The owner confirmed the new AWS experience and selected Sydney (`ap-southeast-2`), superseding the earlier proposed Singapore region. Profile: `boxvault-restricted`. Guidance: **HIGH**, already selected by the owner.
+
+Setup follows the [AWS guide](https://raw.githubusercontent.com/aws/agent-toolkit-for-aws/refs/heads/main/setup-instructions/setup.md). AWS CLI and uv are installed. Browser authentication and STS succeeded. The initial session used the managed owner role; the broad-profile installer was rejected by automatic approval review. The completed safer setup uses a separately provisioned `BoxVaultToolkitReadOnly` role and matching permissions boundary, defined in `infra/aws/iam/toolkit-access.json` and `toolkit-readonly-policy.json`. The Sydney stack `boxvault-toolkit-access` is CREATE_COMPLETE with exactly those two IAM resources.
+
+Twenty-five default skills are installed for each of Codex and Kiro. Their AWS MCP entries expose only `boxvault-restricted` through `AWS_MCP_PROXY_PROFILES`; existing integrations were preserved. The installer omitted an existing Node REPL args setting, which was restored and compared against the private backup. MCP initialization and complete tools/list succeeded. Public skill catalog verification succeeded. Project guidance is installed in `AGENTS.md` and `.kiro/steering/aws-agent-toolkit.md`. Restart the AI tools to load their new connections.
+
+STS now identifies the restricted role. A live Sydney RDS metadata read succeeded; a live IAM ListRoles call was explicitly denied. IAM simulation allows the intended identity/metadata reads and explicitly denies database creation, email sending, secret retrieval, S3 objects, role switching, IAM role creation and paid-plan upgrade. Access Analyzer returned no findings. These checks establish tooling access, not application or production acceptance.
+
+The private browser-login source is retained as `boxvault-bootstrap-owner` for renewal and authorized IAM bootstrap, outside the MCP profile allowlist. Renew it with `aws login --profile boxvault-bootstrap-owner --region ap-southeast-2`; do not run aws login directly on the restricted role profile, which could replace that profile's intended configuration. The restricted role uses one-hour sessions. The toolkit uses `us-east-1` for its catalog/service; the project remains in Sydney. [Operational details](aws-agent-toolkit.md).
 
 ## Current state and proposed replacements
 
@@ -27,21 +39,21 @@ SES pricing changed in July 2026; do not assume the historical 3,000-message all
 
 CloudFront's $0 flat-rate service plan is distinct from the AWS Free account plan: its current documentation excludes Free Tier accounts. Check availability before selecting it. Budgets and alerts notify; they do not guarantee a spending cap or stop all resources.
 
-Start with a non-root AWS CLI profile authenticated privately on the operator's computer. Never paste keys, database URLs or SMTP passwords into chat or GitHub. AWS CLI v2.40.0 is installed on the inspected computer. Browser sign-in for the `boxvault` profile has been initiated; no successful authenticated session has yet been verified. Run `aws login --profile boxvault --region ap-southeast-1` in your terminal to sign in if necessary. Use a non-root IAM identity with the `SignInLocalDevelopmentAccess` policy; IAM Identity Center users should use their existing SSO flow instead.
+Use the authenticated `boxvault-restricted` role profile for metadata checks. Never paste keys, database URLs, SMTP passwords or browser tokens into chat or GitHub. The toolkit profile cannot deploy the application; prepare a separate narrowly scoped deployment identity for that authorized work rather than broadening the toolkit identity.
 
 Once CLI v2 and a profile exist:
 
 ```bash
-pnpm aws:readiness --profile boxvault --region ap-southeast-1
+pnpm aws:readiness --profile boxvault-restricted --region ap-southeast-2
 ```
 
-Singapore is an example, not a finalized region. The command only reads caller identity, Free Tier plan metadata, SES account/verified-identity counts, RDS instance metadata and budget count. It does not send email, create a budget, provision resources, fetch stored secret values or read application records. Missing permissions return an unknown status, not an assumption of eligibility. It always requires review; an empty RDS list does not establish that a new instance would be free. Inspect console credits/expiry and a region-specific estimate before writing infrastructure.
+Sydney is the owner-confirmed project Region. The command only reads caller identity, Free Tier plan metadata, SES account/verified-identity counts, RDS instance metadata and budget count. It does not send email, create a budget, provision resources, fetch stored secret values or read application records. Missing permissions return an unknown status, not an assumption of eligibility. It always requires review; an empty RDS list does not establish that a new instance would be free. Inspect console credits/expiry and a region-specific estimate before writing infrastructure.
 
 ## Prepared empty data foundation
 
 `infra/aws/data-foundation.json` is a concrete CloudFormation draft, not a deployed stack. It defines an isolated VPC, two private subnets, an API security group with no inbound rules, PostgreSQL ingress only from that group, an encrypted Single-AZ 20 GiB RDS database and a private S3 media bucket with public access blocked and TLS enforced. It creates no EC2 host, public IP, NAT gateway, load balancer, email identity or email message. It cannot yet be reached from your laptop: an authorized API host/SSM migration connection must be provisioned separately before applying schema migrations.
 
-`PostgresVersion` intentionally has no default: first query an orderable PostgreSQL 18 minor version on the selected micro class in Singapore. If the account/region does not offer a compatible micro configuration, stop and compare options rather than silently changing the instance class or account plan. Native PostgreSQL 18 compatibility is not proof of RDS role/permission compatibility.
+`PostgresVersion` intentionally has no default: first query an orderable PostgreSQL 18 minor version on the selected micro class in Sydney. If the account/region does not offer a compatible micro configuration, stop and compare options rather than silently changing the instance class or account plan. Native PostgreSQL 18 compatibility is not proof of RDS role/permission compatibility.
 
 The master password is RDS-managed in Secrets Manager, which has its own charges/credit consumption. Do not use this master credential in NestJS. Runtime roles/secrets and all seven Prisma migrations remain an explicit later step; an RDS `CREATE_COMPLETE` status is not a migrated/usable application. No old data is restored for this owner-selected fresh start.
 
@@ -60,7 +72,7 @@ Local JSON/reference validation is available without authentication; AWS-side `v
 7. **Accept before cutover.** Prove register → real verification email → login/reset/MFA → saved box/items → label issue/rotation → invite/accept → private denied → shared allowed → revoke denied, plus wrong-tenant, replay and concurrent seat-limit negatives. Repeat browser/device tests against the public HTTPS origin. A local `127.0.0.1` QR must be regenerated for that origin. Add private photo APIs/UI and their access tests before claiming picture uploads work. Buying credits remains a separate feature.
 8. **Cut over with rollback available.** Pause source writes briefly, take the final backup, import/verify, switch traffic and watch delivery/errors. Retain the old source read-only for an agreed rollback window. Define reconciliation for any writes on AWS before rollback; switching DNS alone cannot safely roll back divergent databases. Remove old services only after successful acceptance and a backup/restore exercise.
 
-Do not run `pnpm dev:local` as the AWS deployment command. It intentionally creates its own loopback database, test SMTP sink and CAPTCHA-off test profile. AWS deployment must have its own production configuration and build path. No destructive migration, AWS account upgrade, source deletion, domain purchase or hosted cutover has occurred.
+Do not run `pnpm dev:local` as the AWS deployment command. It intentionally creates its own loopback database, test SMTP sink and CAPTCHA-off test profile. AWS deployment must have its own production configuration and build path. No destructive migration, AWS plan upgrade, source deletion, domain purchase or hosted cutover has occurred. Only the dedicated toolkit IAM access stack has been created.
 
 ## Verified primary references
 
