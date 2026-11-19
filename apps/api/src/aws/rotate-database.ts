@@ -19,6 +19,20 @@ export async function handler(event: {SecretId?:string;ClientRequestToken?:strin
   const metadata=await secrets.send(new DescribeSecretCommand({SecretId:id}));
   const stages=metadata.VersionIdsToStages?.[token];
   if(!metadata.RotationEnabled || !stages)throw Error('Unregistered rotation');
+  if(event.Step==='verifyOutcome') {
+   if(!stages.includes('AWSCURRENT'))throw Error('Outcome requires the current rotation version');
+   const active=validate((await secret(id,token)).data);await test(active);
+   const previous=Object.entries(metadata.VersionIdsToStages ?? {}).find(([version,labels])=>version!==token && labels.includes('AWSPREVIOUS'))?.[0];
+   if(!previous)throw Error('No previous credential version to test');
+   const old=validate((await secret(id,previous,'AWSPREVIOUS')).data);
+   let rejected=false;
+   try {await test(old);} catch(error) {
+    const value=error as {code?:string;errorCode?:string};
+    if(value.code==='P1000' || value.errorCode==='P1000')rejected=true;else throw error;
+   }
+   if(!rejected)throw Error('Previous credential still permits new connections');
+   return {status:'verified',currentConnected:true,previousAuthenticationRejected:true};
+  }
   if(stages.includes('AWSCURRENT'))return {status:'already-current'};
   if(!stages.includes('AWSPENDING'))throw Error('Invalid rotation stage');
   const current=await secret(id);validate(current.data);

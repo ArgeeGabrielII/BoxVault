@@ -4,7 +4,7 @@
 > **Platform policy (2026-11-19):** Follow the [accepted AWS primary-platform decision](../architecture/aws-platform-decision.md) and [daily rotation policy](secret-rotation.md): Sydney, one API host and Single-AZ RDS; Auto Scaling/Multi-AZ deferred. This document does not by itself prove hosted deployment, live rotation or production acceptance.
 <!-- END current AWS platform -->
 
-Updated 2026-11-19 (Asia/Manila). **Agent Toolkit and its read-only IAM access are installed; application migration is not complete.** The owner selected an empty AWS database. No local or Neon records have been imported, no application database or storage bucket has been provisioned, and existing local services remain in place. AWS API verification reports the Free plan is ACTIVE, with USD 200 credits at this checkpoint. Sender identity and application deployment remain pending.
+Updated 2026-11-19 (Asia/Manila). **Agent Toolkit and its read-only IAM access are installed; application migration is not complete.** The owner selected an empty AWS database. No local or Neon records have been imported, no application database or storage bucket has been provisioned, and existing local services remain in place. AWS API verification reports the Free plan is ACTIVE, with USD 199.45 remaining credits at the latest observation. The temporary individual SES sender is verified; application deployment remains pending. See the [deployment checkpoint](aws-free-plan-deployment.md) for current evidence and the unresolved shared-five concurrency decision.
 
 ## Agent Toolkit setup checkpoint
 
@@ -33,7 +33,7 @@ The private browser-login source is retained as `boxvault-bootstrap-owner` for r
 
 Moving the existing authentication code to AWS is sufficient to host identity data in AWS. Switching to Cognito is a separate identity migration with password/MFA compatibility and account-linking implications; it is not required for this infrastructure move. No database rewrite to DynamoDB is planned.
 
-A candidate small prototype is one EC2 API/web host plus one private Single-AZ RDS instance, SES and private S3. EC2 should serve the built app and `/api/v1` through a TLS reverse proxy; database ingress is restricted to the API security group. This is a candidate, not a selected or guaranteed-free configuration. Compare it against Lambda/API Gateway with the real account credits and projected usage before choosing; do not add NAT Gateway, load balancer or RDS Proxy by default. Public IPv4, EBS, database storage/backups, logs, requests and egress still need pricing. A single host is not a high-availability production design.
+The owner selected a domainless prototype: CloudFront’s AWS hostname, private S3 origins, uncached Regional API Gateway REST API, a Node 24 Lambda adapter for NestJS, private Single-AZ RDS, SES API, and Secrets Manager. Private functions use two single-AZ interface endpoints rather than a NAT gateway. AWS rejected reserved concurrency one under the project’s five-execution quota; the shared-five alternative requires the owner’s choice before hourly-cost provisioning. No EC2, ALB, domain purchase, quota increase or paid upgrade is planned. This single-AZ prototype has no high-availability acceptance.
 
 ## Account and cost discovery
 

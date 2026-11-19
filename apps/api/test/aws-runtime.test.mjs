@@ -35,3 +35,31 @@ test('SES sends with workload credentials and keeps the single-use proof in the 
 test('changing the cryptographic version fails on a fresh cold start as well',async()=>{
  const values=fixtures();values.crypto.VersionId='unapproved-new-version';await assert.rejects(createRuntimeLoader(reader(values))(),/migration required/);
 });
+
+for (const scenario of ['previous-auth-rejected','previous-still-valid','previous-network-error','missing-previous','not-current','current-auth-error']) test('rotation outcome: '+scenario,async()=>{
+ const database=require('../dist/aws/database.js');
+ const {handler}=require('../dist/aws/rotate-database.js');
+ const original={secret:database.secret,withDatabase:database.withDatabase,send:database.secrets.send,error:console.error};
+ const id=refs.content,token='a'.repeat(32),previous='b'.repeat(32);
+ const candidate={username:'boxvault_runtime_m1',host:'boxvault-app-test.example.ap-southeast-2.rds.amazonaws.com',dbname:'boxvault',engine:'postgres',port:5432};
+ Object.assign(process.env,{TARGET_SECRET_ARN:id,TARGET_DB_USER:candidate.username,DATABASE_HOST:candidate.host,BOXVAULT_ROTATION_RUNTIME:'1'});
+ const opened=[];
+ database.secrets.send=async()=>({RotationEnabled:true,VersionIdsToStages:{[token]:[scenario==='not-current'?'AWSPENDING':'AWSCURRENT'],...(scenario==='missing-previous'?{}:{[previous]:['AWSPREVIOUS']})}});
+ database.secret=async(_id,version)=>({version,data:{...candidate,password:(version===previous?'p':'n').repeat(40)}});
+ database.withDatabase=async(address,fn)=>{
+  const old=new URL(address).password==='p'.repeat(40);opened.push(old?'previous':'current');
+  if((old && scenario==='previous-auth-rejected') || (!old && scenario==='current-auth-error'))throw Object.assign(Error('synthetic auth failure'),{errorCode:'P1000'});
+  if(old && scenario==='previous-network-error')throw Object.assign(Error('synthetic connection failure'),{errorCode:'P1001'});
+  return fn({$queryRawUnsafe:async()=>[{current_user:candidate.username,rolsuper:false,rolbypassrls:false,rolcreaterole:false,rolcreatedb:false,rolinherit:false}]});
+ };
+ console.error=()=>{};
+ try {
+  const invoke=()=>handler({SecretId:id,ClientRequestToken:token,Step:'verifyOutcome'});
+  if(scenario==='previous-auth-rejected') {
+   assert.deepEqual(await invoke(),{status:'verified',currentConnected:true,previousAuthenticationRejected:true});
+   assert.deepEqual(opened,['current','previous']);
+  } else await assert.rejects(invoke,/Database credential rotation failed/);
+  if(scenario==='not-current')assert.deepEqual(opened,[]);
+  if(scenario==='missing-previous' || scenario==='current-auth-error')assert.deepEqual(opened,['current']);
+ } finally {database.secret=original.secret;database.withDatabase=original.withDatabase;database.secrets.send=original.send;console.error=original.error;}
+});
