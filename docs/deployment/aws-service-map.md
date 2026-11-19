@@ -6,6 +6,8 @@ The project API currently reports Free / ACTIVE with USD 200 credits. Credits fu
 
 ## Recommended first implementation
 
+**Owner decision (2026-11-19):** one API instance, RDS Single-AZ, no Auto Scaling or Multi-AZ for the initial release. Daily credential rotation is required; see [rotation policy and implementation gates](secret-rotation.md).
+
 Keep the existing modular NestJS API on a small EC2 host, PostgreSQL on private RDS, private files in S3, and transactional email in SES. Keep current password/MFA/session/Family authorization code. This minimizes migration changes; a later Lambda or container move can be evaluated separately.
 
 For the website, use a private S3 REST origin plus CloudFront OAC. Route `/api/*` to the HTTPS API origin with caching disabled, the required Authorization/header/cookie forwarding and the same public origin as the frontend. Static assets may be cached; tenant APIs, sessions and private photos must not be cached as public content.
@@ -42,7 +44,7 @@ Public origin access must be restricted so API callers cannot bypass edge protec
 | Bounce / complaint feedback | SNS + signed API webhook | Deliver SES feedback to the app; validate the topic/signature, redact logs and update suppression state. No Lambda is required if the API receives the webhook. |
 | Network separation | VPC, subnets, security groups, route tables | RDS is private; PostgreSQL ingress only from the API group. Use a narrowly exposed API host and Session Manager administration. A public-subnet API host can avoid a NAT gateway, but its public IPv4 is still charged. |
 | HTTPS / DNS | CloudFront TLS; Route 53 if using an owned domain; Caddy initially OR ALB + ACM | Default CloudFront hostname avoids buying a viewer domain immediately. Domain registration/hosted zones and ALB are separate costs. Keep origin TLS valid. SES sender verification is independent of visitor HTTPS. |
-| Runtime credentials and encryption | Secrets Manager + service encryption / KMS | Exact application secrets, SMTP credentials if using SMTP, and separate migration secrets. No secrets in VITE variables, GitHub source, frontend bundles or chat. Start with service-managed encryption where suitable; assess extra customer-managed-key costs separately. |
+| Runtime credentials and encryption | Secrets Manager + service encryption / KMS | Daily database credential rotation, with runtime refresh and failure alarms. Prefer SES API/temporary IAM credentials over static SMTP passwords. JWT, pepper and TOTP keys require version-aware rotation code. See the dedicated rotation policy; no blind daily overwrites. |
 | Workload / deployment permissions | IAM roles + STS | Separate read-only agent, API runtime, deployment and migration duties. The current toolkit role stays read-only. Never create an IAM identity for each BoxVault customer or map app admins to AWS admin access. |
 | Logs, availability checks, alerts | CloudWatch Logs, metrics and alarms | Redact credentials/proofs, set retention and size limits, monitor API health, errors, instance memory/disk, database connections and email failures. Billing estimates must include log ingestion. |
 | AWS administrative audit | CloudTrail | Use management-event history initially; configure a trail/retention if needed. Data-event logging has separate scope/cost. CloudTrail does not replace BoxVault's application audit/financial ledger in PostgreSQL. |
@@ -67,7 +69,7 @@ SES sandbox initially permits only verified recipients/simulator and has low quo
 | Lambda | Image processing, feedback or webhook/event workers should execute independently | Existing API can remain on EC2. Check native image dependencies, execution limits and private-DB connectivity/egress cost before moving workloads. |
 | EventBridge Scheduler | Expiration cleanup, reminder and reconciliation jobs need managed scheduling | Request-time entitlement enforcement is still necessary; a scheduled job must never be the only check that stops expired access. |
 | ECR + ECS/Fargate | Container deployments and scaling justify a container runtime | Adds image pipeline, networking and runtime choices beyond a single existing API host. |
-| Auto Scaling + ALB; RDS Multi-AZ | Required availability, load or customer commitments exceed a one-host/Single-AZ prototype | Higher baseline cost; a single EC2 / Single-AZ database is not a high-availability production design. ALB may be selected earlier for AWS-native TLS. |
+| Auto Scaling / RDS Multi-AZ | Deferred by the owner for this small project | Excluded from the initial deployment. ALB remains a separate optional TLS choice; it does not require Auto Scaling. |
 | ElastiCache / Redis | Measured caching, coordination or throughput needs justify it | Do not cache authorization without revocation design; PostgreSQL remains authoritative. |
 | Cognito | A separate migration to AWS-managed identity is explicitly desired | Existing password hashes, TOTP factors, sessions and tenant identities need a migration plan. It does not replace Family/container authorization. |
 | API Gateway / Lambda Web Functions | A deliberate serverless API architecture is selected | Avoid layering them onto an EC2 HTTP API without a requirement. Web Functions currently require Node 24/arm64 and their own deployment/networking checks; the current API targets Node 22. |

@@ -51,6 +51,8 @@ Sydney is the owner-confirmed project Region. The command only reads caller iden
 
 ## Prepared empty data foundation
 
+**Owner decision (2026-11-19):** initial deployment remains one API host / Single-AZ RDS with no Auto Scaling. The draft now includes a daily rotation schedule for the RDS-managed master secret. [Daily secret-rotation scope and readiness gates](secret-rotation.md) distinguish that schedule from the unimplemented runtime-user and application-key rotation work. Nothing has been enabled live.
+
 `infra/aws/data-foundation.json` is a concrete CloudFormation draft, not a deployed stack. It defines an isolated VPC, two private subnets, an API security group with no inbound rules, PostgreSQL ingress only from that group, an encrypted Single-AZ 20 GiB RDS database and a private S3 media bucket with public access blocked and TLS enforced. It creates no EC2 host, public IP, NAT gateway, load balancer, email identity or email message. It cannot yet be reached from your laptop: an authorized API host/SSM migration connection must be provisioned separately before applying schema migrations.
 
 `PostgresVersion` intentionally has no default: first query an orderable PostgreSQL 18 minor version on the selected micro class in Sydney. If the account/region does not offer a compatible micro configuration, stop and compare options rather than silently changing the instance class or account plan. Native PostgreSQL 18 compatibility is not proof of RDS role/permission compatibility.

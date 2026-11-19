@@ -11,6 +11,7 @@ inclusion: always
 - Use `boxvault-restricted` for AWS tooling and MCP. It assumes `BoxVaultToolkitReadOnly`, with an explicit action allowlist and permissions boundary. The profile is deliberately read-only.
 - `boxvault-bootstrap-owner` is a separate browser-login source used only for credential renewal and explicitly authorized IAM bootstrap. Do not expose it through MCP or switch to it to work around a denied application operation.
 - Renew the source login with `aws login --profile boxvault-bootstrap-owner --region ap-southeast-2`. Do not run `aws login` directly on the role-based restricted profile: that could replace its intended configuration.
+- Initial deployment: one API instance, RDS Single-AZ, no Auto Scaling or Multi-AZ (owner decision 2026-11-19). Daily credential rotation is required. Application signing/encryption keys need version-aware handling before automatic rotation; do not replace keys blindly or widen toolkit access.
 - Preserve the owner's Free-plan requirement. Do not upgrade the plan, activate advanced features, or create/join AWS Organizations or Control Tower as an automatic setup workaround.
 - The toolkit service/catalog uses `us-east-1` as required by AWS; this does not change the project's selected Region.
 - Keep the toolkit access role and boundary while toolkit access is wanted. Do not remove them as speculative cleanup after setup.

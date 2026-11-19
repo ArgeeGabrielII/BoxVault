@@ -322,6 +322,22 @@
           ]
         }
       }
+    },
+    "DatabaseMasterDailyRotation": {
+      "Type": "AWS::SecretsManager::RotationSchedule",
+      "Properties": {
+        "SecretId": {
+          "Fn::GetAtt": [
+            "Database",
+            "MasterUserSecret.SecretArn"
+          ]
+        },
+        "RotateImmediatelyOnUpdate": false,
+        "RotationRules": {
+          "ScheduleExpression": "rate(1 day)",
+          "Duration": "1h"
+        }
+      }
     }
   },
   "Outputs": {
